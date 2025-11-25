@@ -2,103 +2,145 @@ import { Injectable } from '@nestjs/common';
 import { MessagesService } from '../messages/messages.service';
 import { CustomersService } from '../customers/customers.service';
 import { AiService } from '../ai/ai.service';
+import { AiSettingsService } from '../ai/ai-settings.service';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
 import { WebsocketGateway } from '../../websockets/websocket.gateway';
-
+import { BookingsService } from '../bookings/bookings.service';
+import { PaymentsService } from '../payments/payments.service';
 @Injectable()
 export class WebhooksService {
   constructor(
-    private messagesService: MessagesService,
-    private customersService: CustomersService,
-    private aiService: AiService,
-    @InjectQueue('messageQueue') private messageQueue: Queue,
-    private websocketGateway: WebsocketGateway,
+  private messagesService: MessagesService,
+  private customersService: CustomersService,
+  private aiService: AiService,
+  private aiSettingsService: AiSettingsService,
+  private bookingsService: BookingsService,  // ✅ add this
+  private paymentsService: PaymentsService,  // ✅ add this
+  @InjectQueue('messageQueue') private messageQueue: Queue,
+  private websocketGateway: WebsocketGateway,
   ) {}
-
-  async handleWhatsAppWebhook(body: any) {
-    if (body.object === 'whatsapp_business_account') {
-      for (const entry of body.entry) {
-        for (const change of entry.changes) {
-          if (change.field === 'messages') {
-            await this.processWhatsAppMessage(change.value);
-          }
-        }
-      }
-    }
-    return { status: 'ok' };
+async handleWhatsAppWebhook(body: any) {
+  if (body.object !== 'whatsapp_business_account') {
+    return { status: 'ignored' };
   }
 
-  async processWhatsAppMessage(value: any) {
+  for (const entry of body.entry || []) {
+    for (const change of entry.changes || []) {
 
-    // Only process if this is a messages notification (not status update)
-    if (!value.messages || value.messages.length === 0) {
-      console.log('No messages in webhook payload - ignoring');
-      return;
-    }
+      const value = change.value;
 
-    const message = value.messages[0];
-    console.log('Message type:', message.type, 'ID:', message.id);
-
-    if (message.type === 'text') {
-      const from = message.from;
-      const text = message.text.body;
-      const messageId = message.id;
-
-      console.log('Received text message from', from, ':', text);
-
-      // Check if message already exists to prevent duplicates
-      const existingMessage = await this.messagesService.findByExternalId(messageId);
-      if (existingMessage) {
-        console.log('Message already processed, skipping duplicate');
-        return;
+      // PROCESS ONLY IF THERE ARE MESSAGE OBJECTS INSIDE
+      if (value?.messages && value.messages.length > 0) {
+        await this.processWhatsAppMessage(value);
       }
-
-      // Find or create customer
-      let customer = await this.customersService.findByWhatsappId(from);
-      if (!customer) {
-        console.log('Creating new customer for WhatsApp ID:', from);
-        customer = await this.customersService.create({
-          name: `WhatsApp User ${from}`,
-          email: `${from}@whatsapp.local`,
-          phone: from,
-          whatsappId: from,
-        });
-      }
-
-      console.log('Customer found/created:', customer.id);
-
-      // Create inbound message with external ID to prevent duplicates
-      const createdMessage = await this.messagesService.create({
-        content: text,
-        platform: 'whatsapp',
-        direction: 'inbound',
-        customerId: customer.id,
-        externalId: messageId, // Add this field to schema if needed
-      });
-
-      console.log('Message created in database:', createdMessage.id);
-
-      // Emit real-time update via WebSocket for inbound message
-      this.websocketGateway.emitNewMessage('whatsapp', {
-        id: createdMessage.id,
-        from: from,
-        to: '',
-        content: text,
-        timestamp: createdMessage.createdAt.toISOString(),
-        direction: 'inbound',
-        customerId: customer.id,
-        customerName: customer.name,
-      });
-
-      // Queue the message for AI processing
-      console.log('Adding message to queue for processing...');
-      await this.messageQueue.add('processMessage', {
-        messageId: createdMessage.id,
-      });
-      console.log('Message added to queue successfully');
     }
   }
+
+  return { status: 'ok' };
+}
+
+async processWhatsAppMessage(value: any) {
+  const messages = value?.messages;
+  if (!messages || messages.length === 0) {
+    console.log('No messages in webhook payload - ignoring');
+    return;
+  }
+
+  const message = messages[0];
+  const from = message.from;
+  const text = message.text?.body;
+  const messageId = message.id;
+
+  console.log('Message type:', message.type, 'ID:', message.id);
+
+  if (!text) {
+    console.log("Ignoring non-text message");
+    return;
+  }
+
+  console.log('Received text message from', from, ':', text);
+
+  // Check duplicates
+  const existing = await this.messagesService.findByExternalId(messageId);
+  if (existing) {
+    console.log("Duplicate inbound message ignored");
+    return;
+  }
+
+  // Find or create customer
+  let customer = await this.customersService.findByWhatsappId(from);
+  if (!customer) {
+    console.log("Creating customer:", from);
+    customer = await this.customersService.create({
+      name: `WhatsApp User ${from}`,
+      whatsappId: from,
+      phone: from,
+      email: `${from}@whatsapp.local`,
+    });
+  }
+
+  // Save inbound message
+  const created = await this.messagesService.create({
+    content: text,
+    platform: 'whatsapp',
+    direction: 'inbound',
+    customerId: customer.id,
+    externalId: messageId,
+  });
+
+  console.log("Message saved:", created.id);
+
+  // WebSocket
+  this.websocketGateway.emitNewMessage('whatsapp', {
+    id: created.id,
+    from,
+    to: '',
+    content: text,
+    timestamp: created.createdAt.toISOString(),
+    direction: 'inbound',
+    customerId: customer.id,
+    customerName: customer.name,
+  });
+
+  // Check if the user sent a phone number (Kenyan format)
+  const phoneMatch = text.match(/0\d{9}/); // Matches 0721840961
+  if (phoneMatch) {
+    const newPhone = phoneMatch[0];
+    console.log(`User provided new phone number: ${newPhone}`);
+
+    // Update customer's phone
+    await this.customersService.updatePhone(from, newPhone);
+
+    // Trigger MPESA deposit prompt
+    const draft = await this.bookingsService.getBookingDraft(customer.id);
+    if (draft) {
+      const amount = await this.bookingsService.getDepositForDraft(customer.id) || 2000; // fallback deposit
+      const checkoutId = await this.paymentsService.initiateSTKPush(draft.id, newPhone, amount);
+
+      // Send WhatsApp confirmation/prompt
+      await this.messagesService.sendOutboundMessage(
+        customer.id,
+        `Deposit payment initiated. Please complete payment on your phone to confirm booking. 💰`,
+        'whatsapp'
+      );
+
+      console.log(`STK Push initiated for ${newPhone}, CheckoutRequestID: ${checkoutId}`);
+    }
+  } else {
+    // Check both global AI and customer-specific AI before queuing
+    const globalAiEnabled = await this.aiSettingsService.isAiEnabled();
+    const customerAiEnabled = customer.aiEnabled ?? true; // Default to true if not set
+
+    if (globalAiEnabled && customerAiEnabled) {
+      console.log("Queueing message for AI...");
+      await this.messageQueue.add("processMessage", { messageId: created.id });
+    } else {
+      console.log('AI disabled (global or customer-specific) - message not queued');
+    }
+  }
+}
+
 
   async handleInstagramWebhook(data: any) {
     console.log('Processing Instagram webhook:', JSON.stringify(data, null, 2));
@@ -157,12 +199,20 @@ export class WebhooksService {
         customerName: customer.name,
       });
 
-      // Queue the message for AI processing
-      console.log('Adding Instagram message to queue for processing...');
-      await this.messageQueue.add('processMessage', {
-        messageId: createdMessage.id,
-      });
-      console.log('Instagram message added to queue successfully');
+      // Check both global AI and customer-specific AI before queuing
+      const globalAiEnabled = await this.aiSettingsService.isAiEnabled();
+      const customerAiEnabled = customer.aiEnabled;
+
+      if (globalAiEnabled && customerAiEnabled) {
+        // Queue the message for AI processing
+        console.log('Adding Instagram message to queue for processing...');
+        await this.messageQueue.add('processMessage', {
+          messageId: createdMessage.id,
+        });
+        console.log('Instagram message added to queue successfully');
+      } else {
+        console.log('AI disabled (global or customer-specific) - Instagram message not queued');
+      }
     }
   }
 

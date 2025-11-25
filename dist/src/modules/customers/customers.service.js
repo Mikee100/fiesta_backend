@@ -16,32 +16,8 @@ let CustomersService = class CustomersService {
     constructor(prisma) {
         this.prisma = prisma;
     }
-    async create(createCustomerDto) {
-        return this.prisma.customer.create({
-            data: createCustomerDto,
-        });
-    }
-    async findAll() {
-        return this.prisma.customer.findMany({
-            include: {
-                messages: true,
-                bookings: true,
-            },
-        });
-    }
-    async findOne(id) {
-        return this.prisma.customer.findUnique({
-            where: { id },
-            include: {
-                messages: true,
-                bookings: true,
-            },
-        });
-    }
-    async findByEmail(email) {
-        return this.prisma.customer.findUnique({
-            where: { email },
-        });
+    async create(data) {
+        return this.prisma.customer.create({ data });
     }
     async findByWhatsappId(whatsappId) {
         return this.prisma.customer.findUnique({
@@ -53,6 +29,45 @@ let CustomersService = class CustomersService {
             where: { instagramId },
         });
     }
+    async findByMessengerId(messengerId) {
+        return this.prisma.customer.findUnique({
+            where: { messengerId },
+        });
+    }
+    async findByEmail(email) {
+        return this.prisma.customer.findUnique({
+            where: { email },
+        });
+    }
+    async findOne(id) {
+        return this.prisma.customer.findUnique({
+            where: { id },
+            include: { messages: true, bookings: true },
+        });
+    }
+    async findById(id) {
+        return this.findOne(id);
+    }
+    async updatePhone(whatsappId, phone) {
+        return this.prisma.customer.update({
+            where: { whatsappId },
+            data: { phone },
+        });
+    }
+    async toggleAiEnabled(customerId, enabled) {
+        return this.prisma.customer.update({
+            where: { id: customerId },
+            data: { aiEnabled: enabled },
+        });
+    }
+    async getAll() {
+        return this.prisma.customer.findMany({
+            include: { messages: true, bookings: true },
+        });
+    }
+    async findAll() {
+        return this.getAll();
+    }
     async update(id, updateCustomerDto) {
         return this.prisma.customer.update({
             where: { id },
@@ -62,6 +77,15 @@ let CustomersService = class CustomersService {
     async remove(id) {
         return this.prisma.customer.delete({
             where: { id },
+        });
+    }
+    async createWithMessengerId(messengerId) {
+        return this.prisma.customer.create({
+            data: {
+                messengerId,
+                name: `Messenger User ${messengerId}`,
+                email: `${messengerId}@messenger.local`,
+            },
         });
     }
 };

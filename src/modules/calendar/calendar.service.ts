@@ -1,21 +1,36 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { calendar_v3, google } from 'googleapis';
+import { DateTime } from 'luxon';
 
 @Injectable()
 export class CalendarService {
-  private readonly services = [
-    { name: 'Hair Cut', duration: 60 }, // minutes
-    { name: 'Massage Therapy', duration: 90 },
-    { name: 'Spa Treatment', duration: 120 },
-    { name: 'Nail Service', duration: 45 },
-  ];
+  private readonly logger = new Logger(CalendarService.name);
+  private readonly STUDIO_TZ = 'Africa/Nairobi';
+  private calendar: calendar_v3.Calendar;
+  private calendarId: string;
 
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) {
+    const auth = new google.auth.GoogleAuth({
+      credentials: {
+        type: 'service_account',
+        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\n/g, '\n'),
+        client_email: process.env.GOOGLE_CLIENT_EMAIL,
+        client_id: process.env.GOOGLE_CLIENT_ID,
+        
+      },
+      scopes: ['https://www.googleapis.com/auth/calendar'],
+    });
+    this.calendar = google.calendar({ version: 'v3', auth });
+    this.calendarId = process.env.GOOGLE_CALENDAR_ID || 'primary';
+  }
 
   async getAvailableSlots(date: Date, service?: string) {
-    const selectedService = service || 'Hair Cut'; // default
-    const serviceInfo = this.services.find(s => s.name === selectedService);
-    const duration = serviceInfo ? serviceInfo.duration : 60; // default 60 min
+    let duration = 60; // default 60 min
+    if (service) {
+      const pkg = await this.prisma.package.findFirst({ where: { name: service } });
+      if (pkg) duration = parseDurationToMinutes(pkg.duration) || 60;
+    }
 
     // Business hours: 9AM to 5PM, Monday to Friday
     const dayOfWeek = date.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
@@ -23,44 +38,153 @@ export class CalendarService {
       return []; // No slots on weekends
     }
 
-    const start = new Date(date);
-    start.setHours(9, 0, 0, 0);
-    const end = new Date(date);
-    end.setHours(17, 0, 0, 0);
+    const dayStart = DateTime.fromJSDate(date).setZone(this.STUDIO_TZ).startOf('day').set({ hour: 9, minute: 0, second: 0, millisecond: 0 });
+    const dayEnd = dayStart.set({ hour: 17, minute: 0, second: 0, millisecond: 0 });
 
-    const slots = [];
-    for (let time = start; time < end; time.setMinutes(time.getMinutes() + duration)) {
-      slots.push(new Date(time));
-    }
-
-    // Remove booked slots considering service duration
-    const bookings = await this.prisma.booking.findMany({
-      where: {
-        dateTime: {
-          gte: start,
-          lt: end,
+    try {
+      // Query Google Calendar for busy times
+      const freebusyResponse = await this.calendar.freebusy.query({
+        requestBody: {
+          timeMin: dayStart.toISO(),
+          timeMax: dayEnd.toISO(),
+          timeZone: this.STUDIO_TZ,
+          items: [{ id: this.calendarId }],
         },
-        status: 'confirmed',
-      },
-    });
-
-    const availableSlots = slots.filter(slot => {
-      const slotEnd = new Date(slot.getTime() + duration * 60 * 1000);
-      return !bookings.some(booking => {
-        const bookingEnd = new Date(booking.dateTime.getTime() + duration * 60 * 1000);
-        return (
-          (slot >= booking.dateTime && slot < bookingEnd) ||
-          (slotEnd > booking.dateTime && slotEnd <= bookingEnd) ||
-          (slot <= booking.dateTime && slotEnd >= bookingEnd)
-        );
       });
-    });
 
-    return availableSlots;
+      const busyTimes = freebusyResponse.data.calendars?.[this.calendarId]?.busy || [];
+
+      // Generate potential slots
+      const slots: Date[] = [];
+      let cursor = dayStart;
+      while (cursor < dayEnd) {
+        slots.push(cursor.toJSDate());
+        cursor = cursor.plus({ minutes: 30 }); // 30-min increments for finer granularity
+      }
+
+      // Filter out busy slots
+      const availableSlots = slots.filter(slot => {
+        const slotStart = DateTime.fromJSDate(slot).setZone(this.STUDIO_TZ);
+        const slotEnd = slotStart.plus({ minutes: duration });
+        return !busyTimes.some(busy => {
+          const busyStart = DateTime.fromISO(busy.start!).setZone(this.STUDIO_TZ);
+          const busyEnd = DateTime.fromISO(busy.end!).setZone(this.STUDIO_TZ);
+          return slotStart < busyEnd && slotEnd > busyStart;
+        });
+      });
+
+      return availableSlots;
+    } catch (error) {
+      this.logger.error('Error fetching available slots from Google Calendar', error);
+      throw new Error('Failed to fetch available slots');
+    }
+  }
+
+  async createEvent(booking: any) {
+    const duration = booking.durationMinutes || 60;
+    const start = DateTime.fromJSDate(new Date(booking.dateTime)).setZone(this.STUDIO_TZ);
+    const end = start.plus({ minutes: duration });
+
+    const event = {
+      summary: `${booking.customer.name} - ${booking.service}`,
+      description: `Booking for ${booking.customer.name}. Service: ${booking.service}. Phone: ${booking.customer.phone || 'N/A'}. Recipient: ${booking.recipientName || booking.customer.name} (${booking.recipientPhone || 'N/A'})`,
+      start: {
+        dateTime: start.toISO(),
+        timeZone: this.STUDIO_TZ,
+      },
+      end: {
+        dateTime: end.toISO(),
+        timeZone: this.STUDIO_TZ,
+      },
+    };
+
+    try {
+      const response = await this.calendar.events.insert({
+        calendarId: this.calendarId,
+        requestBody: event,
+      });
+      this.logger.log(`Created Google Calendar event: ${response.data.id}`);
+      return response.data.id;
+    } catch (error) {
+      this.logger.error('Error creating Google Calendar event', error);
+      throw new Error('Failed to create calendar event');
+    }
+  }
+
+  async updateEvent(eventId: string, booking: any) {
+    const duration = booking.durationMinutes || 60;
+    const start = DateTime.fromJSDate(new Date(booking.dateTime)).setZone(this.STUDIO_TZ);
+    const end = start.plus({ minutes: duration });
+
+    const event = {
+      summary: `${booking.customer.name} - ${booking.service}`,
+      description: `Booking for ${booking.customer.name}. Service: ${booking.service}. Phone: ${booking.customer.phone || 'N/A'}. Recipient: ${booking.recipientName || booking.customer.name} (${booking.recipientPhone || 'N/A'})`,
+      start: {
+        dateTime: start.toISO(),
+        timeZone: this.STUDIO_TZ,
+      },
+      end: {
+        dateTime: end.toISO(),
+        timeZone: this.STUDIO_TZ,
+      },
+    };
+
+    try {
+      await this.calendar.events.update({
+        calendarId: this.calendarId,
+        eventId,
+        requestBody: event,
+      });
+      this.logger.log(`Updated Google Calendar event: ${eventId}`);
+    } catch (error) {
+      this.logger.error('Error updating Google Calendar event', error);
+      throw new Error('Failed to update calendar event');
+    }
+  }
+
+  async deleteEvent(eventId: string) {
+    try {
+      await this.calendar.events.delete({
+        calendarId: this.calendarId,
+        eventId,
+      });
+      this.logger.log(`Deleted Google Calendar event: ${eventId}`);
+    } catch (error) {
+      this.logger.error('Error deleting Google Calendar event', error);
+      throw new Error('Failed to delete calendar event');
+    }
   }
 
   async syncCalendar() {
-    // Stub: sync with external calendar (Google Calendar, etc.)
-    console.log('Syncing calendar...');
+    this.logger.log('Syncing existing bookings to Google Calendar...');
+    try {
+      const bookings = await this.prisma.booking.findMany({
+        where: { status: 'confirmed', googleEventId: null },
+        include: { customer: true },
+      });
+
+      for (const booking of bookings) {
+        const eventId = await this.createEvent(booking);
+        await this.prisma.booking.update({
+          where: { id: booking.id },
+          data: { googleEventId: eventId },
+        });
+      }
+      this.logger.log(`Synced ${bookings.length} bookings to Google Calendar`);
+    } catch (error) {
+      this.logger.error('Error syncing calendar', error);
+      throw error;
+    }
   }
+}
+
+// Helper function (move to utils if needed)
+function parseDurationToMinutes(duration: string | null | undefined): number | null {
+  if (!duration) return null;
+  const hrMatch = duration.match(/(\d+)\s*hr/);
+  const minMatch = duration.match(/(\d+)\s*min/);
+  let mins = 0;
+  if (hrMatch) mins += parseInt(hrMatch[1], 10) * 60;
+  if (minMatch) mins += parseInt(minMatch[1], 10);
+  return mins || null;
 }

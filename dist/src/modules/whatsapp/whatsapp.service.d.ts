@@ -46,4 +46,11 @@ export declare class WhatsappService {
         success: boolean;
         message: string;
     }>;
+    getWhatsAppStats(): Promise<{
+        totalMessages: number;
+        inboundMessages: number;
+        outboundMessages: number;
+        totalConversations: number;
+        activeConversations: number;
+    }>;
 }

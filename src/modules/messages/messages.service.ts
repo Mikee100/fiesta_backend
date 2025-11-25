@@ -18,11 +18,6 @@ export class MessagesService {
       data: createMessageDto,
     });
 
-    // Only add to queue for inbound messages
-    if (createMessageDto.direction === 'inbound') {
-      await this.messageQueue.add('processMessage', { messageId: message.id });
-    }
-
     return message;
   }
 
@@ -30,6 +25,10 @@ export class MessagesService {
     return this.prisma.message.findMany({
       include: { customer: true },
     });
+  }
+
+  async countMessages(args: any) {
+    return this.prisma.message.count(args);
   }
 
   async findByCustomer(customerId: string) {
@@ -100,10 +99,7 @@ Respond with only the intent (e.g., booking_details).`;
       console.log('Classified as booking_inquiry');
       return 'booking_inquiry';
     }
-    if (lower.includes('hair cut') || lower.includes('haircut') || lower.includes('massage') || lower.includes('spa') || lower.includes('nail') || lower.includes('service') || lower.includes('yes') || lower.includes('yess') || lower.includes('afternoon') || lower.includes('morning') || lower.includes('evening') || lower.includes('time') || lower.includes('date') || lower.includes('3pm') || lower.includes('2pm') || lower.includes('1pm')) {
-      console.log('Classified as booking_details');
-      return 'booking_details';
-    }
+    // Removed old salon service keywords. Use AI for all booking details.
     if (lower.includes('help') || lower.includes('question') || lower.includes('info') || lower.includes('what') || lower.includes('how') || lower.includes('price') || lower.includes('cost') || lower.includes('hours') || lower.includes('location')) {
       console.log('Classified as faq');
       return 'faq';

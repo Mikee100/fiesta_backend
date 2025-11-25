@@ -27,15 +27,15 @@ let MessagesService = class MessagesService {
         const message = await this.prisma.message.create({
             data: createMessageDto,
         });
-        if (createMessageDto.direction === 'inbound') {
-            await this.messageQueue.add('processMessage', { messageId: message.id });
-        }
         return message;
     }
     async findAll() {
         return this.prisma.message.findMany({
             include: { customer: true },
         });
+    }
+    async countMessages(args) {
+        return this.prisma.message.count(args);
     }
     async findByCustomer(customerId) {
         return this.prisma.message.findMany({
@@ -97,10 +97,6 @@ Respond with only the intent (e.g., booking_details).`;
         if (lower.includes('book') || lower.includes('appointment') || lower.includes('schedule') || lower.includes('free') || lower.includes('opening') || lower.includes('tomorrow') || lower.includes('reschedule') || lower.includes('cancel') || lower.includes('change')) {
             console.log('Classified as booking_inquiry');
             return 'booking_inquiry';
-        }
-        if (lower.includes('hair cut') || lower.includes('haircut') || lower.includes('massage') || lower.includes('spa') || lower.includes('nail') || lower.includes('service') || lower.includes('yes') || lower.includes('yess') || lower.includes('afternoon') || lower.includes('morning') || lower.includes('evening') || lower.includes('time') || lower.includes('date') || lower.includes('3pm') || lower.includes('2pm') || lower.includes('1pm')) {
-            console.log('Classified as booking_details');
-            return 'booking_details';
         }
         if (lower.includes('help') || lower.includes('question') || lower.includes('info') || lower.includes('what') || lower.includes('how') || lower.includes('price') || lower.includes('cost') || lower.includes('hours') || lower.includes('location')) {
             console.log('Classified as faq');

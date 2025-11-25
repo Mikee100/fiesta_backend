@@ -26,7 +26,6 @@ let WebhooksController = class WebhooksController {
         return 'ERROR';
     }
     handleWhatsApp(body) {
-        console.log('Received WhatsApp webhook:', JSON.stringify(body, null, 2));
         return this.webhooksService.handleWhatsAppWebhook(body);
     }
     verifyInstagram(mode, challenge, token) {
@@ -43,6 +42,12 @@ let WebhooksController = class WebhooksController {
     }
     handleTelegram(body) {
         return this.webhooksService.handleTelegramWebhook(body);
+    }
+    verifyFacebook(mode, challenge, token) {
+        if (mode === 'subscribe' && token === process.env.FB_VERIFY_TOKEN) {
+            return challenge;
+        }
+        throw new common_1.HttpException('Forbidden', common_1.HttpStatus.FORBIDDEN);
     }
 };
 exports.WebhooksController = WebhooksController;
@@ -92,6 +97,15 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], WebhooksController.prototype, "handleTelegram", null);
+__decorate([
+    (0, common_1.Get)('facebook'),
+    __param(0, (0, common_1.Query)('hub.mode')),
+    __param(1, (0, common_1.Query)('hub.challenge')),
+    __param(2, (0, common_1.Query)('hub.verify_token')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, String]),
+    __metadata("design:returntype", void 0)
+], WebhooksController.prototype, "verifyFacebook", null);
 exports.WebhooksController = WebhooksController = __decorate([
     (0, common_1.Controller)('webhooks'),
     __metadata("design:paramtypes", [webhooks_service_1.WebhooksService])

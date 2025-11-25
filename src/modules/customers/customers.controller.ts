@@ -30,4 +30,9 @@ export class CustomersController {
   remove(@Param('id') id: string) {
     return this.customersService.remove(id);
   }
+
+  @Patch(':id/toggle-ai')
+  toggleAi(@Param('id') id: string, @Body('enabled') enabled: boolean) {
+    return this.customersService.toggleAiEnabled(id, enabled);
+  }
 }

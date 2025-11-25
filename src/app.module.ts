@@ -13,6 +13,7 @@ import { WhatsappModule } from './modules/whatsapp/whatsapp.module';
 import { InstagramModule } from './modules/instagram/instagram.module';
 import { WorkersModule } from './workers/workers.module';
 import { WebsocketModule } from './websockets/websocket.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { WebsocketModule } from './websockets/websocket.module';
     InstagramModule,
     WorkersModule,
     WebsocketModule,
+    AnalyticsModule,
   ],
 })
 export class AppModule {}

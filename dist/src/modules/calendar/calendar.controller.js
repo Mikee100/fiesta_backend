@@ -26,6 +26,15 @@ let CalendarController = class CalendarController {
     syncCalendar() {
         return this.calendarService.syncCalendar();
     }
+    createEvent(booking) {
+        return this.calendarService.createEvent(booking);
+    }
+    updateEvent(eventId, booking) {
+        return this.calendarService.updateEvent(eventId, booking);
+    }
+    deleteEvent(eventId) {
+        return this.calendarService.deleteEvent(eventId);
+    }
 };
 exports.CalendarController = CalendarController;
 __decorate([
@@ -42,6 +51,28 @@ __decorate([
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], CalendarController.prototype, "syncCalendar", null);
+__decorate([
+    (0, common_1.Post)('create-event'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], CalendarController.prototype, "createEvent", null);
+__decorate([
+    (0, common_1.Put)('update-event/:id'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], CalendarController.prototype, "updateEvent", null);
+__decorate([
+    (0, common_1.Delete)('delete-event/:id'),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], CalendarController.prototype, "deleteEvent", null);
 exports.CalendarController = CalendarController = __decorate([
     (0, common_1.Controller)('calendar'),
     __metadata("design:paramtypes", [calendar_service_1.CalendarService])

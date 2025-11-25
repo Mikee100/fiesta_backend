@@ -14,6 +14,14 @@ export declare class MessageQueueProcessor {
     private customersService;
     private instagramService;
     private websocketGateway;
+    private readonly logger;
+    private readonly STUDIO_TZ;
+    private readonly HISTORY_LIMIT;
     constructor(messagesService: MessagesService, aiService: AiService, bookingsService: BookingsService, whatsappService: WhatsappService, customersService: CustomersService, instagramService: InstagramService, websocketGateway: WebsocketGateway);
     process(job: Job<any>): Promise<any>;
+    sendOutboundMessage(job: Job<{
+        customerId: string;
+        content: string;
+        platform: string;
+    }>): Promise<any>;
 }

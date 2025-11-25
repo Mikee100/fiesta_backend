@@ -4,4 +4,5 @@ export declare class CreateCustomerDto {
     phone?: string;
     whatsappId?: string;
     instagramId?: string;
+    messengerId?: string;
 }

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param } from '@nestjs/common';
 import { BookingsService } from './bookings.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 
@@ -8,12 +8,14 @@ export class BookingsController {
 
   @Post()
   create(@Body() createBookingDto: CreateBookingDto) {
-    return this.bookingsService.createBooking(
-      createBookingDto.customerId,
-      createBookingDto.message,
-      createBookingDto.service,
-      createBookingDto.dateTime ? new Date(createBookingDto.dateTime) : undefined,
-    );
+    return this.bookingsService.createBooking(createBookingDto.customerId, {
+      message: createBookingDto.message,
+      service: createBookingDto.service,
+      dateTime: createBookingDto.dateTime ? new Date(createBookingDto.dateTime) : undefined,
+      customerName: createBookingDto.customerName,
+      recipientName: createBookingDto.recipientName,
+      recipientPhone: createBookingDto.recipientPhone,
+    });
   }
 
   @Get()
@@ -21,9 +23,33 @@ export class BookingsController {
     return this.bookingsService.getBookings();
   }
 
-  @Get('services')
-  getServices() {
-    return this.bookingsService.getServices();
+
+  @Get('packages')
+  getPackages() {
+    return this.bookingsService.getPackages();
+  }
+
+  // Create a new package
+  @Post('packages')
+  createPackage(@Body() data: any) {
+    return this.bookingsService.createPackage(data);
+  }
+
+  // Update a package
+  @Put('packages/:id')
+  updatePackage(@Param('id') id: string, @Body() data: any) {
+    return this.bookingsService.updatePackage(id, data);
+  }
+
+  // Delete a package
+  @Delete('packages/:id')
+  deletePackage(@Param('id') id: string) {
+    return this.bookingsService.deletePackage(id);
+  }
+
+  @Get('studio-info')
+  getStudioInfo() {
+    return this.bookingsService.getStudioInfo();
   }
 
   @Get(':customerId')
@@ -39,5 +65,10 @@ export class BookingsController {
   @Post(':id/cancel')
   cancel(@Param('id') id: string) {
     return this.bookingsService.cancelBooking(id);
+  }
+
+  @Post('complete-draft/:customerId')
+  completeDraft(@Param('customerId') customerId: string) {
+    return this.bookingsService.completeBookingDraft(customerId);
   }
 }

@@ -20,7 +20,7 @@ exports.MessagesModule = MessagesModule = __decorate([
     (0, common_1.Module)({
         imports: [
             prisma_module_1.PrismaModule,
-            ai_module_1.AiModule,
+            (0, common_1.forwardRef)(() => ai_module_1.AiModule),
             bull_1.BullModule.registerQueue({
                 name: 'messageQueue',
             }),

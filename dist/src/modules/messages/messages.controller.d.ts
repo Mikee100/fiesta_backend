@@ -10,6 +10,9 @@ export declare class MessagesController {
         direction: string;
         externalId: string | null;
         createdAt: Date;
+        handledBy: string | null;
+        isResolved: boolean | null;
+        isEscalated: boolean | null;
         customerId: string;
     }>;
     findAll(): Promise<({
@@ -17,10 +20,12 @@ export declare class MessagesController {
             id: string;
             createdAt: Date;
             name: string;
-            email: string;
-            phone: string | null;
+            email: string | null;
             whatsappId: string | null;
             instagramId: string | null;
+            messengerId: string | null;
+            phone: string | null;
+            aiEnabled: boolean;
             updatedAt: Date;
         };
     } & {
@@ -30,6 +35,9 @@ export declare class MessagesController {
         direction: string;
         externalId: string | null;
         createdAt: Date;
+        handledBy: string | null;
+        isResolved: boolean | null;
+        isEscalated: boolean | null;
         customerId: string;
     })[]>;
     findByCustomer(customerId: string): Promise<({
@@ -37,10 +45,12 @@ export declare class MessagesController {
             id: string;
             createdAt: Date;
             name: string;
-            email: string;
-            phone: string | null;
+            email: string | null;
             whatsappId: string | null;
             instagramId: string | null;
+            messengerId: string | null;
+            phone: string | null;
+            aiEnabled: boolean;
             updatedAt: Date;
         };
     } & {
@@ -50,6 +60,9 @@ export declare class MessagesController {
         direction: string;
         externalId: string | null;
         createdAt: Date;
+        handledBy: string | null;
+        isResolved: boolean | null;
+        isEscalated: boolean | null;
         customerId: string;
     })[]>;
 }

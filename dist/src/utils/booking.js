@@ -1,25 +1,29 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.normalizeExtractedDateTime = normalizeExtractedDateTime;
-const chrono = require("chrono-node");
-function normalizeExtractedDateTime(extracted, referenceDate = new Date(), timezone = 'Africa/Nairobi') {
-    const pieces = [];
-    if (extracted.date)
-        pieces.push(extracted.date);
-    if (extracted.time)
-        pieces.push(extracted.time);
-    const text = pieces.join(' ').trim();
-    if (!text)
-        return { dateObj: null, isoDate: null, dateOnly: null, timeOnly: null };
-    const parsed = chrono.parseDate(text, referenceDate);
-    if (!parsed || isNaN(parsed.getTime())) {
-        return { dateObj: null, isoDate: null, dateOnly: extracted.date || null, timeOnly: extracted.time || null };
+const luxon_1 = require("luxon");
+const STUDIO_TZ = 'Africa/Nairobi';
+function normalizeExtractedDateTime(extracted) {
+    const { date, time } = extracted;
+    if (!date && !time)
+        return null;
+    const combined = [date, time].filter(Boolean).join(' ');
+    try {
+        const chrono = require('chrono-node');
+        const parsed = chrono.parseDate(combined, new Date());
+        if (!parsed)
+            return null;
+        const dt = luxon_1.DateTime.fromJSDate(parsed).setZone(STUDIO_TZ);
+        return {
+            dateObj: dt.toJSDate(),
+            isoDate: dt.toUTC().toISO(),
+            dateOnly: dt.toFormat('yyyy-MM-dd'),
+            timeOnly: dt.toFormat('HH:mm'),
+        };
     }
-    const hours = parsed.getHours().toString().padStart(2, '0');
-    const minutes = parsed.getMinutes().toString().padStart(2, '0');
-    const isoDate = parsed.toISOString();
-    const dateOnly = isoDate.split('T')[0];
-    const timeOnly = `${hours}:${minutes}`;
-    return { dateObj: parsed, isoDate, dateOnly, timeOnly };
+    catch (error) {
+        console.warn('Failed to normalize date/time:', error);
+        return null;
+    }
 }
 //# sourceMappingURL=booking.js.map

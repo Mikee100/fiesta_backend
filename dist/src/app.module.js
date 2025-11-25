@@ -22,6 +22,7 @@ const whatsapp_module_1 = require("./modules/whatsapp/whatsapp.module");
 const instagram_module_1 = require("./modules/instagram/instagram.module");
 const workers_module_1 = require("./workers/workers.module");
 const websocket_module_1 = require("./websockets/websocket.module");
+const analytics_module_1 = require("./modules/analytics/analytics.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -46,6 +47,7 @@ exports.AppModule = AppModule = __decorate([
             instagram_module_1.InstagramModule,
             workers_module_1.WorkersModule,
             websocket_module_1.WebsocketModule,
+            analytics_module_1.AnalyticsModule,
         ],
     })
 ], AppModule);

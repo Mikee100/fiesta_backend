@@ -1,0 +1,78 @@
+import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { CustomersService } from '../customers/customers.service';
+import { MessagesService } from '../messages/messages.service';
+import { WebsocketGateway } from '../../websockets/websocket.gateway';
+import { InjectQueue } from '@nestjs/bull';
+import { Queue } from 'bull';
+
+@Injectable()
+export class MessengerService {
+  private readonly logger = new Logger(MessengerService.name);
+  private readonly fbVerifyToken: string;
+
+  constructor(
+    private readonly configService: ConfigService,
+    @Inject(forwardRef(() => CustomersService)) private readonly customersService: CustomersService,
+    @Inject(forwardRef(() => MessagesService)) private readonly messagesService: MessagesService,
+    @Inject(forwardRef(() => WebsocketGateway)) private readonly websocketGateway: WebsocketGateway,
+    @InjectQueue('message-queue') private readonly messageQueue: Queue,
+  ) {
+    this.fbVerifyToken = this.configService.get<string>('FB_VERIFY_TOKEN');
+  }
+
+  verifyWebhook(mode: string, token: string, challenge: string): string | null {
+    this.logger.log(`Verifying webhook: mode=${mode}, token=${token}`);
+    if (mode === 'subscribe' && token === this.fbVerifyToken) {
+      return challenge;
+    }
+    return null;
+  }
+
+  async handleMessage(body: any) {
+    this.logger.log('Handling incoming Messenger webhook body:', JSON.stringify(body));
+    if (!body.object || body.object !== 'page' || !Array.isArray(body.entry)) {
+      this.logger.warn('Invalid webhook body.');
+      return;
+    }
+    for (const entry of body.entry) {
+      if (!Array.isArray(entry.messaging)) continue;
+      for (const event of entry.messaging) {
+        const senderId = event.sender?.id;
+        const message = event.message;
+        if (!senderId || !message || !message.mid) {
+          this.logger.warn('Missing sender or message data.');
+          continue;
+        }
+        // Prevent duplicate messages
+        const existing = await this.messagesService.findByExternalId(message.mid);
+        if (existing) {
+          this.logger.log(`Duplicate message detected: mid=${message.mid}`);
+          continue;
+        }
+        // Find or create customer
+        let customer = await this.customersService.findByMessengerId(senderId);
+        if (!customer) {
+          this.logger.log(`Customer not found for Messenger ID ${senderId}, creating...`);
+          customer = await this.customersService.createWithMessengerId(senderId);
+          this.logger.log(`Customer created: id=${customer.id}`);
+        }
+        // Save message
+        const savedMessage = await this.messagesService.create({
+          customerId: customer.id,
+          platform: 'messenger',
+          direction: 'inbound',
+          externalId: message.mid,
+          content: message.text || '',
+        });
+        this.logger.log(`Message saved: id=${savedMessage.id}`);
+        // Emit WebSocket event
+        this.websocketGateway.emitNewMessage('messenger', savedMessage);
+        this.logger.log('WebSocket event emitted for new message.');
+        // Queue for AI processing
+        await this.messageQueue.add('ai-process', { messageId: savedMessage.id });
+        this.logger.log('Message queued for AI processing.');
+      }
+    }
+  }
+}

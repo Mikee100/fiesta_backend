@@ -18,4 +18,8 @@ export class CreateCustomerDto {
   @IsString()
   @IsOptional()
   instagramId?: string;
+
+  @IsString()
+  @IsOptional()
+  messengerId?: string;
 }

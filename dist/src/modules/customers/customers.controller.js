@@ -35,6 +35,9 @@ let CustomersController = class CustomersController {
     remove(id) {
         return this.customersService.remove(id);
     }
+    toggleAi(id, enabled) {
+        return this.customersService.toggleAiEnabled(id, enabled);
+    }
 };
 exports.CustomersController = CustomersController;
 __decorate([
@@ -72,6 +75,14 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], CustomersController.prototype, "remove", null);
+__decorate([
+    (0, common_1.Patch)(':id/toggle-ai'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)('enabled')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Boolean]),
+    __metadata("design:returntype", void 0)
+], CustomersController.prototype, "toggleAi", null);
 exports.CustomersController = CustomersController = __decorate([
     (0, common_1.Controller)('customers'),
     __metadata("design:paramtypes", [customers_service_1.CustomersService])

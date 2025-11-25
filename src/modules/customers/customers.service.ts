@@ -1,40 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { CreateCustomerDto } from './dto/create-customer.dto';
 
 @Injectable()
 export class CustomersService {
   constructor(private prisma: PrismaService) {}
 
-  async create(createCustomerDto: CreateCustomerDto) {
-    return this.prisma.customer.create({
-      data: createCustomerDto,
-    });
-  }
-
-  async findAll() {
-    return this.prisma.customer.findMany({
-      include: {
-        messages: true,
-        bookings: true,
-      },
-    });
-  }
-
-  async findOne(id: string) {
-    return this.prisma.customer.findUnique({
-      where: { id },
-      include: {
-        messages: true,
-        bookings: true,
-      },
-    });
-  }
-
-  async findByEmail(email: string) {
-    return this.prisma.customer.findUnique({
-      where: { email },
-    });
+  async create(data: any) {
+    return this.prisma.customer.create({ data });
   }
 
   async findByWhatsappId(whatsappId: string) {
@@ -49,7 +21,54 @@ export class CustomersService {
     });
   }
 
-  async update(id: string, updateCustomerDto: Partial<CreateCustomerDto>) {
+  async findByMessengerId(messengerId: string) {
+    return this.prisma.customer.findUnique({
+      where: { messengerId },
+    });
+  }
+
+  async findByEmail(email: string) {
+    return this.prisma.customer.findUnique({
+      where: { email },
+    });
+  }
+
+  async findOne(id: string) {
+    return this.prisma.customer.findUnique({
+      where: { id },
+      include: { messages: true, bookings: true },
+    });
+  }
+
+  async findById(id: string) {
+    return this.findOne(id);
+  }
+
+  async updatePhone(whatsappId: string, phone: string) {
+    return this.prisma.customer.update({
+      where: { whatsappId },
+      data: { phone },
+    });
+  }
+
+  async toggleAiEnabled(customerId: string, enabled: boolean) {
+    return this.prisma.customer.update({
+      where: { id: customerId },
+      data: { aiEnabled: enabled },
+    });
+  }
+
+  async getAll() {
+    return this.prisma.customer.findMany({
+      include: { messages: true, bookings: true },
+    });
+  }
+
+  async findAll() {
+    return this.getAll();
+  }
+
+  async update(id: string, updateCustomerDto: Partial<any>) {
     return this.prisma.customer.update({
       where: { id },
       data: updateCustomerDto,
@@ -59,6 +78,16 @@ export class CustomersService {
   async remove(id: string) {
     return this.prisma.customer.delete({
       where: { id },
+    });
+  }
+
+  async createWithMessengerId(messengerId: string) {
+    return this.prisma.customer.create({
+      data: {
+        messengerId,
+        name: `Messenger User ${messengerId}`,
+        email: `${messengerId}@messenger.local`, // Placeholder email
+      },
     });
   }
 }

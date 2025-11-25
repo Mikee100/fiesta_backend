@@ -21,13 +21,32 @@ let BookingsController = class BookingsController {
         this.bookingsService = bookingsService;
     }
     create(createBookingDto) {
-        return this.bookingsService.createBooking(createBookingDto.customerId, createBookingDto.message, createBookingDto.service, createBookingDto.dateTime ? new Date(createBookingDto.dateTime) : undefined);
+        return this.bookingsService.createBooking(createBookingDto.customerId, {
+            message: createBookingDto.message,
+            service: createBookingDto.service,
+            dateTime: createBookingDto.dateTime ? new Date(createBookingDto.dateTime) : undefined,
+            customerName: createBookingDto.customerName,
+            recipientName: createBookingDto.recipientName,
+            recipientPhone: createBookingDto.recipientPhone,
+        });
     }
     async findAll() {
         return this.bookingsService.getBookings();
     }
-    getServices() {
-        return this.bookingsService.getServices();
+    getPackages() {
+        return this.bookingsService.getPackages();
+    }
+    createPackage(data) {
+        return this.bookingsService.createPackage(data);
+    }
+    updatePackage(id, data) {
+        return this.bookingsService.updatePackage(id, data);
+    }
+    deletePackage(id) {
+        return this.bookingsService.deletePackage(id);
+    }
+    getStudioInfo() {
+        return this.bookingsService.getStudioInfo();
     }
     findByCustomer(customerId) {
         return this.bookingsService.getBookings(customerId);
@@ -37,6 +56,9 @@ let BookingsController = class BookingsController {
     }
     cancel(id) {
         return this.bookingsService.cancelBooking(id);
+    }
+    completeDraft(customerId) {
+        return this.bookingsService.completeBookingDraft(customerId);
     }
 };
 exports.BookingsController = BookingsController;
@@ -54,11 +76,39 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], BookingsController.prototype, "findAll", null);
 __decorate([
-    (0, common_1.Get)('services'),
+    (0, common_1.Get)('packages'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
-], BookingsController.prototype, "getServices", null);
+], BookingsController.prototype, "getPackages", null);
+__decorate([
+    (0, common_1.Post)('packages'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], BookingsController.prototype, "createPackage", null);
+__decorate([
+    (0, common_1.Put)('packages/:id'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], BookingsController.prototype, "updatePackage", null);
+__decorate([
+    (0, common_1.Delete)('packages/:id'),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], BookingsController.prototype, "deletePackage", null);
+__decorate([
+    (0, common_1.Get)('studio-info'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], BookingsController.prototype, "getStudioInfo", null);
 __decorate([
     (0, common_1.Get)(':customerId'),
     __param(0, (0, common_1.Param)('customerId')),
@@ -80,6 +130,13 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], BookingsController.prototype, "cancel", null);
+__decorate([
+    (0, common_1.Post)('complete-draft/:customerId'),
+    __param(0, (0, common_1.Param)('customerId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], BookingsController.prototype, "completeDraft", null);
 exports.BookingsController = BookingsController = __decorate([
     (0, common_1.Controller)('bookings'),
     __metadata("design:paramtypes", [bookings_service_1.BookingsService])

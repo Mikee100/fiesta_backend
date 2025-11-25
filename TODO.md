@@ -1,11 +1,13 @@
-# TODO: Fix TypeScript Compilation Errors
+# TODO: Update AI Social Media System for Maternity Photoshop Business
 
-## Steps to Complete
-- [ ] Update `ai.service.ts`: Rename `retrieveFaq` to `answerFaq`, add optional `history` parameter, update `processAiRequest`
-- [ ] Add `extractStepBasedBookingDetails` method in `ai.service.ts`
-- [ ] Add `generateStepBasedBookingResponse` method in `ai.service.ts`
-- [ ] Update `message-queue.processor.ts`: Convert history format, change method calls to match new signatures
-- [ ] Update `webhooks.service.ts`: Change `answerFaq` calls to include empty history array
-- [ ] Update `ai.controller.ts`: Change `answerFaq` call to include empty history array
-- [ ] Run TypeScript compilation to verify fixes
-- [ ] Test the application functionality
+## Tasks
+- [ ] Update timezone references from "salonTz" to "studioTz" in ai.service.ts, bookings.service.ts, message-queue.processor.ts, utils/booking.ts
+- [ ] Change extractor prompt in ai.service.ts to "maternity photoshoot bookings"
+- [ ] Enhance AI prompts for more emotional, human-friendly language, increase temperature for dynamism
+- [ ] Replace hardcoded salon services in message-queue.processor.ts with dynamic package fetching and listing
+- [ ] Update any remaining salon references to maternity/studio
+
+## Followup Steps
+- [ ] Run database migrations if needed
+- [ ] Test the AI responses for emotional tone and dynamic behavior
+- [ ] Verify package listing works correctly

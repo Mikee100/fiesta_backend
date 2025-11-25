@@ -6,7 +6,19 @@ export class CreateBookingDto {
   customerId: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
+  customerName?: string;
+
+  @IsString()
+  @IsOptional()
+  recipientName?: string;
+
+  @IsString()
+  @IsOptional()
+  recipientPhone?: string;
+
+  @IsString()
+  @IsOptional()
   message?: string;
 
   @IsString()

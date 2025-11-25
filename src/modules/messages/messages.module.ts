@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { BullModule } from '@nestjs/bull';
 import { MessagesController } from './messages.controller';
 import { MessagesService } from './messages.service';
@@ -8,7 +8,7 @@ import { AiModule } from '../ai/ai.module';
 @Module({
   imports: [
     PrismaModule,
-    AiModule,
+    forwardRef(() => AiModule),
     BullModule.registerQueue({
       name: 'messageQueue',
     }),

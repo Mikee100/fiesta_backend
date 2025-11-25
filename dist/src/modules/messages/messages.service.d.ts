@@ -14,6 +14,9 @@ export declare class MessagesService {
         direction: string;
         externalId: string | null;
         createdAt: Date;
+        handledBy: string | null;
+        isResolved: boolean | null;
+        isEscalated: boolean | null;
         customerId: string;
     }>;
     findAll(): Promise<({
@@ -21,10 +24,12 @@ export declare class MessagesService {
             id: string;
             createdAt: Date;
             name: string;
-            email: string;
-            phone: string | null;
+            email: string | null;
             whatsappId: string | null;
             instagramId: string | null;
+            messengerId: string | null;
+            phone: string | null;
+            aiEnabled: boolean;
             updatedAt: Date;
         };
     } & {
@@ -34,17 +39,23 @@ export declare class MessagesService {
         direction: string;
         externalId: string | null;
         createdAt: Date;
+        handledBy: string | null;
+        isResolved: boolean | null;
+        isEscalated: boolean | null;
         customerId: string;
     })[]>;
+    countMessages(args: any): Promise<number>;
     findByCustomer(customerId: string): Promise<({
         customer: {
             id: string;
             createdAt: Date;
             name: string;
-            email: string;
-            phone: string | null;
+            email: string | null;
             whatsappId: string | null;
             instagramId: string | null;
+            messengerId: string | null;
+            phone: string | null;
+            aiEnabled: boolean;
             updatedAt: Date;
         };
     } & {
@@ -54,6 +65,9 @@ export declare class MessagesService {
         direction: string;
         externalId: string | null;
         createdAt: Date;
+        handledBy: string | null;
+        isResolved: boolean | null;
+        isEscalated: boolean | null;
         customerId: string;
     })[]>;
     findOne(id: string): Promise<{
@@ -61,10 +75,12 @@ export declare class MessagesService {
             id: string;
             createdAt: Date;
             name: string;
-            email: string;
-            phone: string | null;
+            email: string | null;
             whatsappId: string | null;
             instagramId: string | null;
+            messengerId: string | null;
+            phone: string | null;
+            aiEnabled: boolean;
             updatedAt: Date;
         };
     } & {
@@ -74,6 +90,9 @@ export declare class MessagesService {
         direction: string;
         externalId: string | null;
         createdAt: Date;
+        handledBy: string | null;
+        isResolved: boolean | null;
+        isEscalated: boolean | null;
         customerId: string;
     }>;
     findByExternalId(externalId: string): Promise<{
@@ -81,10 +100,12 @@ export declare class MessagesService {
             id: string;
             createdAt: Date;
             name: string;
-            email: string;
-            phone: string | null;
+            email: string | null;
             whatsappId: string | null;
             instagramId: string | null;
+            messengerId: string | null;
+            phone: string | null;
+            aiEnabled: boolean;
             updatedAt: Date;
         };
     } & {
@@ -94,6 +115,9 @@ export declare class MessagesService {
         direction: string;
         externalId: string | null;
         createdAt: Date;
+        handledBy: string | null;
+        isResolved: boolean | null;
+        isEscalated: boolean | null;
         customerId: string;
     }>;
     classifyIntent(content: string, history?: string[]): Promise<string>;
@@ -104,6 +128,9 @@ export declare class MessagesService {
         direction: string;
         externalId: string | null;
         createdAt: Date;
+        handledBy: string | null;
+        isResolved: boolean | null;
+        isEscalated: boolean | null;
         customerId: string;
     }>;
 }

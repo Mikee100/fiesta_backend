@@ -11,7 +11,7 @@ async function bootstrap() {
 
   // Enable CORS for frontend
   app.enableCors({
-    origin: ['http://localhost:5173', 'http://localhost:8080'], // Vite dev server and omniconnect-suite
+    origin: ['http://localhost:5173', 'http://localhost:8080', 'http://localhost:3001', 'http://localhost:3000'], // Vite dev server and omniconnect-suite
     credentials: true,
   });
 

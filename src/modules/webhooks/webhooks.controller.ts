@@ -1,4 +1,5 @@
-import { Controller, Post, Body, Get, Query } from '@nestjs/common';
+import { Controller, Post, Body, Get, Query, HttpStatus, HttpException } from '@nestjs/common';
+
 import { WebhooksService } from './webhooks.service';
 
 @Controller('webhooks')
@@ -15,7 +16,7 @@ export class WebhooksController {
 
   @Post('whatsapp')
   handleWhatsApp(@Body() body: any) {
-    console.log('Received WhatsApp webhook:', JSON.stringify(body, null, 2));
+    
     return this.webhooksService.handleWhatsAppWebhook(body);
   }
 
@@ -36,9 +37,16 @@ export class WebhooksController {
   handleMessenger(@Body() body: any) {
     return this.webhooksService.handleMessengerWebhook(body);
   }
-
   @Post('telegram')
   handleTelegram(@Body() body: any) {
     return this.webhooksService.handleTelegramWebhook(body);
   }
+
+    @Get('facebook')
+verifyFacebook(@Query('hub.mode') mode: string, @Query('hub.challenge') challenge: string, @Query('hub.verify_token') token: string) {
+  if (mode === 'subscribe' && token === process.env.FB_VERIFY_TOKEN) {
+    return challenge; // Facebook expects plain text of the challenge
+  }
+  throw new HttpException('Forbidden', HttpStatus.FORBIDDEN);
+}
 }

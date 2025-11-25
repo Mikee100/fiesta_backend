@@ -8,7 +8,7 @@ async function bootstrap() {
         exclude: ['webhooks/whatsapp', 'webhooks/whatsapp/*', 'webhooks/instagram', 'webhooks/*']
     });
     app.enableCors({
-        origin: ['http://localhost:5173', 'http://localhost:8080'],
+        origin: ['http://localhost:5173', 'http://localhost:8080', 'http://localhost:3001', 'http://localhost:3000'],
         credentials: true,
     });
     await app.listen(3000);

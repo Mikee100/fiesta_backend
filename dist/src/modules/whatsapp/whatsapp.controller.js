@@ -37,6 +37,9 @@ let WhatsappController = class WhatsappController {
     async sendMessage(data) {
         return this.whatsappService.sendMessage(data.to, data.message);
     }
+    async getStats() {
+        return this.whatsappService.getWhatsAppStats();
+    }
 };
 exports.WhatsappController = WhatsappController;
 __decorate([
@@ -78,6 +81,12 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", Promise)
 ], WhatsappController.prototype, "sendMessage", null);
+__decorate([
+    (0, common_1.Get)('stats'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], WhatsappController.prototype, "getStats", null);
 exports.WhatsappController = WhatsappController = __decorate([
     (0, common_1.Controller)('whatsapp'),
     __metadata("design:paramtypes", [whatsapp_service_1.WhatsappService])

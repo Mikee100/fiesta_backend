@@ -9,9 +9,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.BookingsModule = void 0;
 const common_1 = require("@nestjs/common");
 const bull_1 = require("@nestjs/bull");
-const bookings_controller_1 = require("./bookings.controller");
 const bookings_service_1 = require("./bookings.service");
+const bookings_controller_1 = require("./bookings.controller");
 const prisma_module_1 = require("../../prisma/prisma.module");
+const payments_module_1 = require("../payments/payments.module");
+const messages_module_1 = require("../messages/messages.module");
 let BookingsModule = class BookingsModule {
 };
 exports.BookingsModule = BookingsModule;
@@ -19,12 +21,14 @@ exports.BookingsModule = BookingsModule = __decorate([
     (0, common_1.Module)({
         imports: [
             prisma_module_1.PrismaModule,
+            payments_module_1.PaymentsModule,
+            messages_module_1.MessagesModule,
             bull_1.BullModule.registerQueue({
                 name: 'bookingQueue',
             }),
         ],
-        controllers: [bookings_controller_1.BookingsController],
         providers: [bookings_service_1.BookingsService],
+        controllers: [bookings_controller_1.BookingsController],
         exports: [bookings_service_1.BookingsService],
     })
 ], BookingsModule);

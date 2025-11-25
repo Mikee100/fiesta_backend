@@ -10,4 +10,5 @@ export declare class WebhooksController {
     handleInstagram(body: any): Promise<void>;
     handleMessenger(body: any): Promise<void>;
     handleTelegram(body: any): Promise<void>;
+    verifyFacebook(mode: string, challenge: string, token: string): string;
 }

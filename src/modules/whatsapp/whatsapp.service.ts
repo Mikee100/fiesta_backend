@@ -230,4 +230,44 @@ export class WhatsappService {
       return { success: false, message: 'Connection failed' };
     }
   }
+
+  // -------------------------------------------
+  // GET WHATSAPP STATS
+  // -------------------------------------------
+  async getWhatsAppStats() {
+    const totalMessages = await this.messagesService.countMessages({
+      where: { platform: 'whatsapp' },
+    });
+
+    const inboundMessages = await this.messagesService.countMessages({
+      where: { platform: 'whatsapp', direction: 'inbound' },
+    });
+
+    const outboundMessages = await this.messagesService.countMessages({
+      where: { platform: 'whatsapp', direction: 'outbound' },
+    });
+
+    const totalConversations = await this.messagesService.countMessages({
+      where: { platform: 'whatsapp' },
+      distinct: ['customerId'],
+    });
+
+    const activeConversations = await this.messagesService.countMessages({
+      where: {
+        platform: 'whatsapp',
+        createdAt: {
+          gte: new Date(Date.now() - 24 * 60 * 60 * 1000), // Last 24 hours
+        },
+      },
+      distinct: ['customerId'],
+    });
+
+    return {
+      totalMessages,
+      inboundMessages,
+      outboundMessages,
+      totalConversations,
+      activeConversations,
+    };
+  }
 }

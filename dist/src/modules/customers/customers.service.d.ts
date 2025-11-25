@@ -1,124 +1,277 @@
 import { PrismaService } from '../../prisma/prisma.service';
-import { CreateCustomerDto } from './dto/create-customer.dto';
 export declare class CustomersService {
     private prisma;
     constructor(prisma: PrismaService);
-    create(createCustomerDto: CreateCustomerDto): Promise<{
+    create(data: any): Promise<{
         id: string;
-        name: string;
         createdAt: Date;
-        updatedAt: Date;
-        email: string;
+        name: string;
+        email: string | null;
         whatsappId: string | null;
         instagramId: string | null;
+        messengerId: string | null;
         phone: string | null;
-    }>;
-    findAll(): Promise<({
-        messages: {
-            id: string;
-            customerId: string;
-            createdAt: Date;
-            content: string;
-            platform: string;
-            direction: string;
-            externalId: string | null;
-        }[];
-        bookings: {
-            id: string;
-            customerId: string;
-            service: string;
-            createdAt: Date;
-            updatedAt: Date;
-            dateTime: Date;
-            status: string;
-        }[];
-    } & {
-        id: string;
-        name: string;
-        createdAt: Date;
+        aiEnabled: boolean;
         updatedAt: Date;
-        email: string;
-        whatsappId: string | null;
-        instagramId: string | null;
-        phone: string | null;
-    })[]>;
-    findOne(id: string): Promise<{
-        messages: {
-            id: string;
-            customerId: string;
-            createdAt: Date;
-            content: string;
-            platform: string;
-            direction: string;
-            externalId: string | null;
-        }[];
-        bookings: {
-            id: string;
-            customerId: string;
-            service: string;
-            createdAt: Date;
-            updatedAt: Date;
-            dateTime: Date;
-            status: string;
-        }[];
-    } & {
-        id: string;
-        name: string;
-        createdAt: Date;
-        updatedAt: Date;
-        email: string;
-        whatsappId: string | null;
-        instagramId: string | null;
-        phone: string | null;
-    }>;
-    findByEmail(email: string): Promise<{
-        id: string;
-        name: string;
-        createdAt: Date;
-        updatedAt: Date;
-        email: string;
-        whatsappId: string | null;
-        instagramId: string | null;
-        phone: string | null;
     }>;
     findByWhatsappId(whatsappId: string): Promise<{
         id: string;
-        name: string;
         createdAt: Date;
-        updatedAt: Date;
-        email: string;
+        name: string;
+        email: string | null;
         whatsappId: string | null;
         instagramId: string | null;
+        messengerId: string | null;
         phone: string | null;
+        aiEnabled: boolean;
+        updatedAt: Date;
     }>;
     findByInstagramId(instagramId: string): Promise<{
         id: string;
-        name: string;
         createdAt: Date;
-        updatedAt: Date;
-        email: string;
+        name: string;
+        email: string | null;
         whatsappId: string | null;
         instagramId: string | null;
+        messengerId: string | null;
         phone: string | null;
+        aiEnabled: boolean;
+        updatedAt: Date;
     }>;
-    update(id: string, updateCustomerDto: Partial<CreateCustomerDto>): Promise<{
+    findByMessengerId(messengerId: string): Promise<{
         id: string;
-        name: string;
         createdAt: Date;
-        updatedAt: Date;
-        email: string;
+        name: string;
+        email: string | null;
         whatsappId: string | null;
         instagramId: string | null;
+        messengerId: string | null;
         phone: string | null;
+        aiEnabled: boolean;
+        updatedAt: Date;
+    }>;
+    findByEmail(email: string): Promise<{
+        id: string;
+        createdAt: Date;
+        name: string;
+        email: string | null;
+        whatsappId: string | null;
+        instagramId: string | null;
+        messengerId: string | null;
+        phone: string | null;
+        aiEnabled: boolean;
+        updatedAt: Date;
+    }>;
+    findOne(id: string): Promise<{
+        messages: {
+            id: string;
+            content: string;
+            platform: string;
+            direction: string;
+            externalId: string | null;
+            createdAt: Date;
+            handledBy: string | null;
+            isResolved: boolean | null;
+            isEscalated: boolean | null;
+            customerId: string;
+        }[];
+        bookings: {
+            id: string;
+            createdAt: Date;
+            customerId: string;
+            updatedAt: Date;
+            service: string;
+            recipientName: string | null;
+            recipientPhone: string | null;
+            status: string;
+            dateTime: Date;
+            durationMinutes: number | null;
+            googleEventId: string | null;
+        }[];
+    } & {
+        id: string;
+        createdAt: Date;
+        name: string;
+        email: string | null;
+        whatsappId: string | null;
+        instagramId: string | null;
+        messengerId: string | null;
+        phone: string | null;
+        aiEnabled: boolean;
+        updatedAt: Date;
+    }>;
+    findById(id: string): Promise<{
+        messages: {
+            id: string;
+            content: string;
+            platform: string;
+            direction: string;
+            externalId: string | null;
+            createdAt: Date;
+            handledBy: string | null;
+            isResolved: boolean | null;
+            isEscalated: boolean | null;
+            customerId: string;
+        }[];
+        bookings: {
+            id: string;
+            createdAt: Date;
+            customerId: string;
+            updatedAt: Date;
+            service: string;
+            recipientName: string | null;
+            recipientPhone: string | null;
+            status: string;
+            dateTime: Date;
+            durationMinutes: number | null;
+            googleEventId: string | null;
+        }[];
+    } & {
+        id: string;
+        createdAt: Date;
+        name: string;
+        email: string | null;
+        whatsappId: string | null;
+        instagramId: string | null;
+        messengerId: string | null;
+        phone: string | null;
+        aiEnabled: boolean;
+        updatedAt: Date;
+    }>;
+    updatePhone(whatsappId: string, phone: string): Promise<{
+        id: string;
+        createdAt: Date;
+        name: string;
+        email: string | null;
+        whatsappId: string | null;
+        instagramId: string | null;
+        messengerId: string | null;
+        phone: string | null;
+        aiEnabled: boolean;
+        updatedAt: Date;
+    }>;
+    toggleAiEnabled(customerId: string, enabled: boolean): Promise<{
+        id: string;
+        createdAt: Date;
+        name: string;
+        email: string | null;
+        whatsappId: string | null;
+        instagramId: string | null;
+        messengerId: string | null;
+        phone: string | null;
+        aiEnabled: boolean;
+        updatedAt: Date;
+    }>;
+    getAll(): Promise<({
+        messages: {
+            id: string;
+            content: string;
+            platform: string;
+            direction: string;
+            externalId: string | null;
+            createdAt: Date;
+            handledBy: string | null;
+            isResolved: boolean | null;
+            isEscalated: boolean | null;
+            customerId: string;
+        }[];
+        bookings: {
+            id: string;
+            createdAt: Date;
+            customerId: string;
+            updatedAt: Date;
+            service: string;
+            recipientName: string | null;
+            recipientPhone: string | null;
+            status: string;
+            dateTime: Date;
+            durationMinutes: number | null;
+            googleEventId: string | null;
+        }[];
+    } & {
+        id: string;
+        createdAt: Date;
+        name: string;
+        email: string | null;
+        whatsappId: string | null;
+        instagramId: string | null;
+        messengerId: string | null;
+        phone: string | null;
+        aiEnabled: boolean;
+        updatedAt: Date;
+    })[]>;
+    findAll(): Promise<({
+        messages: {
+            id: string;
+            content: string;
+            platform: string;
+            direction: string;
+            externalId: string | null;
+            createdAt: Date;
+            handledBy: string | null;
+            isResolved: boolean | null;
+            isEscalated: boolean | null;
+            customerId: string;
+        }[];
+        bookings: {
+            id: string;
+            createdAt: Date;
+            customerId: string;
+            updatedAt: Date;
+            service: string;
+            recipientName: string | null;
+            recipientPhone: string | null;
+            status: string;
+            dateTime: Date;
+            durationMinutes: number | null;
+            googleEventId: string | null;
+        }[];
+    } & {
+        id: string;
+        createdAt: Date;
+        name: string;
+        email: string | null;
+        whatsappId: string | null;
+        instagramId: string | null;
+        messengerId: string | null;
+        phone: string | null;
+        aiEnabled: boolean;
+        updatedAt: Date;
+    })[]>;
+    update(id: string, updateCustomerDto: Partial<any>): Promise<{
+        id: string;
+        createdAt: Date;
+        name: string;
+        email: string | null;
+        whatsappId: string | null;
+        instagramId: string | null;
+        messengerId: string | null;
+        phone: string | null;
+        aiEnabled: boolean;
+        updatedAt: Date;
     }>;
     remove(id: string): Promise<{
         id: string;
-        name: string;
         createdAt: Date;
-        updatedAt: Date;
-        email: string;
+        name: string;
+        email: string | null;
         whatsappId: string | null;
         instagramId: string | null;
+        messengerId: string | null;
         phone: string | null;
+        aiEnabled: boolean;
+        updatedAt: Date;
+    }>;
+    createWithMessengerId(messengerId: string): Promise<{
+        id: string;
+        createdAt: Date;
+        name: string;
+        email: string | null;
+        whatsappId: string | null;
+        instagramId: string | null;
+        messengerId: string | null;
+        phone: string | null;
+        aiEnabled: boolean;
+        updatedAt: Date;
     }>;
 }

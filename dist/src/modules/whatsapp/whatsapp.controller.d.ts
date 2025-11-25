@@ -36,4 +36,11 @@ export declare class WhatsappController {
         to: string;
         message: string;
     }): Promise<any>;
+    getStats(): Promise<{
+        totalMessages: number;
+        inboundMessages: number;
+        outboundMessages: number;
+        totalConversations: number;
+        activeConversations: number;
+    }>;
 }
