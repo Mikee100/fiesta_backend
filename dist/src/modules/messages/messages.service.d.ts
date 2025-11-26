@@ -9,8 +9,8 @@ export declare class MessagesService {
     constructor(prisma: PrismaService, messageQueue: Queue, aiService: AiService);
     create(createMessageDto: CreateMessageDto): Promise<{
         id: string;
-        createdAt: Date;
         customerId: string;
+        createdAt: Date;
         content: string;
         platform: string;
         direction: string;
@@ -25,8 +25,8 @@ export declare class MessagesService {
             name: string;
             createdAt: Date;
             updatedAt: Date;
-            email: string | null;
             phone: string | null;
+            email: string | null;
             whatsappId: string | null;
             instagramId: string | null;
             messengerId: string | null;
@@ -34,8 +34,8 @@ export declare class MessagesService {
         };
     } & {
         id: string;
-        createdAt: Date;
         customerId: string;
+        createdAt: Date;
         content: string;
         platform: string;
         direction: string;
@@ -51,8 +51,8 @@ export declare class MessagesService {
             name: string;
             createdAt: Date;
             updatedAt: Date;
-            email: string | null;
             phone: string | null;
+            email: string | null;
             whatsappId: string | null;
             instagramId: string | null;
             messengerId: string | null;
@@ -60,8 +60,8 @@ export declare class MessagesService {
         };
     } & {
         id: string;
-        createdAt: Date;
         customerId: string;
+        createdAt: Date;
         content: string;
         platform: string;
         direction: string;
@@ -76,8 +76,8 @@ export declare class MessagesService {
             name: string;
             createdAt: Date;
             updatedAt: Date;
-            email: string | null;
             phone: string | null;
+            email: string | null;
             whatsappId: string | null;
             instagramId: string | null;
             messengerId: string | null;
@@ -85,8 +85,8 @@ export declare class MessagesService {
         };
     } & {
         id: string;
-        createdAt: Date;
         customerId: string;
+        createdAt: Date;
         content: string;
         platform: string;
         direction: string;
@@ -101,8 +101,8 @@ export declare class MessagesService {
             name: string;
             createdAt: Date;
             updatedAt: Date;
-            email: string | null;
             phone: string | null;
+            email: string | null;
             whatsappId: string | null;
             instagramId: string | null;
             messengerId: string | null;
@@ -110,8 +110,8 @@ export declare class MessagesService {
         };
     } & {
         id: string;
-        createdAt: Date;
         customerId: string;
+        createdAt: Date;
         content: string;
         platform: string;
         direction: string;
@@ -123,8 +123,8 @@ export declare class MessagesService {
     classifyIntent(content: string, history?: string[]): Promise<string>;
     sendOutboundMessage(customerId: string, content: string, platform: string): Promise<{
         id: string;
-        createdAt: Date;
         customerId: string;
+        createdAt: Date;
         content: string;
         platform: string;
         direction: string;

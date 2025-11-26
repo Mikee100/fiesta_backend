@@ -19,10 +19,20 @@ let AiProcessor = class AiProcessor {
         this.messagesService = messagesService;
     }
     async handleReminder(job) {
-        const { customerId, bookingId, date, time, recipientName } = job.data;
+        const { customerId, bookingId, date, time, recipientName, daysBefore } = job.data;
+        let dayText = '';
+        if (daysBefore === '2') {
+            dayText = 'in *2 days*';
+        }
+        else if (daysBefore === '1') {
+            dayText = 'tomorrow';
+        }
+        else {
+            dayText = `soon`;
+        }
         const reminderMessage = `Hi ${recipientName}! 💖\n\n` +
             `Just a sweet reminder that your maternity photoshoot ` +
-            `is coming up in *2 days* — on *${date} at ${time}*. ` +
+            `is coming up ${dayText} — on *${date} at ${time}*. ` +
             `We’re excited to capture your beautiful moments! ✨📸`;
         await this.messagesService.sendOutboundMessage(customerId, reminderMessage, 'whatsapp');
         return true;

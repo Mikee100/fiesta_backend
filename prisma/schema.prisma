@@ -132,7 +132,7 @@ model StudioInfo {
 model Payment {
   id             String      @id @default(cuid())
   bookingDraftId String?     @unique
-  bookingDraft   BookingDraft? @relation(fields: [bookingDraftId], references: [id], onDelete: Cascade)
+  bookingDraft   BookingDraft? @relation(fields: [bookingDraftId], references: [id], onDelete: SetNull)
   amount         Int         // deposit amount
   phone          String      // customer's phone for M-Pesa
   status         String      // pending, success, failed

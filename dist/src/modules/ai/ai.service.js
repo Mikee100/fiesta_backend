@@ -40,6 +40,7 @@ let AiService = AiService_1 = class AiService {
         this.index = null;
         this.studioTz = 'Africa/Nairobi';
         this.historyLimit = 6;
+        this.businessName = 'Fiesta House Attire maternity photoshoot studio';
         this.businessLocation = 'Our studio is located at 4th Avenue Parklands, Diamond Plaza Annex, 2nd Floor. We look forward to welcoming you! 💖';
         this.openai = new openai_1.OpenAI({ apiKey: this.configService.get('OPENAI_API_KEY') });
         this.embeddingModel = this.configService.get('OPENAI_EMBEDDING_MODEL', 'text-embedding-3-small');
@@ -470,7 +471,7 @@ Examples:
                 this.logger.debug('Attempting to initiate deposit for booking draft for customerId:', customerId);
                 const result = await bookingsService.completeBookingDraft(customerId, dateObj);
                 this.logger.debug('Deposit initiated successfully:', JSON.stringify(result, null, 2));
-                return { action: 'deposit_initiated', message: result.message };
+                return { action: 'deposit_initiated', message: result.message, checkoutRequestId: result.checkoutRequestId };
             }
             catch (err) {
                 this.logger.error('Deposit initiation failed in checkAndCompleteIfConfirmed', err);
@@ -486,9 +487,15 @@ Examples:
         let draft = await this.prisma.bookingDraft.findUnique({ where: { customerId } });
         const hasDraft = !!draft;
         const lower = (message || '').toLowerCase();
+        const businessNameKeywords = ['business name', 'what is the business called', 'who are you', 'company name', 'studio name', 'what is this place', 'what is this business', 'what is your name'];
+        if (businessNameKeywords.some((kw) => lower.includes(kw))) {
+            const nameResponse = `Our business is called ${this.businessName}. If you have any questions about our services or need assistance, I'm here to help! 😊`;
+            const updatedHistory = [...history.slice(-this.historyLimit), { role: 'user', content: message }, { role: 'assistant', content: nameResponse }];
+            return { response: nameResponse, draft: null, updatedHistory };
+        }
         const locationQueryKeywords = ['location', 'where', 'address', 'located', 'studio location', 'studio address', 'where are you', 'where is the studio', 'studio address'];
         if (locationQueryKeywords.some((kw) => lower.includes(kw))) {
-            const locationResponse = this.businessLocation;
+            const locationResponse = `Our business is called ${this.businessName}. ${this.businessLocation}`;
             const updatedHistory = [...history.slice(-this.historyLimit), { role: 'user', content: message }, { role: 'assistant', content: locationResponse }];
             return { response: locationResponse, draft: null, updatedHistory };
         }
@@ -580,7 +587,62 @@ Examples:
         const completionResult = await this.checkAndCompleteIfConfirmed(merged, extraction, customerId, bookingsService);
         if (completionResult.action === 'deposit_initiated') {
             const depositMessage = completionResult.message;
-            return { response: depositMessage, draft: merged, updatedHistory: [...history.slice(-this.historyLimit), { role: 'user', content: message }, { role: 'assistant', content: depositMessage }] };
+            const checkoutRequestId = completionResult.checkoutRequestId;
+            let pollAttempts = 0;
+            const maxPollAttempts = 12;
+            const pollIntervalMs = 10000;
+            let paymentStatus = 'pending';
+            let payment;
+            while (pollAttempts < maxPollAttempts && paymentStatus === 'pending') {
+                await new Promise(res => setTimeout(res, pollIntervalMs));
+                try {
+                    payment = await this.prisma.payment.findFirst({ where: { checkoutRequestId } });
+                    paymentStatus = payment?.status || 'pending';
+                }
+                catch (err) {
+                    this.logger.warn('Polling payment status failed', err);
+                }
+                pollAttempts++;
+            }
+            if (paymentStatus === 'success') {
+                const confirmMsg = 'Payment received! Your booking is now confirmed. We’ll send you a reminder closer to the date. 💖';
+                return {
+                    response: depositMessage + '\n\n' + confirmMsg,
+                    draft: null,
+                    updatedHistory: [
+                        ...history.slice(-this.historyLimit),
+                        { role: 'user', content: message },
+                        { role: 'assistant', content: depositMessage },
+                        { role: 'assistant', content: confirmMsg }
+                    ]
+                };
+            }
+            else if (paymentStatus === 'failed') {
+                const failMsg = 'Payment failed or was not completed. Please try again or contact support.';
+                return {
+                    response: depositMessage + '\n\n' + failMsg,
+                    draft: merged,
+                    updatedHistory: [
+                        ...history.slice(-this.historyLimit),
+                        { role: 'user', content: message },
+                        { role: 'assistant', content: depositMessage },
+                        { role: 'assistant', content: failMsg }
+                    ]
+                };
+            }
+            else {
+                const timeoutMsg = 'We did not receive payment confirmation in time. If you completed the payment, please wait a moment or contact support.';
+                return {
+                    response: depositMessage + '\n\n' + timeoutMsg,
+                    draft: merged,
+                    updatedHistory: [
+                        ...history.slice(-this.historyLimit),
+                        { role: 'user', content: message },
+                        { role: 'assistant', content: depositMessage },
+                        { role: 'assistant', content: timeoutMsg }
+                    ]
+                };
+            }
         }
         if (completionResult.action === 'unavailable') {
             const suggestions = (completionResult.suggestions || []).slice(0, 3).map((s) => {

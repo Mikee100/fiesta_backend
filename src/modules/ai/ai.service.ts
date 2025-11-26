@@ -62,7 +62,8 @@ export class AiService {
   // How many history turns to send to the model
   private readonly historyLimit = 6;
 
-  // Fixed business location string for responses
+  // Fixed business name and location string for responses
+  private readonly businessName = 'Fiesta House Attire maternity photoshoot studio';
   private readonly businessLocation = 'Our studio is located at 4th Avenue Parklands, Diamond Plaza Annex, 2nd Floor. We look forward to welcoming you! 💖';
 
   constructor(
@@ -297,8 +298,8 @@ IMPORTANT: You MUST base your answer STRICTLY on the provided Context messages b
   /* --------------------------
    * Strict JSON booking extractor
    * -------------------------- */
-  async extractBookingDetails(message: string, history: HistoryMsg[] = []) : Promise<{
-    service?: string; date?: string; time?: string; name?: string; recipientName?: string; recipientPhone?: string; isForSomeoneElse?: boolean; subIntent: 'start'|'provide'|'confirm'|'cancel'|'unknown';
+  async extractBookingDetails(message: string, history: HistoryMsg[] = []): Promise<{
+    service?: string; date?: string; time?: string; name?: string; recipientName?: string; recipientPhone?: string; isForSomeoneElse?: boolean; subIntent: 'start' | 'provide' | 'confirm' | 'cancel' | 'unknown';
   }> {
     const systemPrompt = `You are a strict JSON extractor for maternity photoshoot bookings.
 Return ONLY valid JSON (no commentary). Schema:
@@ -363,7 +364,7 @@ Examples:
         recipientName: typeof parsed.recipientName === 'string' ? parsed.recipientName : undefined,
         recipientPhone: typeof parsed.recipientPhone === 'string' ? parsed.recipientPhone : undefined,
         isForSomeoneElse: typeof parsed.isForSomeoneElse === 'boolean' ? parsed.isForSomeoneElse : undefined,
-        subIntent: ['start','provide','confirm','cancel','unknown'].includes(parsed.subIntent) ? parsed.subIntent : 'unknown',
+        subIntent: ['start', 'provide', 'confirm', 'cancel', 'unknown'].includes(parsed.subIntent) ? parsed.subIntent : 'unknown',
       };
     } catch (err) {
       this.logger.error('extractBookingDetails error', err);
@@ -563,7 +564,7 @@ Examples:
         this.logger.debug('Attempting to initiate deposit for booking draft for customerId:', customerId);
         const result = await bookingsService.completeBookingDraft(customerId, dateObj);
         this.logger.debug('Deposit initiated successfully:', JSON.stringify(result, null, 2));
-        return { action: 'deposit_initiated', message: result.message };
+        return { action: 'deposit_initiated', message: result.message, checkoutRequestId: result.checkoutRequestId };
       } catch (err) {
         this.logger.error('Deposit initiation failed in checkAndCompleteIfConfirmed', err);
         return { action: 'failed', error: 'There was an issue initiating payment. Please try again or contact support.' };
@@ -584,10 +585,19 @@ Examples:
 
     const lower = (message || '').toLowerCase();
 
+
+    // Business name query detection
+    const businessNameKeywords = ['business name', 'what is the business called', 'who are you', 'company name', 'studio name', 'what is this place', 'what is this business', 'what is your name'];
+    if (businessNameKeywords.some((kw) => lower.includes(kw))) {
+      const nameResponse = `Our business is called ${this.businessName}. If you have any questions about our services or need assistance, I'm here to help! 😊`;
+      const updatedHistory = [...history.slice(-this.historyLimit), { role: 'user', content: message }, { role: 'assistant', content: nameResponse }];
+      return { response: nameResponse, draft: null, updatedHistory };
+    }
+
     // New location query detection: check for keywords relating to location
     const locationQueryKeywords = ['location', 'where', 'address', 'located', 'studio location', 'studio address', 'where are you', 'where is the studio', 'studio address'];
     if (locationQueryKeywords.some((kw) => lower.includes(kw))) {
-      const locationResponse = this.businessLocation;
+      const locationResponse = `Our business is called ${this.businessName}. ${this.businessLocation}`;
       const updatedHistory = [...history.slice(-this.historyLimit), { role: 'user', content: message }, { role: 'assistant', content: locationResponse }];
       return { response: locationResponse, draft: null, updatedHistory };
     }
@@ -608,7 +618,7 @@ Examples:
           const cresp = await this.openai.chat.completions.create({ model: this.chatModel, messages: classifierMsg, max_tokens: 16, temperature: 0.0 });
           const cret = cresp.choices[0].message.content;
           const m = cret.match(/"(faq|booking|other)"/) || cret.match(/\{\s*"intent"\s*:\s*"(faq|booking|other)"\s*\}/);
-          if (m) intent = (m[1] as 'faq'|'booking'|'other');
+          if (m) intent = (m[1] as 'faq' | 'booking' | 'other');
         } catch (e) {
           this.logger.warn('intent classifier fallback failed', e);
         }
@@ -674,18 +684,72 @@ Examples:
     const merged = await this.mergeIntoDraft(customerId, extraction);
 
     if (extraction.subIntent === 'cancel') {
-      await this.prisma.bookingDraft.delete({ where: { customerId } }).catch(()=>null);
+      await this.prisma.bookingDraft.delete({ where: { customerId } }).catch(() => null);
       const cancelReply = 'No problem — I cancelled the booking. Anything else I can help with?';
       return { response: cancelReply, draft: null, updatedHistory: [...history.slice(-this.historyLimit), { role: 'user', content: message }, { role: 'assistant', content: cancelReply }] };
     }
 
     const completionResult = await this.checkAndCompleteIfConfirmed(merged, extraction, customerId, bookingsService);
     if (completionResult.action === 'deposit_initiated') {
+      // New: Poll payment status by checkoutRequestId and update user in chat
       const depositMessage = completionResult.message;
-      return { response: depositMessage, draft: merged, updatedHistory: [...history.slice(-this.historyLimit), { role: 'user', content: message }, { role: 'assistant', content: depositMessage }] };
+      const checkoutRequestId = completionResult.checkoutRequestId;
+      let pollAttempts = 0;
+      const maxPollAttempts = 12; // e.g., poll for up to 2 minutes (10s interval)
+      const pollIntervalMs = 10000;
+      let paymentStatus = 'pending';
+      let payment;
+      while (pollAttempts < maxPollAttempts && paymentStatus === 'pending') {
+        await new Promise(res => setTimeout(res, pollIntervalMs));
+        try {
+          // Direct DB query for reliability (or use HTTP if preferred)
+          payment = await this.prisma.payment.findFirst({ where: { checkoutRequestId } });
+          paymentStatus = payment?.status || 'pending';
+        } catch (err) {
+          this.logger.warn('Polling payment status failed', err);
+        }
+        pollAttempts++;
+      }
+      if (paymentStatus === 'success') {
+        const confirmMsg = 'Payment received! Your booking is now confirmed. We’ll send you a reminder closer to the date. 💖';
+        return {
+          response: depositMessage + '\n\n' + confirmMsg,
+          draft: null,
+          updatedHistory: [
+            ...history.slice(-this.historyLimit),
+            { role: 'user', content: message },
+            { role: 'assistant', content: depositMessage },
+            { role: 'assistant', content: confirmMsg }
+          ]
+        };
+      } else if (paymentStatus === 'failed') {
+        const failMsg = 'Payment failed or was not completed. Please try again or contact support.';
+        return {
+          response: depositMessage + '\n\n' + failMsg,
+          draft: merged,
+          updatedHistory: [
+            ...history.slice(-this.historyLimit),
+            { role: 'user', content: message },
+            { role: 'assistant', content: depositMessage },
+            { role: 'assistant', content: failMsg }
+          ]
+        };
+      } else {
+        const timeoutMsg = 'We did not receive payment confirmation in time. If you completed the payment, please wait a moment or contact support.';
+        return {
+          response: depositMessage + '\n\n' + timeoutMsg,
+          draft: merged,
+          updatedHistory: [
+            ...history.slice(-this.historyLimit),
+            { role: 'user', content: message },
+            { role: 'assistant', content: depositMessage },
+            { role: 'assistant', content: timeoutMsg }
+          ]
+        };
+      }
     }
     if (completionResult.action === 'unavailable') {
-      const suggestions = (completionResult.suggestions || []).slice(0,3).map((s: string|Date) => {
+      const suggestions = (completionResult.suggestions || []).slice(0, 3).map((s: string | Date) => {
         const dt = typeof s === 'string' ? DateTime.fromISO(s) : DateTime.fromJSDate(new Date(s));
         return dt.setZone(this.studioTz).toLocaleString(DateTime.DATETIME_MED);
       });

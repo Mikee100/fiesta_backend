@@ -6,6 +6,7 @@ import { PaymentsController } from './payments.controller';
 import { PrismaModule } from '../../prisma/prisma.module';
 import { MessagesModule } from '../messages/messages.module';
 import { BookingsModule } from '../bookings/bookings.module';
+import { AiModule } from '../ai/ai.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { BookingsModule } from '../bookings/bookings.module';
     BullModule.registerQueue({
       name: 'aiQueue',
     }),
+    forwardRef(() => AiModule),
   ],
   providers: [PaymentsService],
   controllers: [PaymentsController],

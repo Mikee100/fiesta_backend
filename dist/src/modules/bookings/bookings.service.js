@@ -63,7 +63,7 @@ let BookingsService = BookingsService_1 = class BookingsService {
                 phone = `254${phone.replace(/^0+/, '')}`;
             }
             this.logger.debug(`[STK] Using phone: ${phone}, amount: ${depositAmount}`);
-            await this.paymentsService.initiateSTKPush(draft.id, phone, depositAmount);
+            const checkoutRequestId = await this.paymentsService.initiateSTKPush(draft.id, phone, depositAmount);
             const depositMsg = `To confirm your booking, please pay the deposit of KSH ${depositAmount}. An M-Pesa prompt has been sent to your phone. Complete the payment to secure your slot!`;
             this.logger.log(`[DepositPrompt] Attempting to send WhatsApp deposit prompt to customerId=${customerId}`);
             try {
@@ -74,7 +74,10 @@ let BookingsService = BookingsService_1 = class BookingsService {
                 this.logger.error(`[DepositPrompt] Failed to send WhatsApp deposit prompt to customerId=${customerId}`, err);
             }
             this.logger.log(`M-Pesa STK Push initiated for deposit of ${depositAmount} KSH for booking draft ${draft.id}`);
-            return { message: 'Deposit payment initiated. Please complete payment on your phone to confirm booking.' };
+            return {
+                message: 'Deposit payment initiated. Please complete payment on your phone to confirm booking.',
+                checkoutRequestId
+            };
         }
         catch (error) {
             this.logger.error(`completeBookingDraft failed for customerId=${customerId}`, error);

@@ -30,6 +30,7 @@ exports.AiModule = AiModule = __decorate([
             bull_1.BullModule.registerQueue({
                 name: 'aiQueue',
             }),
+            (0, common_1.forwardRef)(() => require('../payments/payments.module').PaymentsModule),
         ],
         controllers: [ai_controller_1.AiController, admin_ai_controller_1.AdminAiController],
         providers: [ai_service_1.AiService, ai_settings_service_1.AiSettingsService],

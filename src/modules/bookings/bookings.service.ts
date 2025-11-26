@@ -68,8 +68,8 @@ export class BookingsService {
       }
       this.logger.debug(`[STK] Using phone: ${phone}, amount: ${depositAmount}`);
 
-      // Initiate M-Pesa STK Push for deposit
-      await this.paymentsService.initiateSTKPush(draft.id, phone, depositAmount);
+      // Initiate M-Pesa STK Push for deposit and get checkoutRequestId
+      const checkoutRequestId = await this.paymentsService.initiateSTKPush(draft.id, phone, depositAmount);
 
 
       // Send WhatsApp message to prompt deposit payment
@@ -85,7 +85,10 @@ export class BookingsService {
       // Do not confirm booking yet; wait for payment callback
       this.logger.log(`M-Pesa STK Push initiated for deposit of ${depositAmount} KSH for booking draft ${draft.id}`);
 
-      return { message: 'Deposit payment initiated. Please complete payment on your phone to confirm booking.' };
+      return { 
+        message: 'Deposit payment initiated. Please complete payment on your phone to confirm booking.',
+        checkoutRequestId
+      };
     } catch (error) {
       this.logger.error(`completeBookingDraft failed for customerId=${customerId}`, error);
       throw error;

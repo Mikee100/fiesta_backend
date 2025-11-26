@@ -3,6 +3,23 @@ export declare class PaymentsController {
     private readonly paymentsService;
     private readonly logger;
     constructor(paymentsService: PaymentsService);
+    getPaymentStatus(checkoutRequestId: string): Promise<{
+        status: string;
+        payment?: undefined;
+    } | {
+        status: string;
+        payment: {
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            bookingDraftId: string | null;
+            amount: number;
+            phone: string;
+            status: string;
+            mpesaReceipt: string | null;
+            checkoutRequestId: string | null;
+        };
+    }>;
     handleCallback(body: any): Promise<{
         ResultCode: number;
         ResultDesc: string;

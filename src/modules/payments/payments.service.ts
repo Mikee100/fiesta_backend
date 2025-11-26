@@ -1,11 +1,11 @@
-
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MessagesService } from '../messages/messages.service';
 import { DateTime } from 'luxon';
+import { AiService } from '../ai/ai.service';
 import { firstValueFrom } from 'rxjs';
 
 @Injectable()
@@ -22,8 +22,15 @@ export class PaymentsService {
     private prisma: PrismaService,
     private httpService: HttpService,
     private messagesService: MessagesService,
+    @Inject(forwardRef(() => AiService)) private aiService: AiService,
     @InjectQueue('aiQueue') private aiQueue: Queue,
   ) {}
+
+  async getPaymentByCheckoutRequestId(checkoutRequestId: string) {
+    return this.prisma.payment.findFirst({
+      where: { checkoutRequestId },
+    });
+  }
 
 async getAccessToken(): Promise<string> {
   if (!this.consumerKey || !this.consumerSecret) {
@@ -84,12 +91,13 @@ async getAccessToken(): Promise<string> {
         this.logger.log(`Reusing existing pending payment ${existingPayment.id}, CheckoutRequestID: ${existingPayment.checkoutRequestId}`);
         return existingPayment.checkoutRequestId;
       }
-      // If failed or pending without CheckoutRequestID, delete the old one and create new
+      // If failed or pending without CheckoutRequestID, just update the existing payment to pending and reuse it
       if (existingPayment.status === 'failed' || (existingPayment.status === 'pending' && !existingPayment.checkoutRequestId)) {
-        await this.prisma.payment.delete({
+        await this.prisma.payment.update({
           where: { id: existingPayment.id },
+          data: { status: 'pending', checkoutRequestId: null },
         });
-        this.logger.log(`Deleted old payment ${existingPayment.id} for draft ${bookingDraftId}`);
+        this.logger.log(`Reset old payment ${existingPayment.id} for draft ${bookingDraftId}`);
       }
     }
 
@@ -175,6 +183,7 @@ async getAccessToken(): Promise<string> {
 
     if (!payment) {
       this.logger.warn(`Payment not found for CheckoutRequestID: ${CheckoutRequestID}`);
+      // Do not delete or clear any payment record, just return
       return;
     }
 
@@ -215,34 +224,63 @@ async getAccessToken(): Promise<string> {
           where: { id: draft.id },
         });
 
-        // Send confirmation message to customer
+        // Send confirmation message to customer (WhatsApp)
         await this.messagesService.sendOutboundMessage(
           draft.customerId,
           "Payment successful! Your maternity photoshoot booking is now confirmed. We'll send you a reminder closer to the date. 💖",
           'whatsapp'
         );
 
-        // SCHEDULE REMINDER 2 DAYS BEFORE
+        // Send confirmation message to customer (AI chat)
+            try {
+              const bookingDate = booking.dateTime;
+              const tz = 'Africa/Nairobi';
+              const { DateTime } = require('luxon');
+              const dt = DateTime.fromJSDate(bookingDate).setZone(tz);
+              const formattedDate = dt.toFormat("MMMM d 'at' h:mm a");
+              const confirmMsg = `Payment received! Your booking is now confirmed for ${formattedDate}. We'll send you a reminder closer to the date. 💖`;
+              await this.aiService.generateGeneralResponse(
+                confirmMsg,
+                draft.customerId,
+                null,
+                []
+              );
+            } catch (err) {
+              this.logger.warn('Failed to send AI chat confirmation after payment', err);
+            }
+
+
+        // SCHEDULE REMINDERS 2 DAYS AND 1 DAY BEFORE
         const bookingDate = DateTime.fromJSDate(booking.dateTime);
-        const reminderTime = bookingDate.minus({ days: 2 });
-
-        await this.aiQueue.add(
-          'sendReminder',
-          {
-            customerId: draft.customerId,
-            bookingId: booking.id,
-            date: draft.date,
-            time: draft.time,
-            recipientName: draft.recipientName || draft.name,
-          },
-          {
-            delay: reminderTime.diffNow().as('milliseconds'),
-            removeOnComplete: true,
-            removeOnFail: true,
+        const reminderTimes = [
+          { days: 2, label: '2' },
+          { days: 1, label: '1' },
+        ];
+        for (const { days, label } of reminderTimes) {
+          const reminderTime = bookingDate.minus({ days });
+          const delay = reminderTime.diffNow().as('milliseconds');
+          if (delay > 0) {
+            await this.aiQueue.add(
+              'sendReminder',
+              {
+                customerId: draft.customerId,
+                bookingId: booking.id,
+                date: draft.date,
+                time: draft.time,
+                recipientName: draft.recipientName || draft.name,
+                daysBefore: label,
+              },
+              {
+                delay,
+                removeOnComplete: true,
+                removeOnFail: true,
+              }
+            );
+            this.logger.log(`Reminder scheduled for: ${reminderTime.toISO()} (${label} days before)`);
+          } else {
+            this.logger.warn(`Reminder delay negative for bookingId=${booking.id}, skipping ${label}-day reminder`);
           }
-        );
-
-        this.logger.log(`Reminder scheduled for: ${reminderTime.toISO()}`);
+        }
 
         this.logger.log(`Booking ${booking.id} confirmed from draft ${draft.id}`);
       }

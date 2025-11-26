@@ -20,12 +20,14 @@ const bull_1 = require("@nestjs/bull");
 const prisma_service_1 = require("../../prisma/prisma.service");
 const messages_service_1 = require("../messages/messages.service");
 const luxon_1 = require("luxon");
+const ai_service_1 = require("../ai/ai.service");
 const rxjs_1 = require("rxjs");
 let PaymentsService = PaymentsService_1 = class PaymentsService {
-    constructor(prisma, httpService, messagesService, aiQueue) {
+    constructor(prisma, httpService, messagesService, aiService, aiQueue) {
         this.prisma = prisma;
         this.httpService = httpService;
         this.messagesService = messagesService;
+        this.aiService = aiService;
         this.aiQueue = aiQueue;
         this.logger = new common_1.Logger(PaymentsService_1.name);
         this.mpesaBaseUrl = 'https://sandbox.safaricom.co.ke';
@@ -34,6 +36,11 @@ let PaymentsService = PaymentsService_1 = class PaymentsService {
         this.shortcode = process.env.MPESA_SHORTCODE;
         this.passkey = process.env.MPESA_PASSKEY;
         this.callbackUrl = process.env.MPESA_CALLBACK_URL;
+    }
+    async getPaymentByCheckoutRequestId(checkoutRequestId) {
+        return this.prisma.payment.findFirst({
+            where: { checkoutRequestId },
+        });
     }
     async getAccessToken() {
         if (!this.consumerKey || !this.consumerSecret) {
@@ -78,10 +85,11 @@ let PaymentsService = PaymentsService_1 = class PaymentsService {
                 return existingPayment.checkoutRequestId;
             }
             if (existingPayment.status === 'failed' || (existingPayment.status === 'pending' && !existingPayment.checkoutRequestId)) {
-                await this.prisma.payment.delete({
+                await this.prisma.payment.update({
                     where: { id: existingPayment.id },
+                    data: { status: 'pending', checkoutRequestId: null },
                 });
-                this.logger.log(`Deleted old payment ${existingPayment.id} for draft ${bookingDraftId}`);
+                this.logger.log(`Reset old payment ${existingPayment.id} for draft ${bookingDraftId}`);
             }
         }
         const payment = await this.prisma.payment.create({
@@ -185,20 +193,45 @@ let PaymentsService = PaymentsService_1 = class PaymentsService {
                     where: { id: draft.id },
                 });
                 await this.messagesService.sendOutboundMessage(draft.customerId, "Payment successful! Your maternity photoshoot booking is now confirmed. We'll send you a reminder closer to the date. 💖", 'whatsapp');
+                try {
+                    const bookingDate = booking.dateTime;
+                    const tz = 'Africa/Nairobi';
+                    const { DateTime } = require('luxon');
+                    const dt = DateTime.fromJSDate(bookingDate).setZone(tz);
+                    const formattedDate = dt.toFormat("MMMM d 'at' h:mm a");
+                    const confirmMsg = `Payment received! Your booking is now confirmed for ${formattedDate}. We'll send you a reminder closer to the date. 💖`;
+                    await this.aiService.generateGeneralResponse(confirmMsg, draft.customerId, null, []);
+                }
+                catch (err) {
+                    this.logger.warn('Failed to send AI chat confirmation after payment', err);
+                }
                 const bookingDate = luxon_1.DateTime.fromJSDate(booking.dateTime);
-                const reminderTime = bookingDate.minus({ days: 2 });
-                await this.aiQueue.add('sendReminder', {
-                    customerId: draft.customerId,
-                    bookingId: booking.id,
-                    date: draft.date,
-                    time: draft.time,
-                    recipientName: draft.recipientName || draft.name,
-                }, {
-                    delay: reminderTime.diffNow().as('milliseconds'),
-                    removeOnComplete: true,
-                    removeOnFail: true,
-                });
-                this.logger.log(`Reminder scheduled for: ${reminderTime.toISO()}`);
+                const reminderTimes = [
+                    { days: 2, label: '2' },
+                    { days: 1, label: '1' },
+                ];
+                for (const { days, label } of reminderTimes) {
+                    const reminderTime = bookingDate.minus({ days });
+                    const delay = reminderTime.diffNow().as('milliseconds');
+                    if (delay > 0) {
+                        await this.aiQueue.add('sendReminder', {
+                            customerId: draft.customerId,
+                            bookingId: booking.id,
+                            date: draft.date,
+                            time: draft.time,
+                            recipientName: draft.recipientName || draft.name,
+                            daysBefore: label,
+                        }, {
+                            delay,
+                            removeOnComplete: true,
+                            removeOnFail: true,
+                        });
+                        this.logger.log(`Reminder scheduled for: ${reminderTime.toISO()} (${label} days before)`);
+                    }
+                    else {
+                        this.logger.warn(`Reminder delay negative for bookingId=${booking.id}, skipping ${label}-day reminder`);
+                    }
+                }
                 this.logger.log(`Booking ${booking.id} confirmed from draft ${draft.id}`);
             }
             this.logger.log(`Payment ${payment.id} confirmed: ${receipt}`);
@@ -255,9 +288,11 @@ let PaymentsService = PaymentsService_1 = class PaymentsService {
 exports.PaymentsService = PaymentsService;
 exports.PaymentsService = PaymentsService = PaymentsService_1 = __decorate([
     (0, common_1.Injectable)(),
-    __param(3, (0, bull_1.InjectQueue)('aiQueue')),
+    __param(3, (0, common_1.Inject)((0, common_1.forwardRef)(() => ai_service_1.AiService))),
+    __param(4, (0, bull_1.InjectQueue)('aiQueue')),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
         axios_1.HttpService,
-        messages_service_1.MessagesService, Object])
+        messages_service_1.MessagesService,
+        ai_service_1.AiService, Object])
 ], PaymentsService);
 //# sourceMappingURL=payments.service.js.map

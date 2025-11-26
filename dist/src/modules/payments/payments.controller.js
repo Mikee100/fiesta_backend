@@ -21,6 +21,13 @@ let PaymentsController = PaymentsController_1 = class PaymentsController {
         this.paymentsService = paymentsService;
         this.logger = new common_1.Logger(PaymentsController_1.name);
     }
+    async getPaymentStatus(checkoutRequestId) {
+        const payment = await this.paymentsService.getPaymentByCheckoutRequestId(checkoutRequestId);
+        if (!payment) {
+            return { status: 'not_found' };
+        }
+        return { status: payment.status, payment };
+    }
     async handleCallback(body) {
         this.logger.log('✅ M-Pesa callback received:', JSON.stringify(body));
         await this.paymentsService.handleCallback(body);
@@ -45,6 +52,13 @@ let PaymentsController = PaymentsController_1 = class PaymentsController {
     }
 };
 exports.PaymentsController = PaymentsController;
+__decorate([
+    (0, common_1.Get)('status/:checkoutRequestId'),
+    __param(0, (0, common_1.Param)('checkoutRequestId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], PaymentsController.prototype, "getPaymentStatus", null);
 __decorate([
     (0, common_1.Post)('callback'),
     __param(0, (0, common_1.Body)()),

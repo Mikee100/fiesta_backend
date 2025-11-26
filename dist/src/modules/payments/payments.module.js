@@ -15,6 +15,7 @@ const payments_controller_1 = require("./payments.controller");
 const prisma_module_1 = require("../../prisma/prisma.module");
 const messages_module_1 = require("../messages/messages.module");
 const bookings_module_1 = require("../bookings/bookings.module");
+const ai_module_1 = require("../ai/ai.module");
 let PaymentsModule = class PaymentsModule {
 };
 exports.PaymentsModule = PaymentsModule;
@@ -28,6 +29,7 @@ exports.PaymentsModule = PaymentsModule = __decorate([
             bull_1.BullModule.registerQueue({
                 name: 'aiQueue',
             }),
+            (0, common_1.forwardRef)(() => ai_module_1.AiModule),
         ],
         providers: [payments_service_1.PaymentsService],
         controllers: [payments_controller_1.PaymentsController],

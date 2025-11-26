@@ -20,6 +20,7 @@ export declare class AiService {
     private readonly chatModel;
     private readonly studioTz;
     private readonly historyLimit;
+    private readonly businessName;
     private readonly businessLocation;
     constructor(configService: ConfigService, prisma: PrismaService, bookingsService: BookingsService, aiQueue: Queue);
     private initPineconeSafely;
@@ -40,51 +41,54 @@ export declare class AiService {
     private generateBookingReply;
     getOrCreateDraft(customerId: string): Promise<{
         id: string;
-        name: string | null;
-        createdAt: Date;
-        updatedAt: Date;
         customerId: string;
         service: string | null;
         date: string | null;
         time: string | null;
         dateTimeIso: string | null;
+        name: string | null;
         recipientName: string | null;
         recipientPhone: string | null;
         isForSomeoneElse: boolean | null;
         step: string;
         version: number;
+        createdAt: Date;
+        updatedAt: Date;
     }>;
     mergeIntoDraft(customerId: string, extraction: any): Promise<{
         id: string;
-        name: string | null;
-        createdAt: Date;
-        updatedAt: Date;
         customerId: string;
         service: string | null;
         date: string | null;
         time: string | null;
         dateTimeIso: string | null;
+        name: string | null;
         recipientName: string | null;
         recipientPhone: string | null;
         isForSomeoneElse: boolean | null;
         step: string;
         version: number;
+        createdAt: Date;
+        updatedAt: Date;
     }>;
     checkAndCompleteIfConfirmed(draft: any, extraction: any, customerId: string, bookingsService: any): Promise<{
         action: string;
         error: string;
         suggestions?: undefined;
         message?: undefined;
+        checkoutRequestId?: undefined;
         missing?: undefined;
     } | {
         action: string;
         suggestions: any;
         error?: undefined;
         message?: undefined;
+        checkoutRequestId?: undefined;
         missing?: undefined;
     } | {
         action: string;
         message: any;
+        checkoutRequestId: any;
         error?: undefined;
         suggestions?: undefined;
         missing?: undefined;
@@ -94,24 +98,25 @@ export declare class AiService {
         error?: undefined;
         suggestions?: undefined;
         message?: undefined;
+        checkoutRequestId?: undefined;
     }>;
     handleConversation(message: string, customerId: string, history?: HistoryMsg[], bookingsService?: any): Promise<{
-        response: any;
+        response: string;
         draft: {
             id: string;
-            name: string | null;
-            createdAt: Date;
-            updatedAt: Date;
             customerId: string;
             service: string | null;
             date: string | null;
             time: string | null;
             dateTimeIso: string | null;
+            name: string | null;
             recipientName: string | null;
             recipientPhone: string | null;
             isForSomeoneElse: boolean | null;
             step: string;
             version: number;
+            createdAt: Date;
+            updatedAt: Date;
         };
         updatedHistory: {
             role: string;

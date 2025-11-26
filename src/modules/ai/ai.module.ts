@@ -18,6 +18,7 @@ import { CustomersModule } from '../customers/customers.module';
     BullModule.registerQueue({
       name: 'aiQueue',
     }),
+    forwardRef(() => require('../payments/payments.module').PaymentsModule),
   ],
   controllers: [AiController, AdminAiController],
   providers: [AiService, AiSettingsService],

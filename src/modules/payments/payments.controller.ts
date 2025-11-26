@@ -1,6 +1,6 @@
-  // === TEST STK PUSH ENDPOINT ===
 
-import { Controller, Post, Body,Get, Logger } from '@nestjs/common';
+
+import { Controller, Post, Body, Get, Logger, Param } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
 
 @Controller('mpesa')
@@ -8,6 +8,15 @@ export class PaymentsController {
   private readonly logger = new Logger(PaymentsController.name);
 
   constructor(private readonly paymentsService: PaymentsService) {}
+
+  @Get('status/:checkoutRequestId')
+  async getPaymentStatus(@Param('checkoutRequestId') checkoutRequestId: string) {
+    const payment = await this.paymentsService.getPaymentByCheckoutRequestId(checkoutRequestId);
+    if (!payment) {
+      return { status: 'not_found' };
+    }
+    return { status: payment.status, payment };
+  }
 
   // === M-PESA CALLBACK URL ===
   @Post('callback')
@@ -41,3 +50,4 @@ export class PaymentsController {
   }
 
 }
+

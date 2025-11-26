@@ -5,8 +5,8 @@ export declare class MessagesController {
     constructor(messagesService: MessagesService);
     create(createMessageDto: CreateMessageDto): Promise<{
         id: string;
-        createdAt: Date;
         customerId: string;
+        createdAt: Date;
         content: string;
         platform: string;
         direction: string;
@@ -21,8 +21,8 @@ export declare class MessagesController {
             name: string;
             createdAt: Date;
             updatedAt: Date;
-            email: string | null;
             phone: string | null;
+            email: string | null;
             whatsappId: string | null;
             instagramId: string | null;
             messengerId: string | null;
@@ -30,8 +30,8 @@ export declare class MessagesController {
         };
     } & {
         id: string;
-        createdAt: Date;
         customerId: string;
+        createdAt: Date;
         content: string;
         platform: string;
         direction: string;
@@ -46,8 +46,8 @@ export declare class MessagesController {
             name: string;
             createdAt: Date;
             updatedAt: Date;
-            email: string | null;
             phone: string | null;
+            email: string | null;
             whatsappId: string | null;
             instagramId: string | null;
             messengerId: string | null;
@@ -55,8 +55,8 @@ export declare class MessagesController {
         };
     } & {
         id: string;
-        createdAt: Date;
         customerId: string;
+        createdAt: Date;
         content: string;
         platform: string;
         direction: string;
