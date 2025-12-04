@@ -5,6 +5,7 @@ import { PaymentsService } from '../payments/payments.service';
 import { MessagesService } from '../messages/messages.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PackagesService } from '../packages/packages.service';
+import { WhatsappService } from '../whatsapp/whatsapp.service';
 import { DateTime } from 'luxon';
 export declare class BookingsService {
     private prisma;
@@ -14,10 +15,13 @@ export declare class BookingsService {
     private notificationsService;
     private packagesService;
     private eventEmitter;
+    private whatsappService;
     private readonly logger;
     private readonly STUDIO_TZ;
     getPackages(type?: string): Promise<{
         id: string;
+        createdAt: Date;
+        updatedAt: Date;
         name: string;
         type: string;
         price: number;
@@ -33,8 +37,6 @@ export declare class BookingsService {
         balloonBackdrop: boolean;
         wig: boolean;
         notes: string | null;
-        createdAt: Date;
-        updatedAt: Date;
     }[]>;
     completeBookingDraft(customerId: string, providedDateTime?: Date): Promise<{
         message: string;
@@ -45,6 +47,8 @@ export declare class BookingsService {
     }>;
     getPackageById(id: string): Promise<{
         id: string;
+        createdAt: Date;
+        updatedAt: Date;
         name: string;
         type: string;
         price: number;
@@ -60,17 +64,15 @@ export declare class BookingsService {
         balloonBackdrop: boolean;
         wig: boolean;
         notes: string | null;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
     getStudioInfo(): Promise<{
         id: string;
-        notes: string;
         createdAt: Date;
         updatedAt: Date;
+        notes: string;
         location: string;
     }>;
-    constructor(prisma: PrismaService, bookingQueue: Queue, paymentsService: PaymentsService, messagesService: MessagesService, notificationsService: NotificationsService, packagesService: PackagesService, eventEmitter: EventEmitter2);
+    constructor(prisma: PrismaService, bookingQueue: Queue, paymentsService: PaymentsService, messagesService: MessagesService, notificationsService: NotificationsService, packagesService: PackagesService, eventEmitter: EventEmitter2, whatsappService: WhatsappService);
     private getSlotInterval;
     private intervalsOverlap;
     private formatBookingConflictMessage;
@@ -78,9 +80,9 @@ export declare class BookingsService {
     private formatDraftIncompleteMessage;
     getBookingDraft(customerId: string): Promise<{
         id: string;
-        name: string | null;
         createdAt: Date;
         updatedAt: Date;
+        name: string | null;
         customerId: string;
         service: string | null;
         date: string | null;
@@ -96,9 +98,9 @@ export declare class BookingsService {
     getDepositForDraft(customerId: string): Promise<number>;
     createBookingDraft(customerId: string): Promise<{
         id: string;
-        name: string | null;
         createdAt: Date;
         updatedAt: Date;
+        name: string | null;
         customerId: string;
         service: string | null;
         date: string | null;
@@ -113,9 +115,9 @@ export declare class BookingsService {
     }>;
     updateBookingDraft(customerId: string, updates: Partial<any>): Promise<{
         id: string;
-        name: string | null;
         createdAt: Date;
         updatedAt: Date;
+        name: string | null;
         customerId: string;
         service: string | null;
         date: string | null;
@@ -130,9 +132,9 @@ export declare class BookingsService {
     }>;
     deleteBookingDraft(customerId: string): Promise<{
         id: string;
-        name: string | null;
         createdAt: Date;
         updatedAt: Date;
+        name: string | null;
         customerId: string;
         service: string | null;
         date: string | null;
@@ -157,10 +159,10 @@ export declare class BookingsService {
         createdAt: Date;
         updatedAt: Date;
         customerId: string;
-        status: string;
         service: string;
         recipientName: string | null;
         recipientPhone: string | null;
+        status: string;
         dateTime: Date;
         durationMinutes: number | null;
         googleEventId: string | null;
@@ -170,10 +172,10 @@ export declare class BookingsService {
         createdAt: Date;
         updatedAt: Date;
         customerId: string;
-        status: string;
         service: string;
         recipientName: string | null;
         recipientPhone: string | null;
+        status: string;
         dateTime: Date;
         durationMinutes: number | null;
         googleEventId: string | null;
@@ -189,14 +191,14 @@ export declare class BookingsService {
     }): Promise<{
         customer: {
             id: string;
-            name: string;
             createdAt: Date;
             updatedAt: Date;
+            name: string;
+            phone: string | null;
             email: string | null;
             whatsappId: string | null;
             instagramId: string | null;
             messengerId: string | null;
-            phone: string | null;
             aiEnabled: boolean;
             isAiPaused: boolean;
             lastInstagramMessageAt: Date | null;
@@ -209,10 +211,10 @@ export declare class BookingsService {
         createdAt: Date;
         updatedAt: Date;
         customerId: string;
-        status: string;
         service: string;
         recipientName: string | null;
         recipientPhone: string | null;
+        status: string;
         dateTime: Date;
         durationMinutes: number | null;
         googleEventId: string | null;
@@ -222,10 +224,10 @@ export declare class BookingsService {
         createdAt: Date;
         updatedAt: Date;
         customerId: string;
-        status: string;
         service: string;
         recipientName: string | null;
         recipientPhone: string | null;
+        status: string;
         dateTime: Date;
         durationMinutes: number | null;
         googleEventId: string | null;
@@ -233,14 +235,14 @@ export declare class BookingsService {
     cancelBooking(bookingId: string): Promise<{
         customer: {
             id: string;
-            name: string;
             createdAt: Date;
             updatedAt: Date;
+            name: string;
+            phone: string | null;
             email: string | null;
             whatsappId: string | null;
             instagramId: string | null;
             messengerId: string | null;
-            phone: string | null;
             aiEnabled: boolean;
             isAiPaused: boolean;
             lastInstagramMessageAt: Date | null;
@@ -253,10 +255,10 @@ export declare class BookingsService {
         createdAt: Date;
         updatedAt: Date;
         customerId: string;
-        status: string;
         service: string;
         recipientName: string | null;
         recipientPhone: string | null;
+        status: string;
         dateTime: Date;
         durationMinutes: number | null;
         googleEventId: string | null;
@@ -265,14 +267,14 @@ export declare class BookingsService {
         bookings: ({
             customer: {
                 id: string;
-                name: string;
                 createdAt: Date;
                 updatedAt: Date;
+                name: string;
+                phone: string | null;
                 email: string | null;
                 whatsappId: string | null;
                 instagramId: string | null;
                 messengerId: string | null;
-                phone: string | null;
                 aiEnabled: boolean;
                 isAiPaused: boolean;
                 lastInstagramMessageAt: Date | null;
@@ -285,10 +287,10 @@ export declare class BookingsService {
             createdAt: Date;
             updatedAt: Date;
             customerId: string;
-            status: string;
             service: string;
             recipientName: string | null;
             recipientPhone: string | null;
+            status: string;
             dateTime: Date;
             durationMinutes: number | null;
             googleEventId: string | null;
@@ -297,6 +299,8 @@ export declare class BookingsService {
     }>;
     createPackage(data: any): Promise<{
         id: string;
+        createdAt: Date;
+        updatedAt: Date;
         name: string;
         type: string;
         price: number;
@@ -312,11 +316,11 @@ export declare class BookingsService {
         balloonBackdrop: boolean;
         wig: boolean;
         notes: string | null;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
     updatePackage(id: string, data: any): Promise<{
         id: string;
+        createdAt: Date;
+        updatedAt: Date;
         name: string;
         type: string;
         price: number;
@@ -332,11 +336,11 @@ export declare class BookingsService {
         balloonBackdrop: boolean;
         wig: boolean;
         notes: string | null;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
     deletePackage(id: string): Promise<{
         id: string;
+        createdAt: Date;
+        updatedAt: Date;
         name: string;
         type: string;
         price: number;
@@ -352,20 +356,18 @@ export declare class BookingsService {
         balloonBackdrop: boolean;
         wig: boolean;
         notes: string | null;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
     getLatestConfirmedBooking(customerId: string): Promise<{
         customer: {
             id: string;
-            name: string;
             createdAt: Date;
             updatedAt: Date;
+            name: string;
+            phone: string | null;
             email: string | null;
             whatsappId: string | null;
             instagramId: string | null;
             messengerId: string | null;
-            phone: string | null;
             aiEnabled: boolean;
             isAiPaused: boolean;
             lastInstagramMessageAt: Date | null;
@@ -378,10 +380,10 @@ export declare class BookingsService {
         createdAt: Date;
         updatedAt: Date;
         customerId: string;
-        status: string;
         service: string;
         recipientName: string | null;
         recipientPhone: string | null;
+        status: string;
         dateTime: Date;
         durationMinutes: number | null;
         googleEventId: string | null;

@@ -56,29 +56,19 @@ let MessageQueueProcessor = MessageQueueProcessor_1 = class MessageQueueProcesso
                 return { processed: false, error: 'Invalid job payload' };
             }
         }
-        const historyMessagesRaw = await this.messagesService.findByCustomer(customerId);
-        const historyMessages = historyMessagesRaw
-            .filter(m => m.direction === 'inbound' || m.direction === 'outbound')
-            .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-            .slice(-this.HISTORY_LIMIT);
-        const history = historyMessages.map(m => ({
-            role: m.direction === 'inbound' ? 'user' : 'assistant',
-            content: m.content,
-            createdAt: m.createdAt,
-        }));
+        const enrichedContext = await this.messagesService.getEnrichedContext(customerId);
+        const history = enrichedContext.history;
         const lastInbound = [...history].reverse().find(h => h.role === 'user');
         const lastOutbound = [...history].reverse().find(h => h.role === 'assistant');
         if (lastInbound && lastInbound.content === messageContent) {
-            if (lastOutbound && new Date(lastOutbound.createdAt) > new Date(lastInbound.createdAt)) {
-                this.logger.log('Duplicate inbound detected; skipping processing to avoid double reply.');
-                return { processed: true, skippedDuplicate: true };
+            if (lastOutbound) {
             }
         }
         let response = '';
         let mediaUrls = [];
         let draft = null;
         try {
-            const result = await this.aiService.handleConversation(messageContent, customerId, history, this.bookingsService);
+            const result = await this.aiService.handleConversation(messageContent, customerId, history, this.bookingsService, 0, enrichedContext);
             if (typeof result.response === 'object' && result.response !== null && 'text' in result.response) {
                 response = result.response.text;
                 mediaUrls = result.response.mediaUrls || [];

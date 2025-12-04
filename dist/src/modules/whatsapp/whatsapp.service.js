@@ -90,16 +90,6 @@ let WhatsappService = class WhatsappService {
                 },
             });
             console.log('✔️ WhatsApp API response:', response.data);
-            const customer = await this.customersService.findByWhatsappId(to);
-            if (customer) {
-                await this.messagesService.create({
-                    content: message,
-                    platform: 'whatsapp',
-                    direction: 'outbound',
-                    customerId: customer.id,
-                });
-            }
-            return response.data;
             return response.data;
         }
         catch (error) {

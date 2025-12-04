@@ -9,6 +9,7 @@ import { MessagesService } from '../messages/messages.service';
 import { CalendarService } from '../calendar/calendar.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PackagesService } from '../packages/packages.service';
+import { WhatsappService } from '../whatsapp/whatsapp.service';
 import * as chrono from 'chrono-node';
 import { DateTime, Duration } from 'luxon';
 
@@ -117,6 +118,7 @@ export class BookingsService {
     private notificationsService: NotificationsService,
     private packagesService: PackagesService,
     private eventEmitter: EventEmitter2,
+    private whatsappService: WhatsappService,
   ) { }
 
   /* --------------------------
@@ -461,7 +463,13 @@ export class BookingsService {
       // Send rescheduling confirmation
       const msg = `Your appointment has been rescheduled to ${DateTime.fromJSDate(newDateTime).setZone(this.STUDIO_TZ).toFormat('ccc, LLL dd, yyyy HH:mm')}.`;
       try {
-        await this.messagesService.sendOutboundMessage(updated.customerId, msg, 'whatsapp');
+        if (updated.customer?.whatsappId) {
+          await this.whatsappService.sendMessage(updated.customer.whatsappId, msg);
+        } else {
+          // Fallback if no whatsappId (though unlikely if they booked via WA)
+          // We could try to find by phone, but for now let's just log
+          this.logger.warn(`No WhatsApp ID for customer ${updated.customerId}, reschedule msg not sent via WA API`);
+        }
       } catch (e) {
         this.logger.error(`Failed to send reschedule notification to ${updated.customerId}`, e);
       }
@@ -498,9 +506,12 @@ export class BookingsService {
     });
 
     // Send cancellation confirmation
+    // Send cancellation confirmation
     const msg = `Your appointment has been cancelled. We hope to see you again soon!`;
     try {
-      await this.messagesService.sendOutboundMessage(booking.customerId, msg, 'whatsapp');
+      if (booking.customer?.whatsappId) {
+        await this.whatsappService.sendMessage(booking.customer.whatsappId, msg);
+      }
     } catch (e) {
       this.logger.error(`Failed to send cancellation notification to ${booking.customerId}`, e);
     }

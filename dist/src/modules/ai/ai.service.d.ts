@@ -63,7 +63,7 @@ export declare class AiService {
     generateEmbedding(text: string): Promise<number[]>;
     retrieveRelevantDocs(query: string, topK?: number): Promise<any>;
     private formatPackageDetails;
-    answerFaq(question: string, history?: HistoryMsg[], actual?: string, customerId?: string): Promise<{
+    answerFaq(question: string, history?: HistoryMsg[], actual?: string, customerId?: string, enrichedContext?: any): Promise<{
         text: string;
         mediaUrls: string[];
     }>;
@@ -80,9 +80,9 @@ export declare class AiService {
     private generateBookingReply;
     getOrCreateDraft(customerId: string): Promise<{
         id: string;
-        name: string | null;
         createdAt: Date;
         updatedAt: Date;
+        name: string | null;
         customerId: string;
         service: string | null;
         date: string | null;
@@ -97,9 +97,9 @@ export declare class AiService {
     }>;
     mergeIntoDraft(customerId: string, extraction: any): Promise<{
         id: string;
-        name: string | null;
         createdAt: Date;
         updatedAt: Date;
+        name: string | null;
         customerId: string;
         service: string | null;
         date: string | null;
@@ -164,7 +164,7 @@ export declare class AiService {
         paymentId?: undefined;
     }>;
     confirmCustomerPhone(customerId: string): Promise<boolean>;
-    handleConversation(message: string, customerId: string, history?: HistoryMsg[], bookingsService?: any, retryCount?: number): Promise<any>;
+    handleConversation(message: string, customerId: string, history?: HistoryMsg[], bookingsService?: any, retryCount?: number, enrichedContext?: any): Promise<any>;
     private attemptRecovery;
     private processConversationLogic;
     addKnowledge(question: string, answer: string): Promise<void>;

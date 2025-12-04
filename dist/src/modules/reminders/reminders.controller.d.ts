@@ -9,10 +9,10 @@ export declare class RemindersController {
                 customer: {
                     id: string;
                     createdAt: Date;
-                    name: string;
                     updatedAt: Date;
-                    email: string | null;
+                    name: string;
                     phone: string | null;
+                    email: string | null;
                     whatsappId: string | null;
                     instagramId: string | null;
                     messengerId: string | null;
@@ -25,26 +25,26 @@ export declare class RemindersController {
                 };
             } & {
                 id: string;
-                status: string;
                 createdAt: Date;
+                updatedAt: Date;
                 customerId: string;
                 service: string;
-                dateTime: Date;
-                durationMinutes: number | null;
                 recipientName: string | null;
                 recipientPhone: string | null;
+                status: string;
+                dateTime: Date;
+                durationMinutes: number | null;
                 googleEventId: string | null;
-                updatedAt: Date;
             };
         } & {
             id: string;
-            bookingId: string;
-            type: string;
-            scheduledFor: Date;
-            sentAt: Date | null;
-            status: string;
-            messageContent: string | null;
             createdAt: Date;
+            status: string;
+            type: string;
+            bookingId: string;
+            sentAt: Date | null;
+            scheduledFor: Date;
+            messageContent: string | null;
         })[];
         total: number;
     }>;
@@ -54,10 +54,10 @@ export declare class RemindersController {
                 customer: {
                     id: string;
                     createdAt: Date;
-                    name: string;
                     updatedAt: Date;
-                    email: string | null;
+                    name: string;
                     phone: string | null;
+                    email: string | null;
                     whatsappId: string | null;
                     instagramId: string | null;
                     messengerId: string | null;
@@ -70,26 +70,26 @@ export declare class RemindersController {
                 };
             } & {
                 id: string;
-                status: string;
                 createdAt: Date;
+                updatedAt: Date;
                 customerId: string;
                 service: string;
-                dateTime: Date;
-                durationMinutes: number | null;
                 recipientName: string | null;
                 recipientPhone: string | null;
+                status: string;
+                dateTime: Date;
+                durationMinutes: number | null;
                 googleEventId: string | null;
-                updatedAt: Date;
             };
         } & {
             id: string;
-            bookingId: string;
-            type: string;
-            scheduledFor: Date;
-            sentAt: Date | null;
-            status: string;
-            messageContent: string | null;
             createdAt: Date;
+            status: string;
+            type: string;
+            bookingId: string;
+            sentAt: Date | null;
+            scheduledFor: Date;
+            messageContent: string | null;
         })[];
         total: number;
     }>;
@@ -98,10 +98,10 @@ export declare class RemindersController {
             customer: {
                 id: string;
                 createdAt: Date;
-                name: string;
                 updatedAt: Date;
-                email: string | null;
+                name: string;
                 phone: string | null;
+                email: string | null;
                 whatsappId: string | null;
                 instagramId: string | null;
                 messengerId: string | null;
@@ -114,36 +114,36 @@ export declare class RemindersController {
             };
         } & {
             id: string;
-            status: string;
             createdAt: Date;
+            updatedAt: Date;
             customerId: string;
             service: string;
-            dateTime: Date;
-            durationMinutes: number | null;
             recipientName: string | null;
             recipientPhone: string | null;
+            status: string;
+            dateTime: Date;
+            durationMinutes: number | null;
             googleEventId: string | null;
-            updatedAt: Date;
         };
     } & {
         id: string;
-        bookingId: string;
-        type: string;
-        scheduledFor: Date;
-        sentAt: Date | null;
-        status: string;
-        messageContent: string | null;
         createdAt: Date;
+        status: string;
+        type: string;
+        bookingId: string;
+        sentAt: Date | null;
+        scheduledFor: Date;
+        messageContent: string | null;
     })[]>;
     getReminder(id: string): Promise<{
         booking: {
             customer: {
                 id: string;
                 createdAt: Date;
-                name: string;
                 updatedAt: Date;
-                email: string | null;
+                name: string;
                 phone: string | null;
+                email: string | null;
                 whatsappId: string | null;
                 instagramId: string | null;
                 messengerId: string | null;
@@ -156,36 +156,36 @@ export declare class RemindersController {
             };
         } & {
             id: string;
-            status: string;
             createdAt: Date;
+            updatedAt: Date;
             customerId: string;
             service: string;
-            dateTime: Date;
-            durationMinutes: number | null;
             recipientName: string | null;
             recipientPhone: string | null;
+            status: string;
+            dateTime: Date;
+            durationMinutes: number | null;
             googleEventId: string | null;
-            updatedAt: Date;
         };
     } & {
         id: string;
-        bookingId: string;
-        type: string;
-        scheduledFor: Date;
-        sentAt: Date | null;
-        status: string;
-        messageContent: string | null;
         createdAt: Date;
+        status: string;
+        type: string;
+        bookingId: string;
+        sentAt: Date | null;
+        scheduledFor: Date;
+        messageContent: string | null;
     }>;
     sendReminder(id: string): Promise<{
         booking: {
             customer: {
                 id: string;
                 createdAt: Date;
-                name: string;
                 updatedAt: Date;
-                email: string | null;
+                name: string;
                 phone: string | null;
+                email: string | null;
                 whatsappId: string | null;
                 instagramId: string | null;
                 messengerId: string | null;
@@ -198,45 +198,45 @@ export declare class RemindersController {
             };
         } & {
             id: string;
-            status: string;
             createdAt: Date;
+            updatedAt: Date;
             customerId: string;
             service: string;
-            dateTime: Date;
-            durationMinutes: number | null;
             recipientName: string | null;
             recipientPhone: string | null;
+            status: string;
+            dateTime: Date;
+            durationMinutes: number | null;
             googleEventId: string | null;
-            updatedAt: Date;
         };
     } & {
         id: string;
-        bookingId: string;
-        type: string;
-        scheduledFor: Date;
-        sentAt: Date | null;
-        status: string;
-        messageContent: string | null;
         createdAt: Date;
+        status: string;
+        type: string;
+        bookingId: string;
+        sentAt: Date | null;
+        scheduledFor: Date;
+        messageContent: string | null;
     }>;
     updateReminder(id: string, data: UpdateReminderDto): Promise<{
         id: string;
-        bookingId: string;
-        type: string;
-        scheduledFor: Date;
-        sentAt: Date | null;
-        status: string;
-        messageContent: string | null;
         createdAt: Date;
+        status: string;
+        type: string;
+        bookingId: string;
+        sentAt: Date | null;
+        scheduledFor: Date;
+        messageContent: string | null;
     }>;
     cancelReminder(id: string): Promise<{
         id: string;
-        bookingId: string;
-        type: string;
-        scheduledFor: Date;
-        sentAt: Date | null;
-        status: string;
-        messageContent: string | null;
         createdAt: Date;
+        status: string;
+        type: string;
+        bookingId: string;
+        sentAt: Date | null;
+        scheduledFor: Date;
+        messageContent: string | null;
     }>;
 }

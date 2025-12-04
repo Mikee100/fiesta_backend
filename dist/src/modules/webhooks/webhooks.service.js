@@ -22,14 +22,16 @@ const bull_1 = require("@nestjs/bull");
 const websocket_gateway_1 = require("../../websockets/websocket.gateway");
 const bookings_service_1 = require("../bookings/bookings.service");
 const payments_service_1 = require("../payments/payments.service");
+const whatsapp_service_1 = require("../whatsapp/whatsapp.service");
 let WebhooksService = class WebhooksService {
-    constructor(messagesService, customersService, aiService, aiSettingsService, bookingsService, paymentsService, messageQueue, websocketGateway) {
+    constructor(messagesService, customersService, aiService, aiSettingsService, bookingsService, paymentsService, whatsappService, messageQueue, websocketGateway) {
         this.messagesService = messagesService;
         this.customersService = customersService;
         this.aiService = aiService;
         this.aiSettingsService = aiSettingsService;
         this.bookingsService = bookingsService;
         this.paymentsService = paymentsService;
+        this.whatsappService = whatsappService;
         this.messageQueue = messageQueue;
         this.websocketGateway = websocketGateway;
     }
@@ -106,14 +108,69 @@ let WebhooksService = class WebhooksService {
             const newPhone = phoneMatch[0];
             console.log(`User provided new phone number: ${newPhone}`);
             await this.customersService.updatePhone(from, newPhone);
-            await new Promise(resolve => setTimeout(resolve, 3000));
             const draft = await this.bookingsService.getBookingDraft(customer.id);
             if (draft) {
-                const amount = await this.bookingsService.getDepositForDraft(customer.id) || 2000;
-                const checkoutId = await this.paymentsService.initiateSTKPush(draft.id, newPhone, amount);
-                await this.messagesService.sendOutboundMessage(customer.id, `Deposit payment initiated. Please complete payment on your phone to confirm booking. 💰`, 'whatsapp');
-                console.log(`STK Push initiated for ${newPhone}, CheckoutRequestID: ${checkoutId}`);
+                const depositAmount = await this.bookingsService.getDepositForDraft(customer.id) || 2000;
+                const packages = await this.aiService.getCachedPackages();
+                const selectedPackage = packages.find(p => p.name === draft.service);
+                const fullPrice = selectedPackage?.price || 0;
+                const confirmationMessage = `Perfect! I have your phone number: ${newPhone} 📱
+
+📦 *${draft.service}*
+💰 Full Price: KSH ${fullPrice.toLocaleString()}
+💳 Deposit Required: KSH ${depositAmount.toLocaleString()}
+
+📋 *Important Policies:*
+
+💵 *Payment:*
+• Remaining balance is due after the shoot
+
+📸 *Photo Delivery:*
+• Edited photos delivered in *10 working days*
+
+⏰ *Cancellation/Rescheduling:*
+• Must be made at least *72 hours* before your shoot time
+• Changes within 72 hours are non-refundable
+• Session fee will be forfeited for late cancellations
+
+To confirm your booking and accept these terms, please reply with *"CONFIRM"* and I'll send the M-PESA payment prompt to your phone.
+
+Or reply *"CANCEL"* if you'd like to make changes. 💖`;
+                await this.whatsappService.sendMessage(from, confirmationMessage);
+                console.log(`Deposit confirmation sent to ${newPhone}. Waiting for user confirmation.`);
             }
+        }
+        else if (text.toLowerCase() === 'confirm') {
+            const draft = await this.bookingsService.getBookingDraft(customer.id);
+            if (draft) {
+                const customerData = await this.customersService.findOne(customer.id);
+                if (customerData?.phone) {
+                    const amount = await this.bookingsService.getDepositForDraft(customer.id) || 2000;
+                    try {
+                        const checkoutId = await this.paymentsService.initiateSTKPush(draft.id, customerData.phone, amount);
+                        await this.whatsappService.sendMessage(from, `Payment request sent! Please check your phone and enter your M-PESA PIN to complete the deposit payment. 💳✨`);
+                        console.log(`STK Push initiated for ${customerData.phone}, CheckoutRequestID: ${checkoutId}`);
+                    }
+                    catch (error) {
+                        console.error('STK Push failed:', error);
+                        await this.whatsappService.sendMessage(from, `Sorry, there was an issue initiating payment. Please try again or contact us at ${process.env.CUSTOMER_CARE_PHONE || '0720 111928'}. 💖`);
+                    }
+                }
+                else {
+                    await this.whatsappService.sendMessage(from, `I don't have your phone number yet. Please share it so I can send the payment request. 📱`);
+                }
+            }
+            else {
+                await this.whatsappService.sendMessage(from, `I don't see a pending booking. Would you like to start a new booking? 💖`);
+            }
+        }
+        else if (text.toLowerCase() === 'cancel') {
+            await this.whatsappService.sendMessage(from, `No problem! What would you like to change? You can:
+• Choose a different package
+• Pick a different date/time
+• Start over
+
+Just let me know! 💖`);
         }
         else {
             const globalAiEnabled = await this.aiSettingsService.isAiEnabled();
@@ -244,12 +301,13 @@ let WebhooksService = class WebhooksService {
 exports.WebhooksService = WebhooksService;
 exports.WebhooksService = WebhooksService = __decorate([
     (0, common_1.Injectable)(),
-    __param(6, (0, bull_1.InjectQueue)('messageQueue')),
+    __param(7, (0, bull_1.InjectQueue)('messageQueue')),
     __metadata("design:paramtypes", [messages_service_1.MessagesService,
         customers_service_1.CustomersService,
         ai_service_1.AiService,
         ai_settings_service_1.AiSettingsService,
         bookings_service_1.BookingsService,
-        payments_service_1.PaymentsService, Object, websocket_gateway_1.WebsocketGateway])
+        payments_service_1.PaymentsService,
+        whatsapp_service_1.WhatsappService, Object, websocket_gateway_1.WebsocketGateway])
 ], WebhooksService);
 //# sourceMappingURL=webhooks.service.js.map

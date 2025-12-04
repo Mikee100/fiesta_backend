@@ -121,18 +121,8 @@ export class WhatsappService {
 
       console.log('✔️ WhatsApp API response:', response.data);
 
-      // Save outbound message
-      const customer = await this.customersService.findByWhatsappId(to);
-      if (customer) {
-        await this.messagesService.create({
-          content: message,
-          platform: 'whatsapp',
-          direction: 'outbound',
-          customerId: customer.id,
-        });
-      }
-
-      return response.data;
+      // Note: Outbound message is saved by message-queue.processor.ts
+      // to avoid duplicates. Do NOT save here.
 
       return response.data;
     } catch (error) {

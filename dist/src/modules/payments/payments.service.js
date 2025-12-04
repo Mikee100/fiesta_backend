@@ -24,13 +24,15 @@ const ai_service_1 = require("../ai/ai.service");
 const bookings_service_1 = require("../bookings/bookings.service");
 const notifications_service_1 = require("../notifications/notifications.service");
 const packages_service_1 = require("../packages/packages.service");
+const whatsapp_service_1 = require("../whatsapp/whatsapp.service");
 const rxjs_1 = require("rxjs");
 let PaymentsService = PaymentsService_1 = class PaymentsService {
-    constructor(prisma, httpService, messagesService, notificationsService, aiService, bookingsService, aiQueue, paymentsQueue, packagesService) {
+    constructor(prisma, httpService, messagesService, notificationsService, whatsappService, aiService, bookingsService, aiQueue, paymentsQueue, packagesService) {
         this.prisma = prisma;
         this.httpService = httpService;
         this.messagesService = messagesService;
         this.notificationsService = notificationsService;
+        this.whatsappService = whatsappService;
         this.aiService = aiService;
         this.bookingsService = bookingsService;
         this.aiQueue = aiQueue;
@@ -247,9 +249,10 @@ let PaymentsService = PaymentsService_1 = class PaymentsService {
                     service: draft.service,
                     dateTime: new Date(draft.dateTimeIso),
                     status: 'confirmed',
-                    recipientName: draft.recipientName,
-                    recipientPhone: draft.recipientPhone,
+                    recipientName: draft.recipientName || draft.customer.name,
+                    recipientPhone: draft.recipientPhone || draft.customer.phone,
                 },
+                include: { customer: true },
             });
             await this.prisma.bookingDraft.delete({
                 where: { id: draft.id },
@@ -268,7 +271,13 @@ let PaymentsService = PaymentsService_1 = class PaymentsService {
                 }
             }
             const confirmationMessage = await this.bookingsService.formatBookingConfirmationMessage(booking, receipt, scheduledReminders);
-            await this.messagesService.sendOutboundMessage(draft.customerId, confirmationMessage, 'whatsapp');
+            if (draft.customer?.whatsappId) {
+                await this.whatsappService.sendMessage(draft.customer.whatsappId, confirmationMessage);
+                this.logger.log(`Booking confirmation sent to WhatsApp: ${draft.customer.whatsappId}`);
+            }
+            else {
+                this.logger.warn(`No WhatsApp ID found for customer ${draft.customerId}, confirmation not sent`);
+            }
             for (const { days, dateTime } of scheduledReminders) {
                 const delay = dateTime.diffNow().as('milliseconds');
                 await this.aiQueue.add('sendReminder', {
@@ -393,14 +402,15 @@ let PaymentsService = PaymentsService_1 = class PaymentsService {
 exports.PaymentsService = PaymentsService;
 exports.PaymentsService = PaymentsService = PaymentsService_1 = __decorate([
     (0, common_1.Injectable)(),
-    __param(4, (0, common_1.Inject)((0, common_1.forwardRef)(() => ai_service_1.AiService))),
-    __param(5, (0, common_1.Inject)((0, common_1.forwardRef)(() => bookings_service_1.BookingsService))),
-    __param(6, (0, bull_1.InjectQueue)('aiQueue')),
-    __param(7, (0, bull_1.InjectQueue)('paymentsQueue')),
+    __param(5, (0, common_1.Inject)((0, common_1.forwardRef)(() => ai_service_1.AiService))),
+    __param(6, (0, common_1.Inject)((0, common_1.forwardRef)(() => bookings_service_1.BookingsService))),
+    __param(7, (0, bull_1.InjectQueue)('aiQueue')),
+    __param(8, (0, bull_1.InjectQueue)('paymentsQueue')),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
         axios_1.HttpService,
         messages_service_1.MessagesService,
         notifications_service_1.NotificationsService,
+        whatsapp_service_1.WhatsappService,
         ai_service_1.AiService,
         bookings_service_1.BookingsService, Object, Object, packages_service_1.PackagesService])
 ], PaymentsService);

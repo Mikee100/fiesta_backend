@@ -125,6 +125,51 @@ Respond with only the intent (e.g., booking_details).`;
         }
         return message;
     }
+    async getConversationHistory(customerId, limit = 10) {
+        const messages = await this.prisma.message.findMany({
+            where: { customerId },
+            orderBy: { createdAt: 'desc' },
+            take: limit,
+            select: {
+                content: true,
+                direction: true,
+                createdAt: true,
+            },
+        });
+        const chronological = messages.reverse();
+        return chronological.map(msg => ({
+            role: msg.direction === 'inbound' ? 'user' : 'assistant',
+            content: msg.content,
+        }));
+    }
+    async getEnrichedContext(customerId) {
+        const [history, customer, bookingDraft] = await Promise.all([
+            this.getConversationHistory(customerId, 10),
+            this.prisma.customer.findUnique({
+                where: { id: customerId },
+                include: {
+                    bookings: {
+                        where: { status: { in: ['confirmed', 'completed'] } },
+                        orderBy: { createdAt: 'desc' },
+                        take: 3,
+                    },
+                },
+            }),
+            this.prisma.bookingDraft.findUnique({
+                where: { customerId },
+            }),
+        ]);
+        return {
+            history,
+            customer: {
+                name: customer?.name,
+                totalBookings: customer?.bookings?.length || 0,
+                recentBookings: customer?.bookings || [],
+                isReturning: (customer?.bookings?.length || 0) > 0,
+            },
+            bookingDraft,
+        };
+    }
 };
 exports.MessagesService = MessagesService;
 exports.MessagesService = MessagesService = __decorate([

@@ -7,6 +7,8 @@ import { PaymentsModule } from '../payments/payments.module';
 import { MessagesModule } from '../messages/messages.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { PackagesModule } from '../packages/packages.module';
+import { WhatsappModule } from '../whatsapp/whatsapp.module';
+import { CalendarModule } from '../calendar/calendar.module';
 
 @Module({
   imports: [
@@ -15,6 +17,8 @@ import { PackagesModule } from '../packages/packages.module';
     MessagesModule,
     NotificationsModule,
     PackagesModule,
+    WhatsappModule,
+    CalendarModule,
     BullModule.registerQueue({
       name: 'bookingQueue',
     }),

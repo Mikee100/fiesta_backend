@@ -17,6 +17,7 @@ const bookings_module_1 = require("../bookings/bookings.module");
 const payments_module_1 = require("../payments/payments.module");
 const bull_1 = require("@nestjs/bull");
 const websocket_module_1 = require("../../websockets/websocket.module");
+const whatsapp_module_1 = require("../whatsapp/whatsapp.module");
 const messenger_module_1 = require("./messenger.module");
 let WebhooksModule = class WebhooksModule {
 };
@@ -26,9 +27,10 @@ exports.WebhooksModule = WebhooksModule = __decorate([
         imports: [
             messages_module_1.MessagesModule,
             customers_module_1.CustomersModule,
-            ai_module_1.AiModule,
+            (0, common_1.forwardRef)(() => ai_module_1.AiModule),
             bookings_module_1.BookingsModule,
             payments_module_1.PaymentsModule,
+            whatsapp_module_1.WhatsappModule,
             bull_1.BullModule.registerQueue({
                 name: 'messageQueue',
             }),

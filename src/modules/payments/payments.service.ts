@@ -9,6 +9,7 @@ import { AiService } from '../ai/ai.service';
 import { BookingsService } from '../bookings/bookings.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PackagesService } from '../packages/packages.service';
+import { WhatsappService } from '../whatsapp/whatsapp.service';
 import { firstValueFrom } from 'rxjs';
 
 @Injectable()
@@ -26,6 +27,7 @@ export class PaymentsService {
     private httpService: HttpService,
     private messagesService: MessagesService,
     private notificationsService: NotificationsService,
+    private whatsappService: WhatsappService,
     @Inject(forwardRef(() => AiService)) private aiService: AiService,
     @Inject(forwardRef(() => BookingsService)) private bookingsService: BookingsService,
     @InjectQueue('aiQueue') private aiQueue: Queue,
@@ -292,9 +294,10 @@ export class PaymentsService {
           service: draft.service,
           dateTime: new Date(draft.dateTimeIso),
           status: 'confirmed',
-          recipientName: draft.recipientName,
-          recipientPhone: draft.recipientPhone,
+          recipientName: draft.recipientName || draft.customer.name, // Fallback to customer name
+          recipientPhone: draft.recipientPhone || draft.customer.phone, // Fallback to customer phone
         },
+        include: { customer: true }, // Include customer for confirmation message
       });
 
       // Delete the draft
@@ -324,11 +327,14 @@ export class PaymentsService {
         receipt,
         scheduledReminders,
       );
-      await this.messagesService.sendOutboundMessage(
-        draft.customerId,
-        confirmationMessage,
-        'whatsapp'
-      );
+
+      // Send directly via WhatsApp (not via sendOutboundMessage which doesn't actually send)
+      if (draft.customer?.whatsappId) {
+        await this.whatsappService.sendMessage(draft.customer.whatsappId, confirmationMessage);
+        this.logger.log(`Booking confirmation sent to WhatsApp: ${draft.customer.whatsappId}`);
+      } else {
+        this.logger.warn(`No WhatsApp ID found for customer ${draft.customerId}, confirmation not sent`);
+      }
 
       // Actually schedule the reminder jobs
       for (const { days, dateTime } of scheduledReminders) {

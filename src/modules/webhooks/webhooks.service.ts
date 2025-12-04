@@ -8,6 +8,8 @@ import { Queue } from 'bull';
 import { WebsocketGateway } from '../../websockets/websocket.gateway';
 import { BookingsService } from '../bookings/bookings.service';
 import { PaymentsService } from '../payments/payments.service';
+import { WhatsappService } from '../whatsapp/whatsapp.service';
+
 @Injectable()
 export class WebhooksService {
   constructor(
@@ -15,8 +17,9 @@ export class WebhooksService {
     private customersService: CustomersService,
     private aiService: AiService,
     private aiSettingsService: AiSettingsService,
-    private bookingsService: BookingsService,  // ✅ add this
-    private paymentsService: PaymentsService,  // ✅ add this
+    private bookingsService: BookingsService,
+    private paymentsService: PaymentsService,
+    private whatsappService: WhatsappService,
     @InjectQueue('messageQueue') private messageQueue: Queue,
     private websocketGateway: WebsocketGateway,
   ) { }
@@ -117,23 +120,92 @@ export class WebhooksService {
       // Update customer's phone
       await this.customersService.updatePhone(from, newPhone);
 
-      // Wait 3 seconds before triggering MPESA deposit prompt
-      await new Promise(resolve => setTimeout(resolve, 3000));
-
+      // Check if there's a pending booking draft
       const draft = await this.bookingsService.getBookingDraft(customer.id);
       if (draft) {
-        const amount = await this.bookingsService.getDepositForDraft(customer.id) || 2000; // fallback deposit
-        const checkoutId = await this.paymentsService.initiateSTKPush(draft.id, newPhone, amount);
+        const depositAmount = await this.bookingsService.getDepositForDraft(customer.id) || 2000;
 
-        // Send WhatsApp confirmation/prompt
-        await this.messagesService.sendOutboundMessage(
-          customer.id,
-          `Deposit payment initiated. Please complete payment on your phone to confirm booking. 💰`,
-          'whatsapp'
-        );
+        // Get package details for full price
+        const packages = await this.aiService.getCachedPackages();
+        const selectedPackage = packages.find(p => p.name === draft.service);
+        const fullPrice = selectedPackage?.price || 0;
 
-        console.log(`STK Push initiated for ${newPhone}, CheckoutRequestID: ${checkoutId}`);
+        // Send deposit confirmation message with all policies (don't initiate payment yet!)
+        const confirmationMessage = `Perfect! I have your phone number: ${newPhone} 📱
+
+📦 *${draft.service}*
+💰 Full Price: KSH ${fullPrice.toLocaleString()}
+💳 Deposit Required: KSH ${depositAmount.toLocaleString()}
+
+📋 *Important Policies:*
+
+💵 *Payment:*
+• Remaining balance is due after the shoot
+
+📸 *Photo Delivery:*
+• Edited photos delivered in *10 working days*
+
+⏰ *Cancellation/Rescheduling:*
+• Must be made at least *72 hours* before your shoot time
+• Changes within 72 hours are non-refundable
+• Session fee will be forfeited for late cancellations
+
+To confirm your booking and accept these terms, please reply with *"CONFIRM"* and I'll send the M-PESA payment prompt to your phone.
+
+Or reply *"CANCEL"* if you'd like to make changes. 💖`;
+
+        // Send directly via WhatsApp (not via sendOutboundMessage which doesn't actually send)
+        await this.whatsappService.sendMessage(from, confirmationMessage);
+
+        console.log(`Deposit confirmation sent to ${newPhone}. Waiting for user confirmation.`);
       }
+    } else if (text.toLowerCase() === 'confirm') {
+      // User confirmed deposit - now initiate payment
+      const draft = await this.bookingsService.getBookingDraft(customer.id);
+      if (draft) {
+        const customerData = await this.customersService.findOne(customer.id);
+        if (customerData?.phone) {
+          const amount = await this.bookingsService.getDepositForDraft(customer.id) || 2000;
+
+          try {
+            const checkoutId = await this.paymentsService.initiateSTKPush(draft.id, customerData.phone, amount);
+
+            await this.whatsappService.sendMessage(
+              from,
+              `Payment request sent! Please check your phone and enter your M-PESA PIN to complete the deposit payment. 💳✨`
+            );
+
+            console.log(`STK Push initiated for ${customerData.phone}, CheckoutRequestID: ${checkoutId}`);
+          } catch (error) {
+            console.error('STK Push failed:', error);
+            await this.whatsappService.sendMessage(
+              from,
+              `Sorry, there was an issue initiating payment. Please try again or contact us at ${process.env.CUSTOMER_CARE_PHONE || '0720 111928'}. 💖`
+            );
+          }
+        } else {
+          await this.whatsappService.sendMessage(
+            from,
+            `I don't have your phone number yet. Please share it so I can send the payment request. 📱`
+          );
+        }
+      } else {
+        await this.whatsappService.sendMessage(
+          from,
+          `I don't see a pending booking. Would you like to start a new booking? 💖`
+        );
+      }
+    } else if (text.toLowerCase() === 'cancel') {
+      // User wants to cancel/modify
+      await this.whatsappService.sendMessage(
+        from,
+        `No problem! What would you like to change? You can:
+• Choose a different package
+• Pick a different date/time
+• Start over
+
+Just let me know! 💖`
+      );
     } else {
       // Check both global AI and customer-specific AI before queuing
       const globalAiEnabled = await this.aiSettingsService.isAiEnabled();

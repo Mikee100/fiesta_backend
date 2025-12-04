@@ -16,6 +16,8 @@ const payments_module_1 = require("../payments/payments.module");
 const messages_module_1 = require("../messages/messages.module");
 const notifications_module_1 = require("../notifications/notifications.module");
 const packages_module_1 = require("../packages/packages.module");
+const whatsapp_module_1 = require("../whatsapp/whatsapp.module");
+const calendar_module_1 = require("../calendar/calendar.module");
 let BookingsModule = class BookingsModule {
 };
 exports.BookingsModule = BookingsModule;
@@ -27,6 +29,8 @@ exports.BookingsModule = BookingsModule = __decorate([
             messages_module_1.MessagesModule,
             notifications_module_1.NotificationsModule,
             packages_module_1.PackagesModule,
+            whatsapp_module_1.WhatsappModule,
+            calendar_module_1.CalendarModule,
             bull_1.BullModule.registerQueue({
                 name: 'bookingQueue',
             }),

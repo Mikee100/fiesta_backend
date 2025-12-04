@@ -134,4 +134,64 @@ Respond with only the intent (e.g., booking_details).`;
 
     return message;
   }
+
+  /**
+   * Get conversation history for AI context
+   * Returns last N messages formatted for GPT-4o
+   */
+  async getConversationHistory(customerId: string, limit = 10): Promise<Array<{ role: 'user' | 'assistant'; content: string }>> {
+    const messages = await this.prisma.message.findMany({
+      where: { customerId },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      select: {
+        content: true,
+        direction: true,
+        createdAt: true,
+      },
+    });
+
+    // Reverse to get chronological order (oldest first)
+    const chronological = messages.reverse();
+
+    // Format for GPT-4o
+    return chronological.map(msg => ({
+      role: msg.direction === 'inbound' ? 'user' as const : 'assistant' as const,
+      content: msg.content,
+    }));
+  }
+
+  /**
+   * Get enriched conversation context for AI
+   * Includes history + customer profile + booking state
+   */
+  async getEnrichedContext(customerId: string) {
+    const [history, customer, bookingDraft] = await Promise.all([
+      this.getConversationHistory(customerId, 10),
+      this.prisma.customer.findUnique({
+        where: { id: customerId },
+        include: {
+          bookings: {
+            where: { status: { in: ['confirmed', 'completed'] } },
+            orderBy: { createdAt: 'desc' },
+            take: 3,
+          },
+        },
+      }),
+      this.prisma.bookingDraft.findUnique({
+        where: { customerId },
+      }),
+    ]);
+
+    return {
+      history,
+      customer: {
+        name: customer?.name,
+        totalBookings: customer?.bookings?.length || 0,
+        recentBookings: customer?.bookings || [], // Pass all recent bookings
+        isReturning: (customer?.bookings?.length || 0) > 0,
+      },
+      bookingDraft,
+    };
+  }
 }

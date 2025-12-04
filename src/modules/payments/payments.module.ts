@@ -11,6 +11,7 @@ import { AiModule } from '../ai/ai.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { PaymentListener } from './listeners/payment.listener';
 import { PackagesModule } from '../packages/packages.module';
+import { WhatsappModule } from '../whatsapp/whatsapp.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { PackagesModule } from '../packages/packages.module';
       name: 'paymentsQueue',
     }),
     forwardRef(() => AiModule),
+    WhatsappModule,
   ],
   providers: [PaymentsService, PaymentsProcessor, PaymentListener],
   controllers: [PaymentsController],

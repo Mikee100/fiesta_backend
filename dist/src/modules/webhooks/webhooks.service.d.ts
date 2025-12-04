@@ -6,6 +6,7 @@ import { Queue } from 'bull';
 import { WebsocketGateway } from '../../websockets/websocket.gateway';
 import { BookingsService } from '../bookings/bookings.service';
 import { PaymentsService } from '../payments/payments.service';
+import { WhatsappService } from '../whatsapp/whatsapp.service';
 export declare class WebhooksService {
     private messagesService;
     private customersService;
@@ -13,9 +14,10 @@ export declare class WebhooksService {
     private aiSettingsService;
     private bookingsService;
     private paymentsService;
+    private whatsappService;
     private messageQueue;
     private websocketGateway;
-    constructor(messagesService: MessagesService, customersService: CustomersService, aiService: AiService, aiSettingsService: AiSettingsService, bookingsService: BookingsService, paymentsService: PaymentsService, messageQueue: Queue, websocketGateway: WebsocketGateway);
+    constructor(messagesService: MessagesService, customersService: CustomersService, aiService: AiService, aiSettingsService: AiSettingsService, bookingsService: BookingsService, paymentsService: PaymentsService, whatsappService: WhatsappService, messageQueue: Queue, websocketGateway: WebsocketGateway);
     handleWhatsAppWebhook(body: any): Promise<{
         status: string;
     }>;

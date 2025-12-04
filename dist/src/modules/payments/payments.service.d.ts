@@ -6,11 +6,13 @@ import { AiService } from '../ai/ai.service';
 import { BookingsService } from '../bookings/bookings.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PackagesService } from '../packages/packages.service';
+import { WhatsappService } from '../whatsapp/whatsapp.service';
 export declare class PaymentsService {
     private prisma;
     private httpService;
     private messagesService;
     private notificationsService;
+    private whatsappService;
     private aiService;
     private bookingsService;
     private aiQueue;
@@ -23,14 +25,14 @@ export declare class PaymentsService {
     private readonly shortcode;
     private readonly passkey;
     private readonly callbackUrl;
-    constructor(prisma: PrismaService, httpService: HttpService, messagesService: MessagesService, notificationsService: NotificationsService, aiService: AiService, bookingsService: BookingsService, aiQueue: Queue, paymentsQueue: Queue, packagesService: PackagesService);
+    constructor(prisma: PrismaService, httpService: HttpService, messagesService: MessagesService, notificationsService: NotificationsService, whatsappService: WhatsappService, aiService: AiService, bookingsService: BookingsService, aiQueue: Queue, paymentsQueue: Queue, packagesService: PackagesService);
     getPaymentByCheckoutRequestId(checkoutRequestId: string): Promise<{
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        phone: string;
-        bookingDraftId: string | null;
         amount: number;
+        bookingDraftId: string | null;
+        phone: string;
         status: string;
         mpesaReceipt: string | null;
         checkoutRequestId: string | null;

@@ -20,6 +20,7 @@ const ai_module_1 = require("../ai/ai.module");
 const notifications_module_1 = require("../notifications/notifications.module");
 const payment_listener_1 = require("./listeners/payment.listener");
 const packages_module_1 = require("../packages/packages.module");
+const whatsapp_module_1 = require("../whatsapp/whatsapp.module");
 let PaymentsModule = class PaymentsModule {
 };
 exports.PaymentsModule = PaymentsModule;
@@ -39,6 +40,7 @@ exports.PaymentsModule = PaymentsModule = __decorate([
                 name: 'paymentsQueue',
             }),
             (0, common_1.forwardRef)(() => ai_module_1.AiModule),
+            whatsapp_module_1.WhatsappModule,
         ],
         providers: [payments_service_1.PaymentsService, payments_processor_1.PaymentsProcessor, payment_listener_1.PaymentListener],
         controllers: [payments_controller_1.PaymentsController],

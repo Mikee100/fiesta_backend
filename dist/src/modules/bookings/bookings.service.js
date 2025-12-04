@@ -22,6 +22,7 @@ const payments_service_1 = require("../payments/payments.service");
 const messages_service_1 = require("../messages/messages.service");
 const notifications_service_1 = require("../notifications/notifications.service");
 const packages_service_1 = require("../packages/packages.service");
+const whatsapp_service_1 = require("../whatsapp/whatsapp.service");
 const chrono = require("chrono-node");
 const luxon_1 = require("luxon");
 let BookingsService = BookingsService_1 = class BookingsService {
@@ -89,7 +90,7 @@ let BookingsService = BookingsService_1 = class BookingsService {
     async getStudioInfo() {
         return this.prisma.studioInfo.findFirst();
     }
-    constructor(prisma, bookingQueue, paymentsService, messagesService, notificationsService, packagesService, eventEmitter) {
+    constructor(prisma, bookingQueue, paymentsService, messagesService, notificationsService, packagesService, eventEmitter, whatsappService) {
         this.prisma = prisma;
         this.bookingQueue = bookingQueue;
         this.paymentsService = paymentsService;
@@ -97,6 +98,7 @@ let BookingsService = BookingsService_1 = class BookingsService {
         this.notificationsService = notificationsService;
         this.packagesService = packagesService;
         this.eventEmitter = eventEmitter;
+        this.whatsappService = whatsappService;
         this.logger = new common_1.Logger(BookingsService_1.name);
         this.STUDIO_TZ = 'Africa/Nairobi';
     }
@@ -357,7 +359,12 @@ let BookingsService = BookingsService_1 = class BookingsService {
             });
             const msg = `Your appointment has been rescheduled to ${luxon_1.DateTime.fromJSDate(newDateTime).setZone(this.STUDIO_TZ).toFormat('ccc, LLL dd, yyyy HH:mm')}.`;
             try {
-                await this.messagesService.sendOutboundMessage(updated.customerId, msg, 'whatsapp');
+                if (updated.customer?.whatsappId) {
+                    await this.whatsappService.sendMessage(updated.customer.whatsappId, msg);
+                }
+                else {
+                    this.logger.warn(`No WhatsApp ID for customer ${updated.customerId}, reschedule msg not sent via WA API`);
+                }
             }
             catch (e) {
                 this.logger.error(`Failed to send reschedule notification to ${updated.customerId}`, e);
@@ -389,7 +396,9 @@ let BookingsService = BookingsService_1 = class BookingsService {
         });
         const msg = `Your appointment has been cancelled. We hope to see you again soon!`;
         try {
-            await this.messagesService.sendOutboundMessage(booking.customerId, msg, 'whatsapp');
+            if (booking.customer?.whatsappId) {
+                await this.whatsappService.sendMessage(booking.customer.whatsappId, msg);
+            }
         }
         catch (e) {
             this.logger.error(`Failed to send cancellation notification to ${booking.customerId}`, e);
@@ -541,6 +550,7 @@ exports.BookingsService = BookingsService = BookingsService_1 = __decorate([
         messages_service_1.MessagesService,
         notifications_service_1.NotificationsService,
         packages_service_1.PackagesService,
-        event_emitter_1.EventEmitter2])
+        event_emitter_1.EventEmitter2,
+        whatsapp_service_1.WhatsappService])
 ], BookingsService);
 //# sourceMappingURL=bookings.service.js.map

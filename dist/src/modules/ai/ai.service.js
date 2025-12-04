@@ -375,7 +375,7 @@ let AiService = AiService_1 = class AiService {
             return brief;
         }
     }
-    async answerFaq(question, history = [], actual, customerId) {
+    async answerFaq(question, history = [], actual, customerId, enrichedContext) {
         let prediction = '';
         let confidence = undefined;
         let error = undefined;
@@ -418,6 +418,18 @@ META-COGNITIVE INSTRUCTIONS:
 - LISTEN & ACKNOWLEDGE: Start by showing you understood the question ("Great question!" or "I'd love to help with that!")
 - BE CONVERSATIONAL: Don't sound like you're reading from a manual. Sound like a knowledgeable friend
 - PROVIDE CONTEXT: Don't just answer yes/no. Explain WHY when it helps
+- CHECK BOOKINGS: If the user asks about their bookings, use the context provided below.
+
+CONTEXT - USER BOOKINGS:
+${enrichedContext?.customer?.recentBookings ? JSON.stringify(enrichedContext.customer.recentBookings.map((b) => ({
+                            date: b.dateTime,
+                            service: b.service,
+                            status: b.status,
+                            recipient: b.recipientName || b.customer?.name
+                        })), null, 2) : 'No recent bookings found.'}
+
+If the user asks "what bookings do i have?" or similar, refer to the list above. If they have a confirmed booking, tell them the details (Date, Time, Package).
+
 - OFFER NEXT STEPS: After answering, guide them ("Would you like to book?" or "Want to know more about...?")
 - BE HONEST: If you're not 100% sure, say "Let me get you the exact details" instead of guessing
 
@@ -938,12 +950,12 @@ DO NOT repeat your previous question. Instead:
         }
         return false;
     }
-    async handleConversation(message, customerId, history = [], bookingsService, retryCount = 0) {
+    async handleConversation(message, customerId, history = [], bookingsService, retryCount = 0, enrichedContext) {
         try {
-            return await this.processConversationLogic(message, customerId, history, bookingsService);
+            return await this.processConversationLogic(message, customerId, history, bookingsService, enrichedContext);
         }
-        catch (error) {
-            return this.attemptRecovery(error, { message, customerId, history, bookingsService, retryCount });
+        catch (err) {
+            return this.attemptRecovery(err, { message, customerId, history, bookingsService, retryCount });
         }
     }
     async attemptRecovery(error, context) {
@@ -962,7 +974,7 @@ DO NOT repeat your previous question. Instead:
         }
         throw error;
     }
-    async processConversationLogic(message, customerId, history = [], bookingsService) {
+    async processConversationLogic(message, customerId, history = [], bookingsService, enrichedContext) {
         const breakerCheck = await this.circuitBreaker.checkAndBreak(customerId, history);
         if (breakerCheck.shouldBreak) {
             this.logger.warn(`[CIRCUIT_BREAKER] 🔴 TRIPPED for customer ${customerId}: ${breakerCheck.reason || 'Unknown'}`);
@@ -1561,7 +1573,7 @@ DO NOT repeat your previous question. Instead:
             }
         }
         if (intent === 'faq' || intent === 'other') {
-            const reply = await this.answerFaq(message, history);
+            const reply = await this.answerFaq(message, history, undefined, customerId, enrichedContext);
             const replyText = typeof reply === 'object' && 'text' in reply ? reply.text : reply;
             return { response: reply, draft: null, updatedHistory: [...history.slice(-this.historyLimit), { role: 'user', content: message }, { role: 'assistant', content: replyText }] };
         }

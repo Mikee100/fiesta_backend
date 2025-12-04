@@ -12,13 +12,9 @@ const bull_1 = require("@nestjs/bull");
 const message_queue_processor_1 = require("../../workers/message-queue.processor");
 const ai_queue_processor_1 = require("../../workers/ai-queue.processor");
 const booking_queue_processor_1 = require("../../workers/booking-queue.processor");
-const reminders_queue_processor_1 = require("../../workers/reminders-queue.processor");
-const followups_queue_processor_1 = require("../../workers/followups-queue.processor");
 const messages_module_1 = require("../modules/messages/messages.module");
 const ai_module_1 = require("../modules/ai/ai.module");
 const bookings_module_1 = require("../modules/bookings/bookings.module");
-const reminders_module_1 = require("../modules/reminders/reminders.module");
-const followups_module_1 = require("../modules/followups/followups.module");
 const whatsapp_module_1 = require("../modules/whatsapp/whatsapp.module");
 const instagram_module_1 = require("../modules/instagram/instagram.module");
 const customers_module_1 = require("../modules/customers/customers.module");
@@ -38,17 +34,9 @@ exports.WorkersModule = WorkersModule = __decorate([
             bull_1.BullModule.registerQueue({
                 name: 'bookingQueue',
             }),
-            bull_1.BullModule.registerQueue({
-                name: 'remindersQueue',
-            }),
-            bull_1.BullModule.registerQueue({
-                name: 'followupsQueue',
-            }),
             messages_module_1.MessagesModule,
             ai_module_1.AiModule,
             bookings_module_1.BookingsModule,
-            reminders_module_1.RemindersModule,
-            followups_module_1.FollowupsModule,
             whatsapp_module_1.WhatsappModule,
             instagram_module_1.InstagramModule,
             customers_module_1.CustomersModule,
@@ -58,8 +46,6 @@ exports.WorkersModule = WorkersModule = __decorate([
             message_queue_processor_1.MessageQueueProcessor,
             ai_queue_processor_1.AiQueueProcessor,
             booking_queue_processor_1.BookingQueueProcessor,
-            reminders_queue_processor_1.RemindersQueueProcessor,
-            followups_queue_processor_1.FollowupsQueueProcessor,
         ],
     })
 ], WorkersModule);
