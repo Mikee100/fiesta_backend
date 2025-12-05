@@ -54,6 +54,16 @@ import { PackageInquiryStrategy } from './strategies/package-inquiry.strategy';
 import { BookingStrategy } from './strategies/booking.strategy';
 import { ResponseStrategy } from './strategies/response-strategy.interface';
 
+// Learning AI Services
+import { CustomerMemoryService } from './services/customer-memory.service';
+import { ConversationLearningService } from './services/conversation-learning.service';
+import { DomainExpertiseService } from './services/domain-expertise.service';
+import { AdvancedIntentService } from './services/advanced-intent.service';
+import { PersonalizationService } from './services/personalization.service';
+import { FeedbackLoopService } from './services/feedback-loop.service';
+import { PredictiveAnalyticsService } from './services/predictive-analytics.service';
+
+
 
 
 @Injectable()
@@ -101,6 +111,14 @@ export class AiService {
     @Optional() private messagesService?: MessagesService,
     @Optional() private escalationService?: EscalationService,
     @InjectQueue('aiQueue') private aiQueue?: Queue,
+    // Learning AI Services
+    @Optional() private customerMemory?: CustomerMemoryService,
+    @Optional() private conversationLearning?: ConversationLearningService,
+    @Optional() private domainExpertise?: DomainExpertiseService,
+    @Optional() private advancedIntent?: AdvancedIntentService,
+    @Optional() private personalization?: PersonalizationService,
+    @Optional() private feedbackLoop?: FeedbackLoopService,
+    @Optional() private predictiveAnalytics?: PredictiveAnalyticsService,
   ) {
     // OpenAI client
     this.openai = new OpenAI({ apiKey: this.configService.get<string>('OPENAI_API_KEY') });
@@ -1389,21 +1407,95 @@ DO NOT repeat your previous question. Instead:
       'how many sessions',
       'how many times have i',
     ];
-    if (bookingHistoryKeywords.some(kw => lower.includes(kw))) {
-      // Try to get customer by id, whatsappId, or phone
+
+    // Enhanced: Detect requests to VIEW booking details
+    const viewBookingsKeywords = [
+      'view.*booking',
+      'show.*booking',
+      'see.*booking',
+      'my past booking',
+      'past booking',
+      'previous booking',
+      'last booking',
+      'when was my',
+      'upcoming booking',
+      'next booking',
+      'future booking',
+    ];
+
+    const isViewBookingsRequest = viewBookingsKeywords.some(kw => new RegExp(kw, 'i').test(lower));
+    const isBookingHistoryQuery = bookingHistoryKeywords.some(kw => lower.includes(kw));
+
+    if (isBookingHistoryQuery || isViewBookingsRequest) {
       const customer = await this.prisma.customer.findUnique({ where: { id: customerId } });
-      let count = 0;
-      if (customer) {
-        count = await this.bookingsService.countBookingsForCustomer({ id: customer.id, whatsappId: customer.whatsappId, phone: customer.phone });
+
+      if (!customer) {
+        const msg = `I couldn't find your booking information. Let me help you make your first booking! 💖`;
+        return { response: msg, draft: null, updatedHistory: [...history.slice(-this.historyLimit), { role: 'user', content: message }, { role: 'assistant', content: msg }] };
       }
+
+      // Get all bookings for this customer
+      const allBookings = await this.prisma.booking.findMany({
+        where: {
+          customerId: customer.id,
+        },
+        orderBy: { dateTime: 'desc' },
+        take: 10, // Show last 10 bookings
+      });
+
       let name = customer?.name || '';
       if (name && name.toLowerCase().startsWith('whatsapp user')) name = '';
       const who = name ? name : (customer?.phone ? customer.phone : 'dear');
+
+      // If they want to VIEW details
+      if (isViewBookingsRequest) {
+        if (allBookings.length === 0) {
+          const msg = `Hi ${who}, you don't have any bookings yet. Would you like to make your first one? 💖`;
+          return { response: msg, draft: null, updatedHistory: [...history.slice(-this.historyLimit), { role: 'user', content: message }, { role: 'assistant', content: msg }] };
+        }
+
+        // Check if asking for last/previous booking
+        if (/(last|previous|recent)/.test(lower)) {
+          const lastBooking = allBookings[0];
+          const dt = DateTime.fromJSDate(lastBooking.dateTime).setZone(this.studioTz);
+          const msg = `Your last booking was:\n\n📅 *${lastBooking.service}*\n🗓️ Date: ${dt.toFormat('MMMM dd, yyyy')}\n🕐 Time: ${dt.toFormat('h:mm a')}\n✨ Status: ${lastBooking.status}\n\nWould you like to book another session? 🌸`;
+          return { response: msg, draft: null, updatedHistory: [...history.slice(-this.historyLimit), { role: 'user', content: message }, { role: 'assistant', content: msg }] };
+        }
+
+        // Check if asking for upcoming/next/future bookings
+        if (/(upcoming|next|future)/.test(lower)) {
+          const now = new Date();
+          const upcomingBookings = allBookings.filter(b => b.dateTime > now && b.status === 'confirmed');
+
+          if (upcomingBookings.length === 0) {
+            const msg = `You don't have any upcoming bookings scheduled. Would you like to book a session? 💖`;
+            return { response: msg, draft: null, updatedHistory: [...history.slice(-this.historyLimit), { role: 'user', content: message }, { role: 'assistant', content: msg }] };
+          }
+
+          const nextBooking = upcomingBookings[0];
+          const dt = DateTime.fromJSDate(nextBooking.dateTime).setZone(this.studioTz);
+          const msg = `Your next booking is:\n\n📅 *${nextBooking.service}*\n🗓️ Date: ${dt.toFormat('MMMM dd, yyyy')}\n🕐 Time: ${dt.toFormat('h:mm a')}\n✨ Status: ${nextBooking.status}\n\nWe're so excited to see you! 🌸`;
+          return { response: msg, draft: null, updatedHistory: [...history.slice(-this.historyLimit), { role: 'user', content: message }, { role: 'assistant', content: msg }] };
+        }
+
+        // Show all past bookings
+        const bookingList = allBookings.slice(0, 5).map((b, i) => {
+          const dt = DateTime.fromJSDate(b.dateTime).setZone(this.studioTz);
+          return `${i + 1}. *${b.service}* - ${dt.toFormat('MMM dd, yyyy')} at ${dt.toFormat('h:mm a')} (${b.status})`;
+        }).join('\n');
+
+        const msg = `Here are your recent bookings:\n\n${bookingList}\n\n${allBookings.length > 5 ? `...and ${allBookings.length - 5} more!\n\n` : ''}Would you like to book another session? 🌸`;
+        return { response: msg, draft: null, updatedHistory: [...history.slice(-this.historyLimit), { role: 'user', content: message }, { role: 'assistant', content: msg }] };
+      }
+
+      // Just counting bookings (original behavior)
+      const count = allBookings.length;
       const msg = count === 0
         ? `Hi ${who}, I couldn't find any past bookings for you. Would you like to make your first one? 💖`
         : `Hi ${who}, you've made ${count} booking${count === 1 ? '' : 's'} with us. Thank you for being part of our studio family! Would you like to make another or view your past bookings? 🌸`;
       return { response: msg, draft: null, updatedHistory: [...history.slice(-this.historyLimit), { role: 'user', content: message }, { role: 'assistant', content: msg }] };
     }
+
 
     // --- SMART: Detect name/number queries ---
     const nameNumberKeywords = [
@@ -1488,6 +1580,46 @@ DO NOT repeat your previous question. Instead:
         ? "No problem! I've cleared your booking draft. Feel free to start fresh whenever you're ready! 💖"
         : "I don't see any active bookings or drafts to cancel. Would you like to start a new booking? 🌸";
       return { response: msg, draft: null, updatedHistory: [...history.slice(-this.historyLimit), { role: 'user', content: message }, { role: 'assistant', content: msg }] };
+    }
+
+    // 3.4 HANDLE RESCHEDULE CONFIRMATION STATE
+    // This must come BEFORE the general reschedule detection to handle the confirmation flow
+    if (draft && draft.step === 'reschedule_confirm') {
+      this.logger.log(`[RESCHEDULE] In confirmation state for customer ${customerId}`);
+
+      if (/(yes|confirm|do it|sure|okay|fine|go ahead|please|yep|yeah)/i.test(message)) {
+        const bookingId = draft.recipientPhone; // Booking ID stored here
+        const newDateObj = new Date(draft.dateTimeIso);
+
+        if (bookingId && draft.dateTimeIso) {
+          await this.bookingsService.updateBooking(bookingId, { dateTime: newDateObj });
+          await this.prisma.bookingDraft.delete({ where: { customerId } });
+
+          const msg = `✅ Done! Your appointment has been rescheduled to *${DateTime.fromJSDate(newDateObj).setZone(this.studioTz).toFormat('ccc, LLL dd, yyyy \'at\' h:mm a')}*. See you then! 💖`;
+          return { response: msg, draft: null, updatedHistory: [...history.slice(-this.historyLimit), { role: 'user', content: message }, { role: 'assistant', content: msg }] };
+        } else {
+          const msg = "I couldn't find the booking details to update. Please try again or contact support. 😓";
+          return { response: msg, draft: null, updatedHistory: [...history.slice(-this.historyLimit), { role: 'user', content: message }, { role: 'assistant', content: msg }] };
+        }
+      } else if (/(no|cancel|different|another|change)/i.test(message)) {
+        // User wants a different time
+        await this.prisma.bookingDraft.update({
+          where: { customerId },
+          data: {
+            step: 'reschedule',
+            date: null,
+            time: null,
+            dateTimeIso: null
+          }
+        });
+        const msg = "No problem! What date and time would you prefer instead? 🗓️";
+        return { response: msg, draft, updatedHistory: [...history.slice(-this.historyLimit), { role: 'user', content: message }, { role: 'assistant', content: msg }] };
+      } else {
+        // User said something else - remind them to confirm
+        const prettyDate = DateTime.fromISO(draft.dateTimeIso).setZone(this.studioTz).toFormat('ccc, LLL dd, yyyy \'at\' h:mm a');
+        const msg = `I'm waiting for your confirmation to reschedule to *${prettyDate}*. Please reply "YES" to confirm or "NO" if you'd like a different time. 💖`;
+        return { response: msg, draft, updatedHistory: [...history.slice(-this.historyLimit), { role: 'user', content: message }, { role: 'assistant', content: msg }] };
+      }
     }
 
     // 3.5 DETECT RESCHEDULING (MOVED BEFORE NEW BOOKING CHECK)
@@ -1750,30 +1882,19 @@ DO NOT repeat your previous question. Instead:
             return { response: msg, draft, updatedHistory: [...history.slice(-this.historyLimit), { role: 'user', content: message }, { role: 'assistant', content: msg }] };
           }
 
-          // If available, ask for confirmation
-          // If user says "yes" or "confirm", execute the update
-          if (/(yes|confirm|do it|sure|okay|fine)/i.test(message)) {
-            // Use the booking ID stored in draft.recipientPhone (our temporary hack)
-            const bookingId = draft.recipientPhone; // This is the booking ID we stored earlier
-
-            if (bookingId) {
-              await this.bookingsService.updateBooking(bookingId, { dateTime: newDateObj });
-              // Clear draft
-              await this.prisma.bookingDraft.delete({ where: { customerId } });
-
-              const msg = `All set! ✅ I've rescheduled your appointment to *${DateTime.fromJSDate(newDateObj).setZone(this.studioTz).toFormat('ccc, LLL dd, yyyy HH:mm')}*. See you then! 💖`;
-              return { response: msg, draft: null, updatedHistory: [...history.slice(-this.historyLimit), { role: 'user', content: message }, { role: 'assistant', content: msg }] };
-            } else {
-              // Should not happen if we checked earlier, but safety net
-              const msg = "I couldn't find the booking to update. Please contact support. 😓";
-              return { response: msg, draft: null, updatedHistory: [...history.slice(-this.historyLimit), { role: 'user', content: message }, { role: 'assistant', content: msg }] };
+          // Time is available - update draft to confirmation state and ask for explicit confirmation
+          await this.prisma.bookingDraft.update({
+            where: { customerId },
+            data: {
+              step: 'reschedule_confirm',
+              dateTimeIso: normalized.isoUtc
             }
-          } else {
-            // Present the slot and ask to confirm
-            const prettyDate = DateTime.fromJSDate(newDateObj).setZone(this.studioTz).toFormat('ccc, LLL dd, yyyy HH:mm');
-            const msg = `That time works! 🎉 Shall I move your appointment to *${prettyDate}*?`;
-            return { response: msg, draft, updatedHistory: [...history.slice(-this.historyLimit), { role: 'user', content: message }, { role: 'assistant', content: msg }] };
-          }
+          });
+
+          // Present the slot and ask to confirm
+          const prettyDate = DateTime.fromJSDate(newDateObj).setZone(this.studioTz).toFormat('ccc, LLL dd, yyyy \'at\' h:mm a');
+          const msg = `Great! I found an available slot on *${prettyDate}*. 🎉\n\nTo confirm this reschedule, please reply with "YES" or "CONFIRM". If you'd like a different time, just let me know! 💖`;
+          return { response: msg, draft, updatedHistory: [...history.slice(-this.historyLimit), { role: 'user', content: message }, { role: 'assistant', content: msg }] };
         }
       }
 
@@ -2130,6 +2251,169 @@ DO NOT repeat your previous question. Instead:
       return result.response;
     }
     return '';
+  }
+
+  /* --------------------------
+   * LEARNING AI - Enhanced Conversation Handler
+   * -------------------------- */
+  /**
+   * Enhanced conversation handler with full learning AI capabilities
+   * 
+   * This wraps the existing handleConversation with:
+   * - Customer memory and personalization
+   * - Advanced intent analysis  
+   * - Conversation learning and feedback
+   * - Automatic improvement
+   */
+  async handleConversationWithLearning(
+    message: string,
+    customerId: string,
+    history: any[] = [],
+    bookingsService?: any,
+    retryCount = 0,
+    enrichedContext?: any
+  ): Promise<any> {
+    const conversationStartTime = Date.now();
+    let personalizationContext: any = null;
+    let intentAnalysis: any = null;
+    let wasSuccessful = false;
+    let conversationOutcome = 'unknown';
+
+    try {
+      // STEP 1: Load customer memory & context
+      if (this.customerMemory) {
+        try {
+          personalizationContext = await this.customerMemory.getPersonalizationContext(customerId);
+          this.logger.debug(`[LEARNING] Context: ${personalizationContext.relationshipStage}, VIP: ${personalizationContext.isVIP}`);
+          enrichedContext = { ...enrichedContext, personalization: personalizationContext };
+        } catch (err) {
+          this.logger.warn('[LEARNING] Failed to load context', err);
+        }
+      }
+
+      // STEP 2: Advanced intent analysis
+      if (this.advancedIntent) {
+        try {
+          intentAnalysis = await this.advancedIntent.analyzeIntent(message, personalizationContext);
+          this.logger.debug(`[LEARNING] Intent: ${intentAnalysis.primaryIntent} (${intentAnalysis.confidence}), Tone: ${intentAnalysis.emotionalTone}`);
+
+          if (intentAnalysis.requiresHumanHandoff && this.escalationService) {
+            await this.escalationService.createEscalation(customerId, 'AI detected need for human', 'auto_detected', { intentAnalysis, message });
+          }
+        } catch (err) {
+          this.logger.warn('[LEARNING] Intent analysis failed', err);
+        }
+      }
+
+      // STEP 3: Generate personalized greeting (first message)
+      if (history.length === 0 && this.personalization && personalizationContext) {
+        try {
+          const customer = await this.prisma.customer.findUnique({ where: { id: customerId } });
+          const greeting = await this.personalization.generateGreeting(customerId, customer?.name);
+          history = [{ role: 'assistant', content: greeting }];
+        } catch (err) {
+          this.logger.warn('[LEARNING] Greeting failed', err);
+        }
+      }
+
+      // STEP 4: Call original handler
+      const result = await this.handleConversation(message, customerId, history, bookingsService, retryCount, enrichedContext);
+
+      // STEP 5: Personalize response
+      if (result.response && this.personalization && personalizationContext) {
+        try {
+          result.response = this.personalization.adaptResponse(result.response, personalizationContext.communicationStyle || 'friendly');
+
+          if (intentAnalysis?.emotionalTone) {
+            result.response = this.personalization.matchEmotionalTone(result.response, intentAnalysis.emotionalTone);
+          }
+
+          if (intentAnalysis?.primaryIntent) {
+            const suggestions = await this.personalization.generateProactiveSuggestions(customerId, intentAnalysis.primaryIntent);
+            if (suggestions.length > 0 && Math.random() > 0.7) {
+              result.response += `\n\n💡 ${suggestions[0]}`;
+            }
+          }
+        } catch (err) {
+          this.logger.warn('[LEARNING] Personalization failed', err);
+        }
+      }
+
+      // Determine success & outcome
+      wasSuccessful = !result.response?.includes('trouble') && !result.response?.includes('error');
+      if (result.draft && result.draft.step === 'confirm') conversationOutcome = 'booking_initiated';
+      else if (intentAnalysis?.primaryIntent === 'booking') conversationOutcome = 'booking_in_progress';
+      else if (intentAnalysis?.primaryIntent === 'package_inquiry') conversationOutcome = 'information_provided';
+      else conversationOutcome = 'resolved';
+
+      // STEP 6: Record learning
+      if (this.conversationLearning) {
+        try {
+          await this.conversationLearning.recordLearning(customerId, {
+            userMessage: message,
+            aiResponse: result.response || '',
+            extractedIntent: intentAnalysis?.primaryIntent || 'unknown',
+            emotionalTone: intentAnalysis?.emotionalTone,
+            wasSuccessful,
+            conversationOutcome,
+            conversationLength: history.length + 1,
+            timeToResolution: Math.floor((Date.now() - conversationStartTime) / 1000),
+          });
+        } catch (err) {
+          this.logger.warn('[LEARNING] Failed to record', err);
+        }
+      }
+
+      // STEP 7: Update customer memory
+      if (this.customerMemory && this.personalization) {
+        try {
+          const preferences = this.personalization.extractPreferencesFromMessage(message);
+          if (Object.keys(preferences).length > 0) {
+            await this.customerMemory.updatePreferences(customerId, preferences);
+          }
+
+          if (conversationOutcome === 'booking_initiated' && personalizationContext.relationshipStage === 'new') {
+            await this.customerMemory.updateRelationshipStage(customerId, 'booked');
+          } else if (conversationOutcome === 'information_provided' && personalizationContext.relationshipStage === 'new') {
+            await this.customerMemory.updateRelationshipStage(customerId, 'interested');
+          }
+
+          await this.customerMemory.addConversationSummary(customerId, {
+            date: new Date(),
+            intent: intentAnalysis?.primaryIntent || 'unknown',
+            outcome: conversationOutcome,
+            keyPoints: [message.substring(0, 100)],
+          });
+
+          if (history.length >= 3) {
+            const userMessages = history.filter((h: any) => h.role === 'user').map((h: any) => h.content);
+            const detectedStyle = this.customerMemory.detectCommunicationStyle(userMessages);
+            await this.customerMemory.updatePreferences(customerId, { communicationStyle: detectedStyle });
+          }
+        } catch (err) {
+          this.logger.warn('[LEARNING] Memory update failed', err);
+        }
+      }
+
+      return result;
+    } catch (error) {
+      if (this.conversationLearning) {
+        try {
+          await this.conversationLearning.recordLearning(customerId, {
+            userMessage: message,
+            aiResponse: error.message || 'Error',
+            extractedIntent: intentAnalysis?.primaryIntent || 'unknown',
+            emotionalTone: intentAnalysis?.emotionalTone,
+            wasSuccessful: false,
+            conversationOutcome: 'error',
+            conversationLength: history.length + 1,
+          });
+        } catch (err) {
+          this.logger.warn('[LEARNING] Error recording failed', err);
+        }
+      }
+      throw error;
+    }
   }
 
 }

@@ -20,13 +20,13 @@ let CalendarService = CalendarService_1 = class CalendarService {
         this.prisma = prisma;
         this.logger = new common_1.Logger(CalendarService_1.name);
         this.STUDIO_TZ = 'Africa/Nairobi';
+        const serviceAccountKey = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
+        if (!serviceAccountKey) {
+            throw new Error('GOOGLE_SERVICE_ACCOUNT_KEY environment variable is not set');
+        }
+        const credentials = JSON.parse(serviceAccountKey);
         const auth = new googleapis_1.google.auth.GoogleAuth({
-            credentials: {
-                type: 'service_account',
-                private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\n/g, '\n'),
-                client_email: process.env.GOOGLE_CLIENT_EMAIL,
-                client_id: process.env.GOOGLE_CLIENT_ID,
-            },
+            credentials,
             scopes: ['https://www.googleapis.com/auth/calendar'],
         });
         this.calendar = googleapis_1.google.calendar({ version: 'v3', auth });
@@ -167,6 +167,22 @@ let CalendarService = CalendarService_1 = class CalendarService {
         catch (error) {
             this.logger.error('Error syncing calendar', error);
             throw error;
+        }
+    }
+    async getEvents(timeMin, timeMax) {
+        try {
+            const response = await this.calendar.events.list({
+                calendarId: this.calendarId,
+                timeMin: timeMin || luxon_1.DateTime.now().setZone(this.STUDIO_TZ).startOf('month').toISO(),
+                timeMax: timeMax || luxon_1.DateTime.now().setZone(this.STUDIO_TZ).endOf('month').toISO(),
+                singleEvents: true,
+                orderBy: 'startTime',
+            });
+            return response.data.items || [];
+        }
+        catch (error) {
+            this.logger.error('Error fetching Google Calendar events', error);
+            throw new Error('Failed to fetch calendar events');
         }
     }
 };

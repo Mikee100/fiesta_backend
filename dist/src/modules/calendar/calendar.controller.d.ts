@@ -7,4 +7,5 @@ export declare class CalendarController {
     createEvent(booking: any): Promise<string>;
     updateEvent(eventId: string, booking: any): Promise<void>;
     deleteEvent(eventId: string): Promise<void>;
+    getEvents(timeMin?: string, timeMax?: string): Promise<import("googleapis").calendar_v3.Schema$Event[]>;
 }

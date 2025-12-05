@@ -17,6 +17,7 @@ const ai_module_1 = require("../modules/ai/ai.module");
 const bookings_module_1 = require("../modules/bookings/bookings.module");
 const whatsapp_module_1 = require("../modules/whatsapp/whatsapp.module");
 const instagram_module_1 = require("../modules/instagram/instagram.module");
+const messenger_module_1 = require("../modules/webhooks/messenger.module");
 const customers_module_1 = require("../modules/customers/customers.module");
 const websocket_module_1 = require("../websockets/websocket.module");
 let WorkersModule = class WorkersModule {
@@ -39,6 +40,7 @@ exports.WorkersModule = WorkersModule = __decorate([
             bookings_module_1.BookingsModule,
             whatsapp_module_1.WhatsappModule,
             instagram_module_1.InstagramModule,
+            messenger_module_1.MessengerModule,
             customers_module_1.CustomersModule,
             websocket_module_1.WebsocketModule,
         ],

@@ -8,7 +8,9 @@ export declare class InstagramService {
     private customersService;
     private messageQueue;
     private accessToken;
+    private pageAccessToken;
     private businessAccountId;
+    private pageId;
     constructor(configService: ConfigService, messagesService: MessagesService, customersService: CustomersService, messageQueue: Queue);
     verifyWebhook(mode: string, challenge: string, token: string): string;
     handleWebhook(body: any): Promise<{

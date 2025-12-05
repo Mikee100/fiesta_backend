@@ -116,6 +116,12 @@ let CustomersService = class CustomersService {
             data: { lastInstagramMessageAt: timestamp },
         });
     }
+    async updateLastMessengerMessageAt(messengerId, timestamp) {
+        return this.prisma.customer.update({
+            where: { messengerId },
+            data: { lastMessengerMessageAt: timestamp },
+        });
+    }
     async getPhotoLinks(customerId) {
         return this.prisma.photoLink.findMany({
             where: { customerId },

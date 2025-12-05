@@ -11,14 +11,13 @@ export class CalendarService {
   private calendarId: string;
 
   constructor(private prisma: PrismaService) {
+    const serviceAccountKey = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
+    if (!serviceAccountKey) {
+      throw new Error('GOOGLE_SERVICE_ACCOUNT_KEY environment variable is not set');
+    }
+    const credentials = JSON.parse(serviceAccountKey);
     const auth = new google.auth.GoogleAuth({
-      credentials: {
-        type: 'service_account',
-        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\n/g, '\n'),
-        client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        client_id: process.env.GOOGLE_CLIENT_ID,
-        
-      },
+      credentials,
       scopes: ['https://www.googleapis.com/auth/calendar'],
     });
     this.calendar = google.calendar({ version: 'v3', auth });
@@ -174,6 +173,22 @@ export class CalendarService {
     } catch (error) {
       this.logger.error('Error syncing calendar', error);
       throw error;
+    }
+  }
+
+  async getEvents(timeMin?: string, timeMax?: string) {
+    try {
+      const response = await this.calendar.events.list({
+        calendarId: this.calendarId,
+        timeMin: timeMin || DateTime.now().setZone(this.STUDIO_TZ).startOf('month').toISO(),
+        timeMax: timeMax || DateTime.now().setZone(this.STUDIO_TZ).endOf('month').toISO(),
+        singleEvents: true,
+        orderBy: 'startTime',
+      });
+      return response.data.items || [];
+    } catch (error) {
+      this.logger.error('Error fetching Google Calendar events', error);
+      throw new Error('Failed to fetch calendar events');
     }
   }
 }

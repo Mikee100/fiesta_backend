@@ -1,9 +1,13 @@
 import { Controller, Get, Post, Body, Query, Param, HttpException, HttpStatus } from '@nestjs/common';
 import { InstagramService } from './instagram.service';
+import { InstagramStatsService } from './instagram-stats.service';
 
 @Controller('instagram')
 export class InstagramController {
-  constructor(private readonly instagramService: InstagramService) { }
+  constructor(
+    private readonly instagramService: InstagramService,
+    private readonly instagramStatsService: InstagramStatsService,
+  ) { }
 
   @Get('settings')
   getSettings() {
@@ -59,5 +63,16 @@ export class InstagramController {
   @Get('conversations')
   getConversations() {
     return this.instagramService.getConversations();
+  }
+
+  // Analytics endpoints
+  @Get('stats')
+  async getStats() {
+    return this.instagramStatsService.getStats();
+  }
+
+  @Get('analytics/conversations')
+  async getAnalyticsConversations() {
+    return this.instagramStatsService.getConversations();
   }
 }

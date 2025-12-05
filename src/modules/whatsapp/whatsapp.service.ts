@@ -188,6 +188,83 @@ export class WhatsappService {
   }
 
   // -------------------------------------------
+  // SEND WHATSAPP DOCUMENT (OFFICIAL API)
+  // -------------------------------------------
+  async sendDocument(to: string, filePath: string, filename: string, caption?: string) {
+    console.log('📤 Sending WhatsApp document to:', to);
+    console.log('File path:', filePath);
+
+    if (!to || !filePath) {
+      throw new Error("Recipient ('to') and 'filePath' are required.");
+    }
+
+    try {
+      if (!this.phoneNumberId) {
+        throw new Error('phoneNumberId is undefined');
+      }
+
+      // Step 1: Upload the document to WhatsApp Media API
+      const FormData = require('form-data');
+      const fs = require('fs');
+      const formData = new FormData();
+      formData.append('file', fs.createReadStream(filePath));
+      formData.append('messaging_product', 'whatsapp');
+      formData.append('type', 'application/pdf');
+
+      const uploadUrl = `https://graph.facebook.com/v21.0/${this.phoneNumberId}/media`;
+
+      const uploadResponse = await axios.post(uploadUrl, formData, {
+        headers: {
+          ...formData.getHeaders(),
+          Authorization: `Bearer ${this.accessToken}`,
+        },
+      });
+
+      const mediaId = uploadResponse.data.id;
+      console.log('✔️ Document uploaded, media ID:', mediaId);
+
+      // Step 2: Send the document message
+      const messageUrl = `https://graph.facebook.com/v21.0/${this.phoneNumberId}/messages`;
+
+      const payload = {
+        messaging_product: "whatsapp",
+        to,
+        type: "document",
+        document: {
+          id: mediaId,
+          filename: filename,
+          caption: caption || ''
+        }
+      };
+
+      const response = await axios.post(messageUrl, payload, {
+        headers: {
+          Authorization: `Bearer ${this.accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      console.log('✔️ WhatsApp API response (document):', response.data);
+
+      // Save outbound message
+      const customer = await this.customersService.findByWhatsappId(to);
+      if (customer) {
+        await this.messagesService.create({
+          content: `[Document Sent] ${filename}${caption ? ': ' + caption : ''}`,
+          platform: 'whatsapp',
+          direction: 'outbound',
+          customerId: customer.id,
+        });
+      }
+
+      return response.data;
+    } catch (error) {
+      console.error('❌ WhatsApp send document error:', error.response?.data || error.message);
+      throw error;
+    }
+  }
+
+  // -------------------------------------------
   // GET MESSAGES FOR UI
   // -------------------------------------------
   async getMessages(customerId?: string) {

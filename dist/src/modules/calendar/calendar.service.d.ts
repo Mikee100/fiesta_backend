@@ -1,4 +1,5 @@
 import { PrismaService } from '../../prisma/prisma.service';
+import { calendar_v3 } from 'googleapis';
 export declare class CalendarService {
     private prisma;
     private readonly logger;
@@ -11,4 +12,5 @@ export declare class CalendarService {
     updateEvent(eventId: string, booking: any): Promise<void>;
     deleteEvent(eventId: string): Promise<void>;
     syncCalendar(): Promise<void>;
+    getEvents(timeMin?: string, timeMax?: string): Promise<calendar_v3.Schema$Event[]>;
 }

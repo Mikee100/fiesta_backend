@@ -33,6 +33,8 @@ const content_scraper_module_1 = require("./modules/content-scraper/content-scra
 const packages_module_1 = require("./modules/packages/packages.module");
 const reminders_module_1 = require("./modules/reminders/reminders.module");
 const followups_module_1 = require("./modules/followups/followups.module");
+const invoices_module_1 = require("./modules/invoices/invoices.module");
+const conversations_module_1 = require("./modules/conversations/conversations.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -68,6 +70,8 @@ exports.AppModule = AppModule = __decorate([
             packages_module_1.PackagesModule,
             reminders_module_1.RemindersModule,
             followups_module_1.FollowupsModule,
+            invoices_module_1.InvoicesModule,
+            conversations_module_1.ConversationsModule,
         ],
     })
 ], AppModule);

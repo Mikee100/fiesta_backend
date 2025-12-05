@@ -16,6 +16,7 @@ export declare class EscalationController {
             aiEnabled: boolean;
             isAiPaused: boolean;
             lastInstagramMessageAt: Date | null;
+            lastMessengerMessageAt: Date | null;
             dailyTokenUsage: number;
             tokenResetDate: Date | null;
             totalTokensUsed: number;
@@ -24,24 +25,24 @@ export declare class EscalationController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        sentimentScore: number | null;
         customerId: string;
-        metadata: import("@prisma/client/runtime/library").JsonValue | null;
         status: string;
+        metadata: import("@prisma/client/runtime/library").JsonValue | null;
         reason: string | null;
         description: string | null;
         escalationType: string;
-        sentimentScore: number | null;
     })[]>;
     resolveEscalation(id: string): Promise<{
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        sentimentScore: number | null;
         customerId: string;
-        metadata: import("@prisma/client/runtime/library").JsonValue | null;
         status: string;
+        metadata: import("@prisma/client/runtime/library").JsonValue | null;
         reason: string | null;
         description: string | null;
         escalationType: string;
-        sentimentScore: number | null;
     }>;
 }

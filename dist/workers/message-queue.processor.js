@@ -18,16 +18,18 @@ const ai_service_1 = require("../src/modules/ai/ai.service");
 const bookings_service_1 = require("../src/modules/bookings/bookings.service");
 const whatsapp_service_1 = require("../src/modules/whatsapp/whatsapp.service");
 const instagram_service_1 = require("../src/modules/instagram/instagram.service");
+const messenger_send_service_1 = require("../src/modules/webhooks/messenger-send.service");
 const customers_service_1 = require("../src/modules/customers/customers.service");
 const websocket_gateway_1 = require("../src/websockets/websocket.gateway");
 let MessageQueueProcessor = MessageQueueProcessor_1 = class MessageQueueProcessor {
-    constructor(messagesService, aiService, bookingsService, whatsappService, customersService, instagramService, websocketGateway) {
+    constructor(messagesService, aiService, bookingsService, whatsappService, customersService, instagramService, messengerSendService, websocketGateway) {
         this.messagesService = messagesService;
         this.aiService = aiService;
         this.bookingsService = bookingsService;
         this.whatsappService = whatsappService;
         this.customersService = customersService;
         this.instagramService = instagramService;
+        this.messengerSendService = messengerSendService;
         this.websocketGateway = websocketGateway;
         this.logger = new common_1.Logger(MessageQueueProcessor_1.name);
         this.STUDIO_TZ = 'Africa/Nairobi';
@@ -121,7 +123,48 @@ let MessageQueueProcessor = MessageQueueProcessor_1 = class MessageQueueProcesso
         }
         else if (platform === 'instagram' && from) {
             try {
-                await this.instagramService.sendMessage(from, response);
+                const MAX_LENGTH = 950;
+                if (response.length > MAX_LENGTH) {
+                    const messages = [];
+                    let remaining = response;
+                    while (remaining.length > 0) {
+                        if (remaining.length <= MAX_LENGTH) {
+                            messages.push(remaining);
+                            break;
+                        }
+                        let breakPoint = MAX_LENGTH;
+                        const chunk = remaining.substring(0, MAX_LENGTH);
+                        const lastParagraph = chunk.lastIndexOf('\n\n');
+                        if (lastParagraph > MAX_LENGTH * 0.5) {
+                            breakPoint = lastParagraph + 2;
+                        }
+                        else {
+                            const lastSentence = Math.max(chunk.lastIndexOf('. '), chunk.lastIndexOf('! '), chunk.lastIndexOf('? '));
+                            if (lastSentence > MAX_LENGTH * 0.5) {
+                                breakPoint = lastSentence + 2;
+                            }
+                            else {
+                                const lastSpace = chunk.lastIndexOf(' ');
+                                if (lastSpace > MAX_LENGTH * 0.7) {
+                                    breakPoint = lastSpace + 1;
+                                }
+                            }
+                        }
+                        messages.push(remaining.substring(0, breakPoint).trim());
+                        remaining = remaining.substring(breakPoint).trim();
+                    }
+                    this.logger.log(`Splitting Instagram message into ${messages.length} parts`);
+                    for (let i = 0; i < messages.length; i++) {
+                        const part = messages.length > 1 ? `(${i + 1}/${messages.length}) ${messages[i]}` : messages[i];
+                        await this.instagramService.sendMessage(from, part);
+                        if (i < messages.length - 1) {
+                            await new Promise(resolve => setTimeout(resolve, 1000));
+                        }
+                    }
+                }
+                else {
+                    await this.instagramService.sendMessage(from, response);
+                }
             }
             catch (err) {
                 this.logger.error('Error sending Instagram message', err);
@@ -148,6 +191,78 @@ let MessageQueueProcessor = MessageQueueProcessor_1 = class MessageQueueProcesso
             }
             catch (err) {
                 this.logger.error('Error recording outbound message (instagram)', err);
+            }
+        }
+        else if (platform === 'messenger' && from) {
+            try {
+                const MAX_LENGTH = 1950;
+                if (response.length > MAX_LENGTH) {
+                    const messages = [];
+                    let remaining = response;
+                    while (remaining.length > 0) {
+                        if (remaining.length <= MAX_LENGTH) {
+                            messages.push(remaining);
+                            break;
+                        }
+                        let breakPoint = MAX_LENGTH;
+                        const chunk = remaining.substring(0, MAX_LENGTH);
+                        const lastParagraph = chunk.lastIndexOf('\n\n');
+                        if (lastParagraph > MAX_LENGTH * 0.5) {
+                            breakPoint = lastParagraph + 2;
+                        }
+                        else {
+                            const lastSentence = Math.max(chunk.lastIndexOf('. '), chunk.lastIndexOf('! '), chunk.lastIndexOf('? '));
+                            if (lastSentence > MAX_LENGTH * 0.5) {
+                                breakPoint = lastSentence + 2;
+                            }
+                            else {
+                                const lastSpace = chunk.lastIndexOf(' ');
+                                if (lastSpace > MAX_LENGTH * 0.7) {
+                                    breakPoint = lastSpace + 1;
+                                }
+                            }
+                        }
+                        messages.push(remaining.substring(0, breakPoint).trim());
+                        remaining = remaining.substring(breakPoint).trim();
+                    }
+                    this.logger.log(`Splitting Messenger message into ${messages.length} parts`);
+                    for (let i = 0; i < messages.length; i++) {
+                        const part = messages.length > 1 ? `(${i + 1}/${messages.length}) ${messages[i]}` : messages[i];
+                        await this.messengerSendService.sendMessage(from, part);
+                        if (i < messages.length - 1) {
+                            await new Promise(resolve => setTimeout(resolve, 1000));
+                        }
+                    }
+                }
+                else {
+                    await this.messengerSendService.sendMessage(from, response);
+                }
+            }
+            catch (err) {
+                this.logger.error('Error sending Messenger message', err);
+                return { processed: false, error: 'Failed to send Messenger message' };
+            }
+            try {
+                const outboundMessage = await this.messagesService.create({
+                    content: response,
+                    platform: 'messenger',
+                    direction: 'outbound',
+                    customerId,
+                });
+                const customer = await this.customersService.findOne(customerId).catch(() => null);
+                this.websocketGateway.emitNewMessage('messenger', {
+                    id: outboundMessage.id,
+                    from: '',
+                    to: from,
+                    content: response,
+                    timestamp: outboundMessage.createdAt.toISOString(),
+                    direction: 'outbound',
+                    customerId,
+                    customerName: customer?.name,
+                });
+            }
+            catch (err) {
+                this.logger.error('Error recording outbound message (messenger)', err);
             }
         }
         else {
@@ -211,6 +326,7 @@ exports.MessageQueueProcessor = MessageQueueProcessor = MessageQueueProcessor_1 
         whatsapp_service_1.WhatsappService,
         customers_service_1.CustomersService,
         instagram_service_1.InstagramService,
+        messenger_send_service_1.MessengerSendService,
         websocket_gateway_1.WebsocketGateway])
 ], MessageQueueProcessor);
 //# sourceMappingURL=message-queue.processor.js.map

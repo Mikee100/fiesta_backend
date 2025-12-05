@@ -26,10 +26,12 @@ let InstagramService = class InstagramService {
         this.customersService = customersService;
         this.messageQueue = messageQueue;
         this.accessToken = this.configService.get('INSTAGRAM_ACCESS_TOKEN');
+        this.pageAccessToken = this.configService.get('INSTAGRAM_PAGE_ACCESS_TOKEN');
         this.businessAccountId = this.configService.get('INSTAGRAM_BUSINESS_ACCOUNT_ID');
-        console.log('📷 Initializing Instagram:', '\n businessAccountId:', this.businessAccountId, '\n accessToken present:', !!this.accessToken);
-        if (!this.businessAccountId || !this.accessToken) {
-            console.error('❌ Instagram config missing: businessAccountId or accessToken');
+        this.pageId = this.configService.get('INSTAGRAM_PAGE_ID');
+        console.log('📷 Initializing Instagram:', '\n businessAccountId:', this.businessAccountId, '\n pageId:', this.pageId, '\n accessToken present:', !!this.accessToken, '\n pageAccessToken present:', !!this.pageAccessToken);
+        if (!this.businessAccountId || !this.pageId || !this.pageAccessToken) {
+            console.error('❌ Instagram config missing: businessAccountId, pageId, or pageAccessToken');
         }
     }
     verifyWebhook(mode, challenge, token) {
@@ -97,10 +99,13 @@ let InstagramService = class InstagramService {
         }
         console.log(`✅ Within 24-hour window (${canSend.hoursRemaining?.toFixed(1)} hours remaining)`);
         try {
-            if (!this.businessAccountId) {
-                throw new Error('businessAccountId is undefined');
+            if (!this.pageId) {
+                throw new Error('pageId is undefined - check INSTAGRAM_PAGE_ID in .env');
             }
-            const url = `https://graph.facebook.com/v21.0/${this.businessAccountId}/messages`;
+            if (!this.pageAccessToken) {
+                throw new Error('pageAccessToken is undefined - check INSTAGRAM_PAGE_ACCESS_TOKEN in .env');
+            }
+            const url = `https://graph.facebook.com/v21.0/${this.pageId}/messages`;
             const payload = {
                 recipient: { id: to },
                 message: { text: message },
@@ -108,7 +113,7 @@ let InstagramService = class InstagramService {
             };
             const response = await axios_1.default.post(url, payload, {
                 headers: {
-                    Authorization: `Bearer ${this.accessToken}`,
+                    Authorization: `Bearer ${this.pageAccessToken}`,
                     'Content-Type': 'application/json',
                 },
             });
@@ -207,11 +212,11 @@ let InstagramService = class InstagramService {
     }
     async testConnection() {
         try {
-            const url = `https://graph.facebook.com/v21.0/${this.businessAccountId}`;
+            const url = `https://graph.facebook.com/v21.0/${this.pageId}`;
             const response = await axios_1.default.get(url, {
                 params: {
-                    fields: 'name',
-                    access_token: this.accessToken,
+                    fields: 'name,instagram_business_account',
+                    access_token: this.pageAccessToken,
                 },
             });
             if (response.data.name) {

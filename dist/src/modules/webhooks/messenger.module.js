@@ -11,27 +11,25 @@ const common_1 = require("@nestjs/common");
 const bull_1 = require("@nestjs/bull");
 const messenger_controller_1 = require("./messenger.controller");
 const messenger_service_1 = require("./messenger.service");
+const messenger_send_service_1 = require("./messenger-send.service");
+const messenger_stats_service_1 = require("./messenger-stats.service");
 const customers_module_1 = require("../customers/customers.module");
 const messages_module_1 = require("../messages/messages.module");
 const websocket_module_1 = require("../../websockets/websocket.module");
-const config_1 = require("@nestjs/config");
 let MessengerModule = class MessengerModule {
 };
 exports.MessengerModule = MessengerModule;
 exports.MessengerModule = MessengerModule = __decorate([
     (0, common_1.Module)({
         imports: [
+            bull_1.BullModule.registerQueue({ name: 'message-queue' }),
             (0, common_1.forwardRef)(() => customers_module_1.CustomersModule),
             (0, common_1.forwardRef)(() => messages_module_1.MessagesModule),
             (0, common_1.forwardRef)(() => websocket_module_1.WebsocketModule),
-            config_1.ConfigModule,
-            bull_1.BullModule.registerQueue({
-                name: 'message-queue',
-            }),
         ],
         controllers: [messenger_controller_1.MessengerController],
-        providers: [messenger_service_1.MessengerService],
-        exports: [messenger_service_1.MessengerService],
+        providers: [messenger_service_1.MessengerService, messenger_send_service_1.MessengerSendService, messenger_stats_service_1.MessengerStatsService],
+        exports: [messenger_service_1.MessengerService, messenger_send_service_1.MessengerSendService],
     })
 ], MessengerModule);
 //# sourceMappingURL=messenger.module.js.map

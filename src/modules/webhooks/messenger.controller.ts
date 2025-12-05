@@ -1,12 +1,16 @@
 import { Controller, Get, Post, Query, Req, Res, Logger, HttpStatus } from '@nestjs/common';
 import { MessengerService } from './messenger.service';
+import { MessengerStatsService } from './messenger-stats.service';
 import { Request, Response } from 'express';
 
 @Controller('webhooks/messenger')
 export class MessengerController {
   private readonly logger = new Logger(MessengerController.name);
 
-  constructor(private readonly messengerService: MessengerService) {}
+  constructor(
+    private readonly messengerService: MessengerService,
+    private readonly messengerStatsService: MessengerStatsService,
+  ) { }
 
   @Get()
   async verifyWebhook(
@@ -31,5 +35,16 @@ export class MessengerController {
     this.logger.log('Received POST webhook event.');
     await this.messengerService.handleMessage(req.body);
     return res.status(HttpStatus.OK).json({ status: 'ok' });
+  }
+
+  // Analytics endpoints
+  @Get('stats')
+  async getStats() {
+    return this.messengerStatsService.getStats();
+  }
+
+  @Get('analytics/conversations')
+  async getConversations() {
+    return this.messengerStatsService.getConversations();
   }
 }

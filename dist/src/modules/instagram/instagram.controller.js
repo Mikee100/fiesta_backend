@@ -15,9 +15,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.InstagramController = void 0;
 const common_1 = require("@nestjs/common");
 const instagram_service_1 = require("./instagram.service");
+const instagram_stats_service_1 = require("./instagram-stats.service");
 let InstagramController = class InstagramController {
-    constructor(instagramService) {
+    constructor(instagramService, instagramStatsService) {
         this.instagramService = instagramService;
+        this.instagramStatsService = instagramStatsService;
     }
     getSettings() {
         return this.instagramService.getSettings();
@@ -53,6 +55,12 @@ let InstagramController = class InstagramController {
     }
     getConversations() {
         return this.instagramService.getConversations();
+    }
+    async getStats() {
+        return this.instagramStatsService.getStats();
+    }
+    async getAnalyticsConversations() {
+        return this.instagramStatsService.getConversations();
     }
 };
 exports.InstagramController = InstagramController;
@@ -105,8 +113,21 @@ __decorate([
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], InstagramController.prototype, "getConversations", null);
+__decorate([
+    (0, common_1.Get)('stats'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], InstagramController.prototype, "getStats", null);
+__decorate([
+    (0, common_1.Get)('analytics/conversations'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], InstagramController.prototype, "getAnalyticsConversations", null);
 exports.InstagramController = InstagramController = __decorate([
     (0, common_1.Controller)('instagram'),
-    __metadata("design:paramtypes", [instagram_service_1.InstagramService])
+    __metadata("design:paramtypes", [instagram_service_1.InstagramService,
+        instagram_stats_service_1.InstagramStatsService])
 ], InstagramController);
 //# sourceMappingURL=instagram.controller.js.map

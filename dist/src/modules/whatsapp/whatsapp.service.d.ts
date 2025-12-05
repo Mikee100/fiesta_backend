@@ -17,6 +17,7 @@ export declare class WhatsappService {
     processMessage(value: any): Promise<void>;
     sendMessage(to: string, message: string): Promise<any>;
     sendImage(to: string, imageUrl: string, caption?: string): Promise<any>;
+    sendDocument(to: string, filePath: string, filename: string, caption?: string): Promise<any>;
     getMessages(customerId?: string): Promise<{
         messages: {
             id: string;

@@ -238,6 +238,12 @@ Just let me know! 💖`
     const message = entry.messaging[0];
     console.log('Instagram message type:', message.message?.text ? 'text' : 'other');
 
+    // Ignore echo messages (messages sent by the bot itself)
+    if (message.message?.is_echo) {
+      console.log('Ignoring echo message (sent by bot)');
+      return;
+    }
+
     if (message.message?.text) {
       const from = message.sender.id;
       const text = message.message.text;

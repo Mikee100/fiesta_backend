@@ -20,6 +20,7 @@ const event_emitter_1 = require("@nestjs/event-emitter");
 const prisma_service_1 = require("../../prisma/prisma.service");
 const payments_service_1 = require("../payments/payments.service");
 const messages_service_1 = require("../messages/messages.service");
+const calendar_service_1 = require("../calendar/calendar.service");
 const notifications_service_1 = require("../notifications/notifications.service");
 const packages_service_1 = require("../packages/packages.service");
 const whatsapp_service_1 = require("../whatsapp/whatsapp.service");
@@ -90,11 +91,12 @@ let BookingsService = BookingsService_1 = class BookingsService {
     async getStudioInfo() {
         return this.prisma.studioInfo.findFirst();
     }
-    constructor(prisma, bookingQueue, paymentsService, messagesService, notificationsService, packagesService, eventEmitter, whatsappService) {
+    constructor(prisma, bookingQueue, paymentsService, messagesService, calendarService, notificationsService, packagesService, eventEmitter, whatsappService) {
         this.prisma = prisma;
         this.bookingQueue = bookingQueue;
         this.paymentsService = paymentsService;
         this.messagesService = messagesService;
+        this.calendarService = calendarService;
         this.notificationsService = notificationsService;
         this.packagesService = packagesService;
         this.eventEmitter = eventEmitter;
@@ -357,6 +359,15 @@ let BookingsService = BookingsService_1 = class BookingsService {
                 data: { service: newService, dateTime: newDateTime, durationMinutes: duration },
                 include: { customer: true }
             });
+            if (updated.googleEventId) {
+                try {
+                    await this.calendarService.updateEvent(updated.googleEventId, updated);
+                    this.logger.log(`Updated Google Calendar event for booking ${bookingId}: ${updated.googleEventId}`);
+                }
+                catch (error) {
+                    this.logger.error(`Failed to update Google Calendar event for booking ${bookingId}`, error);
+                }
+            }
             const msg = `Your appointment has been rescheduled to ${luxon_1.DateTime.fromJSDate(newDateTime).setZone(this.STUDIO_TZ).toFormat('ccc, LLL dd, yyyy HH:mm')}.`;
             try {
                 if (updated.customer?.whatsappId) {
@@ -373,10 +384,23 @@ let BookingsService = BookingsService_1 = class BookingsService {
         });
     }
     async confirmBooking(bookingId) {
-        return this.prisma.booking.update({
+        const booking = await this.prisma.booking.update({
             where: { id: bookingId },
             data: { status: 'confirmed' },
+            include: { customer: true }
         });
+        try {
+            const eventId = await this.calendarService.createEvent(booking);
+            await this.prisma.booking.update({
+                where: { id: bookingId },
+                data: { googleEventId: eventId },
+            });
+            this.logger.log(`Created Google Calendar event for booking ${bookingId}: ${eventId}`);
+        }
+        catch (error) {
+            this.logger.error(`Failed to create Google Calendar event for booking ${bookingId}`, error);
+        }
+        return booking;
     }
     async cancelBooking(bookingId) {
         const currentBooking = await this.prisma.booking.findUnique({ where: { id: bookingId } });
@@ -394,6 +418,15 @@ let BookingsService = BookingsService_1 = class BookingsService {
             data: { status: 'cancelled' },
             include: { customer: true }
         });
+        if (booking.googleEventId) {
+            try {
+                await this.calendarService.deleteEvent(booking.googleEventId);
+                this.logger.log(`Deleted Google Calendar event for booking ${bookingId}: ${booking.googleEventId}`);
+            }
+            catch (error) {
+                this.logger.error(`Failed to delete Google Calendar event for booking ${bookingId}`, error);
+            }
+        }
         const msg = `Your appointment has been cancelled. We hope to see you again soon!`;
         try {
             if (booking.customer?.whatsappId) {
@@ -548,6 +581,7 @@ exports.BookingsService = BookingsService = BookingsService_1 = __decorate([
     __param(1, (0, bull_1.InjectQueue)('bookingQueue')),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService, Object, payments_service_1.PaymentsService,
         messages_service_1.MessagesService,
+        calendar_service_1.CalendarService,
         notifications_service_1.NotificationsService,
         packages_service_1.PackagesService,
         event_emitter_1.EventEmitter2,

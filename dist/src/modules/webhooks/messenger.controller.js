@@ -16,9 +16,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.MessengerController = void 0;
 const common_1 = require("@nestjs/common");
 const messenger_service_1 = require("./messenger.service");
+const messenger_stats_service_1 = require("./messenger-stats.service");
 let MessengerController = MessengerController_1 = class MessengerController {
-    constructor(messengerService) {
+    constructor(messengerService, messengerStatsService) {
         this.messengerService = messengerService;
+        this.messengerStatsService = messengerStatsService;
         this.logger = new common_1.Logger(MessengerController_1.name);
     }
     async verifyWebhook(mode, token, challenge, res) {
@@ -37,6 +39,12 @@ let MessengerController = MessengerController_1 = class MessengerController {
         this.logger.log('Received POST webhook event.');
         await this.messengerService.handleMessage(req.body);
         return res.status(common_1.HttpStatus.OK).json({ status: 'ok' });
+    }
+    async getStats() {
+        return this.messengerStatsService.getStats();
+    }
+    async getConversations() {
+        return this.messengerStatsService.getConversations();
     }
 };
 exports.MessengerController = MessengerController;
@@ -58,8 +66,21 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], MessengerController.prototype, "handleMessage", null);
+__decorate([
+    (0, common_1.Get)('stats'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], MessengerController.prototype, "getStats", null);
+__decorate([
+    (0, common_1.Get)('analytics/conversations'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], MessengerController.prototype, "getConversations", null);
 exports.MessengerController = MessengerController = MessengerController_1 = __decorate([
     (0, common_1.Controller)('webhooks/messenger'),
-    __metadata("design:paramtypes", [messenger_service_1.MessengerService])
+    __metadata("design:paramtypes", [messenger_service_1.MessengerService,
+        messenger_stats_service_1.MessengerStatsService])
 ], MessengerController);
 //# sourceMappingURL=messenger.controller.js.map

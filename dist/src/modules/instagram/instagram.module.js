@@ -11,6 +11,7 @@ const common_1 = require("@nestjs/common");
 const bull_1 = require("@nestjs/bull");
 const instagram_controller_1 = require("./instagram.controller");
 const instagram_service_1 = require("./instagram.service");
+const instagram_stats_service_1 = require("./instagram-stats.service");
 const messages_module_1 = require("../messages/messages.module");
 const customers_module_1 = require("../customers/customers.module");
 let InstagramModule = class InstagramModule {
@@ -26,7 +27,7 @@ exports.InstagramModule = InstagramModule = __decorate([
             }),
         ],
         controllers: [instagram_controller_1.InstagramController],
-        providers: [instagram_service_1.InstagramService],
+        providers: [instagram_service_1.InstagramService, instagram_stats_service_1.InstagramStatsService],
         exports: [instagram_service_1.InstagramService],
     })
 ], InstagramModule);

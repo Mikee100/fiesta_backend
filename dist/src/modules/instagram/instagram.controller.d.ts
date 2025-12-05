@@ -1,7 +1,9 @@
 import { InstagramService } from './instagram.service';
+import { InstagramStatsService } from './instagram-stats.service';
 export declare class InstagramController {
     private readonly instagramService;
-    constructor(instagramService: InstagramService);
+    private readonly instagramStatsService;
+    constructor(instagramService: InstagramService, instagramStatsService: InstagramStatsService);
     getSettings(): Promise<{
         businessAccountId: string;
         accessToken: string;
@@ -42,4 +44,30 @@ export declare class InstagramController {
         conversations: unknown[];
         total: number;
     }>;
+    getStats(): Promise<{
+        totalMessages: number;
+        inboundMessages: number;
+        outboundMessages: number;
+        activeConversations: number;
+        messagesThisWeek: number;
+        messagesThisMonth: number;
+        topCustomers: {
+            name: string;
+            messageCount: number;
+        }[];
+        messagesByDay: {
+            date: string;
+            count: number;
+        }[];
+        avgResponseTime: number;
+    }>;
+    getAnalyticsConversations(): Promise<{
+        customerId: string;
+        customerName: string;
+        instagramId: string;
+        lastMessageAt: Date;
+        lastMessage: string;
+        lastMessageDirection: string;
+        messageCount: number;
+    }[]>;
 }

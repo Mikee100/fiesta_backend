@@ -1,11 +1,13 @@
-# TODO: Update AI Social Media System for Maternity Photoshop Business
+# Invoice Template Improvement Tasks
 
-## Tasks
-- [ ] Update timezone references from "salonTz" to "maternityTz" in ai.service.ts, bookings.service.ts, message-queue.processor.ts, utils/booking.ts
-- [ ] Replace hardcoded salon services in message-queue.processor.ts with dynamic maternity package fetching and listing
-- [ ] Update any remaining salon references to Fiesta House Maternity/maternity
-
-## Followup Steps
-- [ ] Run database migrations if needed
-- [ ] Test the AI responses for emotional tone and dynamic behavior
-- [ ] Verify package listing works correctly
+## Tasks to Complete
+- [x] Add logo to invoice header
+- [x] Improve header design with professional styling
+- [x] Enhance business information section with better formatting
+- [x] Add colors and styling to invoice details section
+- [x] Improve customer information layout
+- [x] Enhance booking details section
+- [x] Upgrade table formatting with borders and better alignment
+- [x] Improve totals section with better styling
+- [x] Add professional footer with payment terms
+- [ ] Test PDF generation and verify logo display

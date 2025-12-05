@@ -12,8 +12,8 @@ export declare class KnowledgeBaseService {
         createdAt: Date;
         updatedAt: Date;
         question: string;
-        answer: string;
         category: string;
+        answer: string;
         embedding: number[];
         mediaUrls: string[];
     }>;
@@ -28,8 +28,8 @@ export declare class KnowledgeBaseService {
             createdAt: Date;
             updatedAt: Date;
             question: string;
-            answer: string;
             category: string;
+            answer: string;
             embedding: number[];
             mediaUrls: string[];
         }[];
@@ -40,8 +40,8 @@ export declare class KnowledgeBaseService {
         createdAt: Date;
         updatedAt: Date;
         question: string;
-        answer: string;
         category: string;
+        answer: string;
         embedding: number[];
         mediaUrls: string[];
     }>;
@@ -54,8 +54,8 @@ export declare class KnowledgeBaseService {
         createdAt: Date;
         updatedAt: Date;
         question: string;
-        answer: string;
         category: string;
+        answer: string;
         embedding: number[];
         mediaUrls: string[];
     }>;
@@ -64,8 +64,8 @@ export declare class KnowledgeBaseService {
         createdAt: Date;
         updatedAt: Date;
         question: string;
-        answer: string;
         category: string;
+        answer: string;
         embedding: number[];
         mediaUrls: string[];
     }>;

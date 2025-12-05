@@ -35,6 +35,9 @@ let CalendarController = class CalendarController {
     deleteEvent(eventId) {
         return this.calendarService.deleteEvent(eventId);
     }
+    getEvents(timeMin, timeMax) {
+        return this.calendarService.getEvents(timeMin, timeMax);
+    }
 };
 exports.CalendarController = CalendarController;
 __decorate([
@@ -73,6 +76,14 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], CalendarController.prototype, "deleteEvent", null);
+__decorate([
+    (0, common_1.Get)('events'),
+    __param(0, (0, common_1.Query)('timeMin')),
+    __param(1, (0, common_1.Query)('timeMax')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], CalendarController.prototype, "getEvents", null);
 exports.CalendarController = CalendarController = __decorate([
     (0, common_1.Controller)('calendar'),
     __metadata("design:paramtypes", [calendar_service_1.CalendarService])

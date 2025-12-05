@@ -24,6 +24,8 @@ import { ContentScraperModule } from './modules/content-scraper/content-scraper.
 import { PackagesModule } from './modules/packages/packages.module';
 import { RemindersModule } from './modules/reminders/reminders.module';
 import { FollowupsModule } from './modules/followups/followups.module';
+import { InvoicesModule } from './modules/invoices/invoices.module';
+import { ConversationsModule } from './modules/conversations/conversations.module';
 
 @Module({
   imports: [
@@ -56,6 +58,8 @@ import { FollowupsModule } from './modules/followups/followups.module';
     PackagesModule,
     RemindersModule,
     FollowupsModule,
+    InvoicesModule,
+    ConversationsModule,
   ],
 })
 export class AppModule { }

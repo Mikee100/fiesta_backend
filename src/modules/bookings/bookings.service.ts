@@ -115,6 +115,7 @@ export class BookingsService {
     @InjectQueue('bookingQueue') private bookingQueue: Queue,
     private paymentsService: PaymentsService,
     private messagesService: MessagesService,
+    private calendarService: CalendarService,
     private notificationsService: NotificationsService,
     private packagesService: PackagesService,
     private eventEmitter: EventEmitter2,
@@ -460,6 +461,16 @@ export class BookingsService {
         include: { customer: true }
       });
 
+      // Update Google Calendar event if it exists
+      if (updated.googleEventId) {
+        try {
+          await this.calendarService.updateEvent(updated.googleEventId, updated);
+          this.logger.log(`Updated Google Calendar event for booking ${bookingId}: ${updated.googleEventId}`);
+        } catch (error) {
+          this.logger.error(`Failed to update Google Calendar event for booking ${bookingId}`, error);
+        }
+      }
+
       // Send rescheduling confirmation
       const msg = `Your appointment has been rescheduled to ${DateTime.fromJSDate(newDateTime).setZone(this.STUDIO_TZ).toFormat('ccc, LLL dd, yyyy HH:mm')}.`;
       try {
@@ -479,10 +490,25 @@ export class BookingsService {
   }
 
   async confirmBooking(bookingId: string) {
-    return this.prisma.booking.update({
+    const booking = await this.prisma.booking.update({
       where: { id: bookingId },
       data: { status: 'confirmed' },
+      include: { customer: true }
     });
+
+    // Create Google Calendar event
+    try {
+      const eventId = await this.calendarService.createEvent(booking);
+      await this.prisma.booking.update({
+        where: { id: bookingId },
+        data: { googleEventId: eventId },
+      });
+      this.logger.log(`Created Google Calendar event for booking ${bookingId}: ${eventId}`);
+    } catch (error) {
+      this.logger.error(`Failed to create Google Calendar event for booking ${bookingId}`, error);
+    }
+
+    return booking;
   }
 
   async cancelBooking(bookingId: string) {
@@ -504,6 +530,16 @@ export class BookingsService {
       data: { status: 'cancelled' },
       include: { customer: true }
     });
+
+    // Delete Google Calendar event if it exists
+    if (booking.googleEventId) {
+      try {
+        await this.calendarService.deleteEvent(booking.googleEventId);
+        this.logger.log(`Deleted Google Calendar event for booking ${bookingId}: ${booking.googleEventId}`);
+      } catch (error) {
+        this.logger.error(`Failed to delete Google Calendar event for booking ${bookingId}`, error);
+      }
+    }
 
     // Send cancellation confirmation
     // Send cancellation confirmation

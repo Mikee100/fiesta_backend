@@ -6,6 +6,7 @@ import { AiService } from '../src/modules/ai/ai.service';
 import { BookingsService } from '../src/modules/bookings/bookings.service';
 import { WhatsappService } from '../src/modules/whatsapp/whatsapp.service';
 import { InstagramService } from '../src/modules/instagram/instagram.service';
+import { MessengerSendService } from '../src/modules/webhooks/messenger-send.service';
 import { CustomersService } from '../src/modules/customers/customers.service';
 import { WebsocketGateway } from '../src/websockets/websocket.gateway';
 import * as chrono from 'chrono-node';
@@ -26,6 +27,7 @@ export class MessageQueueProcessor {
     private whatsappService: WhatsappService,
     private customersService: CustomersService,
     private instagramService: InstagramService,
+    private messengerSendService: MessengerSendService,
     private websocketGateway: WebsocketGateway,
   ) { }
 
@@ -152,7 +154,58 @@ export class MessageQueueProcessor {
       }
     } else if (platform === 'instagram' && from) {
       try {
-        await this.instagramService.sendMessage(from, response);
+        // Instagram has a 1000 character limit - split into multiple messages if needed
+        const MAX_LENGTH = 950;
+
+        if (response.length > MAX_LENGTH) {
+          const messages: string[] = [];
+          let remaining = response;
+
+          while (remaining.length > 0) {
+            if (remaining.length <= MAX_LENGTH) {
+              messages.push(remaining);
+              break;
+            }
+
+            // Find good break point
+            let breakPoint = MAX_LENGTH;
+            const chunk = remaining.substring(0, MAX_LENGTH);
+
+            // Try paragraph break
+            const lastParagraph = chunk.lastIndexOf('\n\n');
+            if (lastParagraph > MAX_LENGTH * 0.5) {
+              breakPoint = lastParagraph + 2;
+            } else {
+              // Try sentence break
+              const lastSentence = Math.max(chunk.lastIndexOf('. '), chunk.lastIndexOf('! '), chunk.lastIndexOf('? '));
+              if (lastSentence > MAX_LENGTH * 0.5) {
+                breakPoint = lastSentence + 2;
+              } else {
+                // Word break
+                const lastSpace = chunk.lastIndexOf(' ');
+                if (lastSpace > MAX_LENGTH * 0.7) {
+                  breakPoint = lastSpace + 1;
+                }
+              }
+            }
+
+            messages.push(remaining.substring(0, breakPoint).trim());
+            remaining = remaining.substring(breakPoint).trim();
+          }
+
+          this.logger.log(`Splitting Instagram message into ${messages.length} parts`);
+
+          // Send each part
+          for (let i = 0; i < messages.length; i++) {
+            const part = messages.length > 1 ? `(${i + 1}/${messages.length}) ${messages[i]}` : messages[i];
+            await this.instagramService.sendMessage(from, part);
+            if (i < messages.length - 1) {
+              await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+          }
+        } else {
+          await this.instagramService.sendMessage(from, response);
+        }
       } catch (err) {
         this.logger.error('Error sending Instagram message', err);
         return { processed: false, error: 'Failed to send Instagram message' };
@@ -177,6 +230,85 @@ export class MessageQueueProcessor {
         });
       } catch (err) {
         this.logger.error('Error recording outbound message (instagram)', err);
+      }
+    } else if (platform === 'messenger' && from) {
+      try {
+        // Messenger has a 2000 character limit - split into multiple messages if needed
+        const MAX_LENGTH = 1950;
+
+        if (response.length > MAX_LENGTH) {
+          const messages: string[] = [];
+          let remaining = response;
+
+          while (remaining.length > 0) {
+            if (remaining.length <= MAX_LENGTH) {
+              messages.push(remaining);
+              break;
+            }
+
+            // Find good break point
+            let breakPoint = MAX_LENGTH;
+            const chunk = remaining.substring(0, MAX_LENGTH);
+
+            // Try paragraph break
+            const lastParagraph = chunk.lastIndexOf('\n\n');
+            if (lastParagraph > MAX_LENGTH * 0.5) {
+              breakPoint = lastParagraph + 2;
+            } else {
+              // Try sentence break
+              const lastSentence = Math.max(chunk.lastIndexOf('. '), chunk.lastIndexOf('! '), chunk.lastIndexOf('? '));
+              if (lastSentence > MAX_LENGTH * 0.5) {
+                breakPoint = lastSentence + 2;
+              } else {
+                // Word break
+                const lastSpace = chunk.lastIndexOf(' ');
+                if (lastSpace > MAX_LENGTH * 0.7) {
+                  breakPoint = lastSpace + 1;
+                }
+              }
+            }
+
+            messages.push(remaining.substring(0, breakPoint).trim());
+            remaining = remaining.substring(breakPoint).trim();
+          }
+
+          this.logger.log(`Splitting Messenger message into ${messages.length} parts`);
+
+          // Send each part
+          for (let i = 0; i < messages.length; i++) {
+            const part = messages.length > 1 ? `(${i + 1}/${messages.length}) ${messages[i]}` : messages[i];
+            await this.messengerSendService.sendMessage(from, part);
+            if (i < messages.length - 1) {
+              await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+          }
+        } else {
+          await this.messengerSendService.sendMessage(from, response);
+        }
+      } catch (err) {
+        this.logger.error('Error sending Messenger message', err);
+        return { processed: false, error: 'Failed to send Messenger message' };
+      }
+      try {
+        const outboundMessage = await this.messagesService.create({
+          content: response,
+          platform: 'messenger',
+          direction: 'outbound',
+          customerId,
+        });
+        const customer = await this.customersService.findOne(customerId).catch(() => null);
+        this.websocketGateway.emitNewMessage('messenger', {
+          id: outboundMessage.id,
+          from: '',
+          to: from,
+          content: response,
+          timestamp: outboundMessage.createdAt.toISOString(),
+          direction: 'outbound',
+          customerId,
+          customerName: customer?.name,
+        });
+      } catch (err) {
+        this.logger.error('Error recording outbound message (messenger)', err);
       }
     } else {
       // unknown platform: just record message and emit

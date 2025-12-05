@@ -8,6 +8,7 @@ import { AiModule } from '../modules/ai/ai.module';
 import { BookingsModule } from '../modules/bookings/bookings.module';
 import { WhatsappModule } from '../modules/whatsapp/whatsapp.module';
 import { InstagramModule } from '../modules/instagram/instagram.module';
+import { MessengerModule } from '../modules/webhooks/messenger.module';
 import { CustomersModule } from '../modules/customers/customers.module';
 import { WebsocketModule } from '../websockets/websocket.module';
 
@@ -27,6 +28,7 @@ import { WebsocketModule } from '../websockets/websocket.module';
     BookingsModule,
     WhatsappModule,
     InstagramModule,
+    MessengerModule,
     CustomersModule,
     WebsocketModule,
   ],

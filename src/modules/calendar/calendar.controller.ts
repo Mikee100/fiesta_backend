@@ -30,4 +30,9 @@ export class CalendarController {
   deleteEvent(@Param('id') eventId: string) {
     return this.calendarService.deleteEvent(eventId);
   }
+
+  @Get('events')
+  getEvents(@Query('timeMin') timeMin?: string, @Query('timeMax') timeMax?: string) {
+    return this.calendarService.getEvents(timeMin, timeMax);
+  }
 }

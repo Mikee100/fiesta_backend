@@ -40,6 +40,13 @@ export class MessengerService {
       for (const event of entry.messaging) {
         const senderId = event.sender?.id;
         const message = event.message;
+
+        // Ignore echo messages (messages sent by the bot itself)
+        if (message?.is_echo) {
+          this.logger.log('Ignoring echo message (sent by bot)');
+          continue;
+        }
+
         if (!senderId || !message || !message.mid) {
           this.logger.warn('Missing sender or message data.');
           continue;
@@ -57,6 +64,11 @@ export class MessengerService {
           customer = await this.customersService.createWithMessengerId(senderId);
           this.logger.log(`Customer created: id=${customer.id}`);
         }
+
+        // Update lastMessengerMessageAt for 24hr window tracking
+        await this.customersService.updateLastMessengerMessageAt(senderId, new Date());
+        this.logger.log('✅ Updated lastMessengerMessageAt for 24-hour window tracking');
+
         // Save message
         const savedMessage = await this.messagesService.create({
           customerId: customer.id,

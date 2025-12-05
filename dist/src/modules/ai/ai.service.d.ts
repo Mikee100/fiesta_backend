@@ -9,6 +9,13 @@ type HistoryMsg = {
     role: 'user' | 'assistant';
     content: string;
 };
+import { CustomerMemoryService } from './services/customer-memory.service';
+import { ConversationLearningService } from './services/conversation-learning.service';
+import { DomainExpertiseService } from './services/domain-expertise.service';
+import { AdvancedIntentService } from './services/advanced-intent.service';
+import { PersonalizationService } from './services/personalization.service';
+import { FeedbackLoopService } from './services/feedback-loop.service';
+import { PredictiveAnalyticsService } from './services/predictive-analytics.service';
 export declare class AiService {
     private configService;
     private prisma;
@@ -17,6 +24,13 @@ export declare class AiService {
     private messagesService?;
     private escalationService?;
     private aiQueue?;
+    private customerMemory?;
+    private conversationLearning?;
+    private domainExpertise?;
+    private advancedIntent?;
+    private personalization?;
+    private feedbackLoop?;
+    private predictiveAnalytics?;
     private readonly logger;
     private openai;
     private pinecone;
@@ -37,7 +51,7 @@ export declare class AiService {
     private readonly customerCarePhone;
     private readonly customerCareEmail;
     private readonly businessHours;
-    constructor(configService: ConfigService, prisma: PrismaService, circuitBreaker: CircuitBreakerService, bookingsService?: BookingsService, messagesService?: MessagesService, escalationService?: EscalationService, aiQueue?: Queue);
+    constructor(configService: ConfigService, prisma: PrismaService, circuitBreaker: CircuitBreakerService, bookingsService?: BookingsService, messagesService?: MessagesService, escalationService?: EscalationService, aiQueue?: Queue, customerMemory?: CustomerMemoryService, conversationLearning?: ConversationLearningService, domainExpertise?: DomainExpertiseService, advancedIntent?: AdvancedIntentService, personalization?: PersonalizationService, feedbackLoop?: FeedbackLoopService, predictiveAnalytics?: PredictiveAnalyticsService);
     private initPineconeSafely;
     private checkRateLimit;
     private trackTokenUsage;
@@ -80,16 +94,16 @@ export declare class AiService {
     private generateBookingReply;
     getOrCreateDraft(customerId: string): Promise<{
         id: string;
+        name: string | null;
         createdAt: Date;
         updatedAt: Date;
-        name: string | null;
         customerId: string;
         service: string | null;
+        recipientName: string | null;
+        recipientPhone: string | null;
         date: string | null;
         time: string | null;
         dateTimeIso: string | null;
-        recipientName: string | null;
-        recipientPhone: string | null;
         isForSomeoneElse: boolean | null;
         step: string;
         conflictResolution: string | null;
@@ -97,16 +111,16 @@ export declare class AiService {
     }>;
     mergeIntoDraft(customerId: string, extraction: any): Promise<{
         id: string;
+        name: string | null;
         createdAt: Date;
         updatedAt: Date;
-        name: string | null;
         customerId: string;
         service: string | null;
+        recipientName: string | null;
+        recipientPhone: string | null;
         date: string | null;
         time: string | null;
         dateTimeIso: string | null;
-        recipientName: string | null;
-        recipientPhone: string | null;
         isForSomeoneElse: boolean | null;
         step: string;
         conflictResolution: string | null;
@@ -178,5 +192,6 @@ export declare class AiService {
     extractStepBasedBookingDetails(message: string, currentStep: string, history?: any[]): Promise<any>;
     generateStepBasedBookingResponse(message: string, customerId: string, bookingsService: any, history: any[], draft: any, bookingResult: any): Promise<string>;
     generateGeneralResponse(message: string, customerId: string, bookingsService: any, history?: any[]): Promise<string>;
+    handleConversationWithLearning(message: string, customerId: string, history?: any[], bookingsService?: any, retryCount?: number, enrichedContext?: any): Promise<any>;
 }
 export {};

@@ -7,7 +7,7 @@ export class CustomersService {
   constructor(
     private prisma: PrismaService,
     @Inject(forwardRef(() => WhatsappService)) private whatsappService: WhatsappService,
-  ) {}
+  ) { }
 
   async create(data: any) {
     return this.prisma.customer.create({ data });
@@ -124,6 +124,13 @@ export class CustomersService {
     return this.prisma.customer.update({
       where: { instagramId },
       data: { lastInstagramMessageAt: timestamp },
+    });
+  }
+
+  async updateLastMessengerMessageAt(messengerId: string, timestamp: Date) {
+    return this.prisma.customer.update({
+      where: { messengerId },
+      data: { lastMessengerMessageAt: timestamp },
     });
   }
 
