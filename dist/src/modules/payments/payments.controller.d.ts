@@ -13,12 +13,12 @@ export declare class PaymentsController {
             bookingId: string | null;
             createdAt: Date;
             updatedAt: Date;
-            checkoutRequestId: string | null;
             amount: number;
             bookingDraftId: string | null;
             phone: string;
             status: string;
             mpesaReceipt: string | null;
+            checkoutRequestId: string | null;
         };
     }>;
     handleCallback(body: any): Promise<{

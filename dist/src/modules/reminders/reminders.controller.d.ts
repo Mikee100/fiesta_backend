@@ -44,8 +44,8 @@ export declare class RemindersController {
             updatedAt: Date;
             status: string;
             type: string;
-            sentAt: Date | null;
             scheduledFor: Date;
+            sentAt: Date | null;
             messageContent: string | null;
         })[];
         total: number;
@@ -91,8 +91,8 @@ export declare class RemindersController {
             updatedAt: Date;
             status: string;
             type: string;
-            sentAt: Date | null;
             scheduledFor: Date;
+            sentAt: Date | null;
             messageContent: string | null;
         })[];
         total: number;
@@ -137,8 +137,8 @@ export declare class RemindersController {
         updatedAt: Date;
         status: string;
         type: string;
-        sentAt: Date | null;
         scheduledFor: Date;
+        sentAt: Date | null;
         messageContent: string | null;
     })[]>;
     getReminder(id: string): Promise<{
@@ -181,8 +181,8 @@ export declare class RemindersController {
         updatedAt: Date;
         status: string;
         type: string;
-        sentAt: Date | null;
         scheduledFor: Date;
+        sentAt: Date | null;
         messageContent: string | null;
     }>;
     sendReminder(id: string): Promise<{
@@ -225,8 +225,8 @@ export declare class RemindersController {
         updatedAt: Date;
         status: string;
         type: string;
-        sentAt: Date | null;
         scheduledFor: Date;
+        sentAt: Date | null;
         messageContent: string | null;
     }>;
     updateReminder(id: string, data: UpdateReminderDto): Promise<{
@@ -236,8 +236,8 @@ export declare class RemindersController {
         updatedAt: Date;
         status: string;
         type: string;
-        sentAt: Date | null;
         scheduledFor: Date;
+        sentAt: Date | null;
         messageContent: string | null;
     }>;
     cancelReminder(id: string): Promise<{
@@ -247,8 +247,8 @@ export declare class RemindersController {
         updatedAt: Date;
         status: string;
         type: string;
-        sentAt: Date | null;
         scheduledFor: Date;
+        sentAt: Date | null;
         messageContent: string | null;
     }>;
 }

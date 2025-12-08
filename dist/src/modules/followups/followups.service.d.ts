@@ -19,8 +19,8 @@ export declare class FollowupsService {
         status: string;
         type: string;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
-        sentAt: Date | null;
         scheduledFor: Date;
+        sentAt: Date | null;
         messageContent: string | null;
     }>;
     getFollowups(filters: FollowupFilterDto): Promise<{
@@ -65,8 +65,8 @@ export declare class FollowupsService {
             status: string;
             type: string;
             metadata: import("@prisma/client/runtime/library").JsonValue | null;
-            sentAt: Date | null;
             scheduledFor: Date;
+            sentAt: Date | null;
             messageContent: string | null;
         })[];
         total: number;
@@ -112,8 +112,8 @@ export declare class FollowupsService {
         status: string;
         type: string;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
-        sentAt: Date | null;
         scheduledFor: Date;
+        sentAt: Date | null;
         messageContent: string | null;
     }>;
     updateFollowup(id: string, data: UpdateFollowupDto): Promise<{
@@ -124,8 +124,8 @@ export declare class FollowupsService {
         status: string;
         type: string;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
-        sentAt: Date | null;
         scheduledFor: Date;
+        sentAt: Date | null;
         messageContent: string | null;
     }>;
     cancelFollowupsForBooking(bookingId: string): Promise<import(".prisma/client").Prisma.BatchPayload>;
@@ -170,8 +170,8 @@ export declare class FollowupsService {
         status: string;
         type: string;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
-        sentAt: Date | null;
         scheduledFor: Date;
+        sentAt: Date | null;
         messageContent: string | null;
     }>;
     recordResponse(followupId: string, response: RecordFollowupResponseDto): Promise<{
@@ -182,8 +182,8 @@ export declare class FollowupsService {
         status: string;
         type: string;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
-        sentAt: Date | null;
         scheduledFor: Date;
+        sentAt: Date | null;
         messageContent: string | null;
     }>;
     private generateFollowupMessage;
@@ -237,8 +237,8 @@ export declare class FollowupsService {
         status: string;
         type: string;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
-        sentAt: Date | null;
         scheduledFor: Date;
+        sentAt: Date | null;
         messageContent: string | null;
     })[]>;
 }

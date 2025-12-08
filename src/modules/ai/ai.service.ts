@@ -668,23 +668,27 @@ export class AiService {
         this.logger.debug(`[AiService] Found ${mediaUrls.length} media assets for backdrop query`);
       }
 
-      // Retrieve relevant docs as before (increased from 3 to 5 for broader coverage)
-      const docs = await this.retrieveRelevantDocs(question, 5);
+      // Retrieve relevant docs as before (increased from 3 to 10 for broader coverage)
+      const docs = await this.retrieveRelevantDocs(question, 10);
       if (docs.length > 0) {
+        // Always use the closest FAQ answer if any match is found
         prediction = docs[0].metadata.answer;
         confidence = docs[0].score;
-
+        this.logger.debug(`[AiService] FAQ match found. Using FAQ answer: "${prediction}" (score: ${confidence})`);
         // If the doc has mediaUrls, add them
         if (docs[0].metadata.mediaUrls && Array.isArray(docs[0].metadata.mediaUrls)) {
           mediaUrls.push(...docs[0].metadata.mediaUrls);
         }
       } else {
-        // Fallback to LLM
+        this.logger.warn(`[AiService] No FAQ match found in DB for question: "${question}". Falling back to LLM.`);
+        // Fallback to LLM, but remind AI to use FAQ answers if available
         const messages: any[] = [
           {
             role: 'system',
             content:
               `You are a warm, empathetic AI assistant for a maternity photoshoot studio. Always answer with genuine care and conversational intelligence.
+
+IMPORTANT: Before generating any answer, ALWAYS check the database FAQs provided in context. If a relevant FAQ is found, use its answer directly and do NOT invent or hallucinate. Only generate a new answer if no FAQ matches.
 
 META-COGNITIVE INSTRUCTIONS:
 - LISTEN & ACKNOWLEDGE: Start by showing you understood the question ("Great question!" or "I'd love to help with that!")
@@ -712,6 +716,7 @@ CRITICAL INSTRUCTIONS:
   * Remaining balance is due after the shoot
   * Edited photos are delivered in 10 working days (never say 'two weeks' or any other time frame)
   * You must always say '10 working days' for photo delivery, and NEVER say 'two weeks', '14 days', or any other duration
+  * Edited images are always sent as a link to the customer's WhatsApp. NEVER say 'online gallery', 'email', or any other delivery method. Always say 'WhatsApp link'.
   * Reschedules must be made at least 72 hours before the shoot time to avoid forfeiting the session fee
   * Cancellations or changes made within 72 hours of the shoot are non-refundable, and the session fee will be forfeited
 - When asked about packages:
@@ -722,7 +727,7 @@ CRITICAL INSTRUCTIONS:
 - When describing packages, include ALL features from context: images, outfits, makeup, styling, balloon backdrop, wigs, photobooks, mounts
 - If no relevant context provided, be helpful: "That's a great question! Let me find out for you" or "I can connect you with our team for that specific detail"
 
-IMPORTANT: If you ever mention the delivery time for edited photos, you MUST say '10 working days' and NEVER say 'two weeks', '14 days', or any other time frame. If you are unsure, say '10 working days'.`,
+IMPORTANT: If you ever mention the delivery time for edited photos, you MUST say '10 working days' and NEVER say 'two weeks', '14 days', or any other time frame. If you ever mention how images are delivered, you MUST say 'as a link to your WhatsApp' and NEVER say 'online gallery', 'email', or any other method. If you are unsure, say 'WhatsApp link'.`,
           },
         ];
 
@@ -793,6 +798,7 @@ IMPORTANT: If you ever mention the delivery time for edited photos, you MUST say
       // Post-process: replace 'two weeks' or '14 days' with '10 working days'
       if (typeof prediction === 'string') {
         prediction = prediction.replace(/two weeks|14 days/gi, '10 working days');
+        prediction = prediction.replace(/online gallery|email/gi, 'WhatsApp link');
       }
 
       // Return both text and mediaUrls for integration

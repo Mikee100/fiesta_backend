@@ -31,12 +31,12 @@ export declare class PaymentsService {
         bookingId: string | null;
         createdAt: Date;
         updatedAt: Date;
-        checkoutRequestId: string | null;
         amount: number;
         bookingDraftId: string | null;
         phone: string;
         status: string;
         mpesaReceipt: string | null;
+        checkoutRequestId: string | null;
     }>;
     getAccessToken(): Promise<string>;
     initiateSTKPush(bookingDraftId: string, phone: string, amount: number): Promise<{

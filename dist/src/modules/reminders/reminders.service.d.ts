@@ -17,8 +17,8 @@ export declare class RemindersService {
         updatedAt: Date;
         status: string;
         type: string;
-        sentAt: Date | null;
         scheduledFor: Date;
+        sentAt: Date | null;
         messageContent: string | null;
     }>;
     getReminders(filters: ReminderFilterDto): Promise<{
@@ -62,8 +62,8 @@ export declare class RemindersService {
             updatedAt: Date;
             status: string;
             type: string;
-            sentAt: Date | null;
             scheduledFor: Date;
+            sentAt: Date | null;
             messageContent: string | null;
         })[];
         total: number;
@@ -108,8 +108,8 @@ export declare class RemindersService {
         updatedAt: Date;
         status: string;
         type: string;
-        sentAt: Date | null;
         scheduledFor: Date;
+        sentAt: Date | null;
         messageContent: string | null;
     }>;
     updateReminder(id: string, data: UpdateReminderDto): Promise<{
@@ -119,8 +119,8 @@ export declare class RemindersService {
         updatedAt: Date;
         status: string;
         type: string;
-        sentAt: Date | null;
         scheduledFor: Date;
+        sentAt: Date | null;
         messageContent: string | null;
     }>;
     cancelRemindersForBooking(bookingId: string): Promise<import(".prisma/client").Prisma.BatchPayload>;
@@ -165,8 +165,8 @@ export declare class RemindersService {
         updatedAt: Date;
         status: string;
         type: string;
-        sentAt: Date | null;
         scheduledFor: Date;
+        sentAt: Date | null;
         messageContent: string | null;
     }>;
     private generateReminderMessage;
@@ -210,8 +210,8 @@ export declare class RemindersService {
         updatedAt: Date;
         status: string;
         type: string;
-        sentAt: Date | null;
         scheduledFor: Date;
+        sentAt: Date | null;
         messageContent: string | null;
     })[]>;
 }

@@ -27,8 +27,8 @@ export declare class ProactiveOutreachService {
         status: string;
         type: string;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
-        sentAt: Date | null;
         scheduledFor: Date;
+        sentAt: Date | null;
         deliveredAt: Date | null;
         messageContent: string;
         channel: string;
