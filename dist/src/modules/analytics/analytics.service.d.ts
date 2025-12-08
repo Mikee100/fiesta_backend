@@ -71,16 +71,16 @@ export declare class AnalyticsService {
             score: any;
             comparative: any;
             id: string;
-            content: string;
             createdAt: Date;
+            content: string;
         }[];
         mostNegative: {
             mood: "positive" | "negative" | "neutral";
             score: any;
             comparative: any;
             id: string;
-            content: string;
             createdAt: Date;
+            content: string;
         }[];
     }>;
     whatsappKeywordTrends(): Promise<{

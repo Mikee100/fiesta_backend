@@ -6,9 +6,23 @@ export declare class InvoicesService {
     private readonly logger;
     constructor(prisma: PrismaService, whatsappService: WhatsappService);
     generateInvoice(bookingId: string): Promise<{
+        booking: {
+            id: string;
+            customerId: string;
+            service: string;
+            dateTime: Date;
+            status: string;
+            durationMinutes: number | null;
+            recipientName: string | null;
+            recipientPhone: string | null;
+            googleEventId: string | null;
+            createdAt: Date;
+            updatedAt: Date;
+        };
         customer: {
             id: string;
             createdAt: Date;
+            updatedAt: Date;
             name: string;
             email: string | null;
             phone: string | null;
@@ -22,27 +36,13 @@ export declare class InvoicesService {
             dailyTokenUsage: number;
             tokenResetDate: Date | null;
             totalTokensUsed: number;
-            updatedAt: Date;
-        };
-        booking: {
-            id: string;
-            createdAt: Date;
-            customerId: string;
-            updatedAt: Date;
-            service: string;
-            dateTime: Date;
-            status: string;
-            durationMinutes: number | null;
-            recipientName: string | null;
-            recipientPhone: string | null;
-            googleEventId: string | null;
         };
     } & {
         id: string;
-        createdAt: Date;
         customerId: string;
-        updatedAt: Date;
         status: string;
+        createdAt: Date;
+        updatedAt: Date;
         bookingId: string;
         sentAt: Date | null;
         invoiceNumber: string;
@@ -60,9 +60,23 @@ export declare class InvoicesService {
     private generatePDF;
     sendInvoiceToCustomer(invoiceId: string): Promise<void>;
     getInvoicesByBooking(bookingId: string): Promise<({
+        booking: {
+            id: string;
+            customerId: string;
+            service: string;
+            dateTime: Date;
+            status: string;
+            durationMinutes: number | null;
+            recipientName: string | null;
+            recipientPhone: string | null;
+            googleEventId: string | null;
+            createdAt: Date;
+            updatedAt: Date;
+        };
         customer: {
             id: string;
             createdAt: Date;
+            updatedAt: Date;
             name: string;
             email: string | null;
             phone: string | null;
@@ -76,27 +90,13 @@ export declare class InvoicesService {
             dailyTokenUsage: number;
             tokenResetDate: Date | null;
             totalTokensUsed: number;
-            updatedAt: Date;
-        };
-        booking: {
-            id: string;
-            createdAt: Date;
-            customerId: string;
-            updatedAt: Date;
-            service: string;
-            dateTime: Date;
-            status: string;
-            durationMinutes: number | null;
-            recipientName: string | null;
-            recipientPhone: string | null;
-            googleEventId: string | null;
         };
     } & {
         id: string;
-        createdAt: Date;
         customerId: string;
-        updatedAt: Date;
         status: string;
+        createdAt: Date;
+        updatedAt: Date;
         bookingId: string;
         sentAt: Date | null;
         invoiceNumber: string;
@@ -111,9 +111,23 @@ export declare class InvoicesService {
         pdfUrl: string | null;
     })[]>;
     getInvoicesByCustomer(customerId: string): Promise<({
+        booking: {
+            id: string;
+            customerId: string;
+            service: string;
+            dateTime: Date;
+            status: string;
+            durationMinutes: number | null;
+            recipientName: string | null;
+            recipientPhone: string | null;
+            googleEventId: string | null;
+            createdAt: Date;
+            updatedAt: Date;
+        };
         customer: {
             id: string;
             createdAt: Date;
+            updatedAt: Date;
             name: string;
             email: string | null;
             phone: string | null;
@@ -127,27 +141,13 @@ export declare class InvoicesService {
             dailyTokenUsage: number;
             tokenResetDate: Date | null;
             totalTokensUsed: number;
-            updatedAt: Date;
-        };
-        booking: {
-            id: string;
-            createdAt: Date;
-            customerId: string;
-            updatedAt: Date;
-            service: string;
-            dateTime: Date;
-            status: string;
-            durationMinutes: number | null;
-            recipientName: string | null;
-            recipientPhone: string | null;
-            googleEventId: string | null;
         };
     } & {
         id: string;
-        createdAt: Date;
         customerId: string;
-        updatedAt: Date;
         status: string;
+        createdAt: Date;
+        updatedAt: Date;
         bookingId: string;
         sentAt: Date | null;
         invoiceNumber: string;
@@ -162,9 +162,23 @@ export declare class InvoicesService {
         pdfUrl: string | null;
     })[]>;
     getAllInvoices(): Promise<({
+        booking: {
+            id: string;
+            customerId: string;
+            service: string;
+            dateTime: Date;
+            status: string;
+            durationMinutes: number | null;
+            recipientName: string | null;
+            recipientPhone: string | null;
+            googleEventId: string | null;
+            createdAt: Date;
+            updatedAt: Date;
+        };
         customer: {
             id: string;
             createdAt: Date;
+            updatedAt: Date;
             name: string;
             email: string | null;
             phone: string | null;
@@ -178,27 +192,13 @@ export declare class InvoicesService {
             dailyTokenUsage: number;
             tokenResetDate: Date | null;
             totalTokensUsed: number;
-            updatedAt: Date;
-        };
-        booking: {
-            id: string;
-            createdAt: Date;
-            customerId: string;
-            updatedAt: Date;
-            service: string;
-            dateTime: Date;
-            status: string;
-            durationMinutes: number | null;
-            recipientName: string | null;
-            recipientPhone: string | null;
-            googleEventId: string | null;
         };
     } & {
         id: string;
-        createdAt: Date;
         customerId: string;
-        updatedAt: Date;
         status: string;
+        createdAt: Date;
+        updatedAt: Date;
         bookingId: string;
         sentAt: Date | null;
         invoiceNumber: string;
@@ -213,9 +213,23 @@ export declare class InvoicesService {
         pdfUrl: string | null;
     })[]>;
     getInvoiceById(invoiceId: string): Promise<{
+        booking: {
+            id: string;
+            customerId: string;
+            service: string;
+            dateTime: Date;
+            status: string;
+            durationMinutes: number | null;
+            recipientName: string | null;
+            recipientPhone: string | null;
+            googleEventId: string | null;
+            createdAt: Date;
+            updatedAt: Date;
+        };
         customer: {
             id: string;
             createdAt: Date;
+            updatedAt: Date;
             name: string;
             email: string | null;
             phone: string | null;
@@ -229,27 +243,13 @@ export declare class InvoicesService {
             dailyTokenUsage: number;
             tokenResetDate: Date | null;
             totalTokensUsed: number;
-            updatedAt: Date;
-        };
-        booking: {
-            id: string;
-            createdAt: Date;
-            customerId: string;
-            updatedAt: Date;
-            service: string;
-            dateTime: Date;
-            status: string;
-            durationMinutes: number | null;
-            recipientName: string | null;
-            recipientPhone: string | null;
-            googleEventId: string | null;
         };
     } & {
         id: string;
-        createdAt: Date;
         customerId: string;
-        updatedAt: Date;
         status: string;
+        createdAt: Date;
+        updatedAt: Date;
         bookingId: string;
         sentAt: Date | null;
         invoiceNumber: string;

@@ -243,12 +243,12 @@ export declare class AdminAiController {
         success: boolean;
         outreach: {
             id: string;
-            createdAt: Date;
             customerId: string;
-            updatedAt: Date;
             status: string;
-            metadata: import("@prisma/client/runtime/library").JsonValue | null;
+            createdAt: Date;
+            updatedAt: Date;
             type: string;
+            metadata: import("@prisma/client/runtime/library").JsonValue | null;
             scheduledFor: Date;
             sentAt: Date | null;
             deliveredAt: Date | null;

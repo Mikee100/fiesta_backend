@@ -38,24 +38,24 @@ export declare class ConversationsController {
     }>;
     getMessages(id: string, platform?: string): Promise<{
         id: string;
+        createdAt: Date;
         content: string;
         platform: string;
         direction: string;
-        createdAt: Date;
     }[]>;
     sendReply(id: string, body: {
         message: string;
         platform: string;
     }): Promise<{
         id: string;
+        customerId: string;
+        createdAt: Date;
         content: string;
         platform: string;
         direction: string;
         externalId: string | null;
-        createdAt: Date;
         handledBy: string | null;
         isResolved: boolean | null;
         isEscalated: boolean | null;
-        customerId: string;
     }>;
 }

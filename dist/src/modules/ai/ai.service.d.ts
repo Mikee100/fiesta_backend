@@ -96,13 +96,13 @@ export declare class AiService {
     private generateBookingReply;
     getOrCreateDraft(customerId: string): Promise<{
         id: string;
-        createdAt: Date;
         customerId: string;
-        name: string | null;
-        updatedAt: Date;
         service: string | null;
         recipientName: string | null;
         recipientPhone: string | null;
+        createdAt: Date;
+        updatedAt: Date;
+        name: string | null;
         date: string | null;
         time: string | null;
         dateTimeIso: string | null;
@@ -114,13 +114,13 @@ export declare class AiService {
     }>;
     mergeIntoDraft(customerId: string, extraction: any): Promise<{
         id: string;
-        createdAt: Date;
         customerId: string;
-        name: string | null;
-        updatedAt: Date;
         service: string | null;
         recipientName: string | null;
         recipientPhone: string | null;
+        createdAt: Date;
+        updatedAt: Date;
+        name: string | null;
         date: string | null;
         time: string | null;
         dateTimeIso: string | null;

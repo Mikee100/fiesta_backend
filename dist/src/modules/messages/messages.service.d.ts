@@ -10,20 +10,21 @@ export declare class MessagesService {
     constructor(prisma: PrismaService, messageQueue: Queue, aiService: AiService);
     create(createMessageDto: CreateMessageDto): Promise<{
         id: string;
+        customerId: string;
+        createdAt: Date;
         content: string;
         platform: string;
         direction: string;
         externalId: string | null;
-        createdAt: Date;
         handledBy: string | null;
         isResolved: boolean | null;
         isEscalated: boolean | null;
-        customerId: string;
     }>;
     findAll(): Promise<({
         customer: {
             id: string;
             createdAt: Date;
+            updatedAt: Date;
             name: string;
             email: string | null;
             phone: string | null;
@@ -37,25 +38,25 @@ export declare class MessagesService {
             dailyTokenUsage: number;
             tokenResetDate: Date | null;
             totalTokensUsed: number;
-            updatedAt: Date;
         };
     } & {
         id: string;
+        customerId: string;
+        createdAt: Date;
         content: string;
         platform: string;
         direction: string;
         externalId: string | null;
-        createdAt: Date;
         handledBy: string | null;
         isResolved: boolean | null;
         isEscalated: boolean | null;
-        customerId: string;
     })[]>;
     countMessages(args: any): Promise<number>;
     findByCustomer(customerId: string): Promise<({
         customer: {
             id: string;
             createdAt: Date;
+            updatedAt: Date;
             name: string;
             email: string | null;
             phone: string | null;
@@ -69,24 +70,24 @@ export declare class MessagesService {
             dailyTokenUsage: number;
             tokenResetDate: Date | null;
             totalTokensUsed: number;
-            updatedAt: Date;
         };
     } & {
         id: string;
+        customerId: string;
+        createdAt: Date;
         content: string;
         platform: string;
         direction: string;
         externalId: string | null;
-        createdAt: Date;
         handledBy: string | null;
         isResolved: boolean | null;
         isEscalated: boolean | null;
-        customerId: string;
     })[]>;
     findOne(id: string): Promise<{
         customer: {
             id: string;
             createdAt: Date;
+            updatedAt: Date;
             name: string;
             email: string | null;
             phone: string | null;
@@ -100,24 +101,24 @@ export declare class MessagesService {
             dailyTokenUsage: number;
             tokenResetDate: Date | null;
             totalTokensUsed: number;
-            updatedAt: Date;
         };
     } & {
         id: string;
+        customerId: string;
+        createdAt: Date;
         content: string;
         platform: string;
         direction: string;
         externalId: string | null;
-        createdAt: Date;
         handledBy: string | null;
         isResolved: boolean | null;
         isEscalated: boolean | null;
-        customerId: string;
     }>;
     findByExternalId(externalId: string): Promise<{
         customer: {
             id: string;
             createdAt: Date;
+            updatedAt: Date;
             name: string;
             email: string | null;
             phone: string | null;
@@ -131,32 +132,31 @@ export declare class MessagesService {
             dailyTokenUsage: number;
             tokenResetDate: Date | null;
             totalTokensUsed: number;
-            updatedAt: Date;
         };
     } & {
         id: string;
+        customerId: string;
+        createdAt: Date;
         content: string;
         platform: string;
         direction: string;
         externalId: string | null;
-        createdAt: Date;
         handledBy: string | null;
         isResolved: boolean | null;
         isEscalated: boolean | null;
-        customerId: string;
     }>;
     classifyIntent(content: string, history?: string[]): Promise<string>;
     sendOutboundMessage(customerId: string, content: string, platform: string): Promise<{
         id: string;
+        customerId: string;
+        createdAt: Date;
         content: string;
         platform: string;
         direction: string;
         externalId: string | null;
-        createdAt: Date;
         handledBy: string | null;
         isResolved: boolean | null;
         isEscalated: boolean | null;
-        customerId: string;
     }>;
     getConversationHistory(customerId: string, limit?: number): Promise<Array<{
         role: 'user' | 'assistant';
@@ -172,9 +172,7 @@ export declare class MessagesService {
             totalBookings: number;
             recentBookings: {
                 id: string;
-                createdAt: Date;
                 customerId: string;
-                updatedAt: Date;
                 service: string;
                 dateTime: Date;
                 status: string;
@@ -182,18 +180,20 @@ export declare class MessagesService {
                 recipientName: string | null;
                 recipientPhone: string | null;
                 googleEventId: string | null;
+                createdAt: Date;
+                updatedAt: Date;
             }[];
             isReturning: boolean;
         };
         bookingDraft: {
             id: string;
-            createdAt: Date;
             customerId: string;
-            name: string | null;
-            updatedAt: Date;
             service: string | null;
             recipientName: string | null;
             recipientPhone: string | null;
+            createdAt: Date;
+            updatedAt: Date;
+            name: string | null;
             date: string | null;
             time: string | null;
             dateTimeIso: string | null;

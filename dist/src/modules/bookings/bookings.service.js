@@ -628,6 +628,12 @@ We can't wait to capture your beautiful memories! 💖`;
         for (const key in editMap) {
             if (lower.includes(key)) {
                 await this.editBookingDraft(customerId, editMap[key], value);
+                if (editMap[key] === 'recipientPhone') {
+                    const draft = await this.reviewBookingDraft(customerId);
+                    if (draft && draft.service && (draft.dateTimeIso || draft.date) && draft.name && draft.recipientPhone) {
+                        await this.completeBookingDraft(customerId);
+                    }
+                }
                 return editMap[key];
             }
         }

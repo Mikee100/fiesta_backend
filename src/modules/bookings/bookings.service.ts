@@ -804,24 +804,33 @@ We can't wait to capture your beautiful memories! 💖`;
  * Parses user command to edit a booking draft field.
  * Example: "edit date" or "change package"
  */
-async handleEditCommand(customerId: string, command: string, value: string) {
-  const editMap: { [key: string]: string } = {
-    'date': 'date',
-    'time': 'time',
-    'package': 'service',
-    'service': 'service',
-    'name': 'name',
-    'phone': 'recipientPhone',
-  };
-  const lower = command.toLowerCase();
-  for (const key in editMap) {
-    if (lower.includes(key)) {
-      await this.editBookingDraft(customerId, editMap[key], value);
-      return editMap[key];
+  async handleEditCommand(customerId: string, command: string, value: string) {
+    const editMap: { [key: string]: string } = {
+      'date': 'date',
+      'time': 'time',
+      'package': 'service',
+      'service': 'service',
+      'name': 'name',
+      'phone': 'recipientPhone',
+    };
+    const lower = command.toLowerCase();
+    for (const key in editMap) {
+      if (lower.includes(key)) {
+        await this.editBookingDraft(customerId, editMap[key], value);
+
+        // If phone was updated, check if draft is complete and trigger STK push
+        if (editMap[key] === 'recipientPhone') {
+          const draft = await this.reviewBookingDraft(customerId);
+          if (draft && draft.service && (draft.dateTimeIso || draft.date) && draft.name && draft.recipientPhone) {
+            // All required fields present, trigger payment
+            await this.completeBookingDraft(customerId);
+          }
+        }
+        return editMap[key];
+      }
     }
+    return null;
   }
-  return null;
-}
 
 /**
  * Generates a booking summary for user review.
