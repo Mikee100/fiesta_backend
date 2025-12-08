@@ -998,23 +998,34 @@ DO NOT repeat your previous question. Instead:
                 this.logger.warn('Requested slot not available during checkAndCompleteIfConfirmed:', dateObj.toISOString());
                 return { action: 'unavailable', suggestions: avail.suggestions || [] };
             }
-            try {
-                const result = await this.retryOperation(() => bookingsService.completeBookingDraft(customerId, dateObj), 'completeBookingDraft', 2, 1000);
-                return {
-                    action: 'payment_initiated',
-                    message: result.message,
-                    amount: result.depositAmount,
-                    packageName: result.packageName,
-                    checkoutRequestId: result.checkoutRequestId,
-                    paymentId: result.paymentId
-                };
+            const pkg = await bookingsService.packagesService.findPackageByName(draft.service);
+            const depositAmount = pkg?.deposit || 2000;
+            if (extraction.subIntent === 'deposit_confirmed' || (typeof extraction.content === 'string' && extraction.content.trim().toLowerCase() === 'confirm')) {
+                try {
+                    const result = await this.retryOperation(() => bookingsService.completeBookingDraft(customerId, dateObj), 'completeBookingDraft', 2, 1000);
+                    return {
+                        action: 'payment_initiated',
+                        message: result.message,
+                        amount: result.depositAmount,
+                        packageName: result.packageName,
+                        checkoutRequestId: result.checkoutRequestId,
+                        paymentId: result.paymentId
+                    };
+                }
+                catch (err) {
+                    this.logger.error('All retries for completeBookingDraft failed, cancelling booking draft', err);
+                    await this.prisma.bookingDraft.delete({ where: { customerId } });
+                    return {
+                        action: 'cancelled',
+                        message: 'We encountered repeated issues processing your booking. Your draft has been cancelled to avoid further problems. Please try booking again later or contact support if the issue persists.'
+                    };
+                }
             }
-            catch (err) {
-                this.logger.error('All retries for completeBookingDraft failed, cancelling booking draft', err);
-                await this.prisma.bookingDraft.delete({ where: { customerId } });
+            else {
                 return {
-                    action: 'cancelled',
-                    message: 'We encountered repeated issues processing your booking. Your draft has been cancelled to avoid further problems. Please try booking again later or contact support if the issue persists.'
+                    action: 'ready_for_deposit',
+                    amount: depositAmount,
+                    packageName: pkg?.name || draft.service,
                 };
             }
         }

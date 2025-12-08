@@ -18,6 +18,44 @@ const bull_1 = require("@nestjs/bull");
 const prisma_service_1 = require("../../prisma/prisma.service");
 const ai_service_1 = require("../ai/ai.service");
 let MessagesService = class MessagesService {
+    static classifyIntentSimple(content) {
+        const lower = content.toLowerCase();
+        if (lower.includes('hello') || lower.includes('hi') || lower.includes('hey') || lower.includes('good morning') || lower.includes('good afternoon') || lower.includes('good evening')) {
+            return 'greeting';
+        }
+        if (/(reschedul\w*|change|move|shift|postpone|adjust|modify|update).*(date|time|booking|appointment|slot)/i.test(lower) ||
+            /can i reschedul\w*/i.test(lower) ||
+            /i want to (change|move|shift|postpone|adjust|modify|update) (my|the)? (date|time|booking|appointment|slot)/i.test(lower)) {
+            return 'reschedule';
+        }
+        const bookingInquiryPatterns = [
+            /\b(book|booking|appointment|schedule|reserve|slot|meeting|session|consultation)\b/i,
+            /i want to (book|schedule|reserve|set up|make) (an|a)? (appointment|booking|session|meeting)/i,
+            /can i (book|schedule|reserve|set up|make) (an|a)? (appointment|booking|session|meeting)/i,
+            /i'd like to (book|schedule|reserve|set up|make) (an|a)? (appointment|booking|session|meeting)/i,
+            /help me (book|schedule|reserve|set up|make) (an|a)? (appointment|booking|session|meeting)/i,
+            /want to (book|schedule|reserve|set up|make) (an|a)? (appointment|booking|session|meeting)/i,
+            /need to (book|schedule|reserve|set up|make) (an|a)? (appointment|booking|session|meeting)/i,
+            /schedule an appointment/i,
+            /set up an appointment/i,
+            /make a booking/i,
+            /reserve a slot/i,
+            /can i come/i,
+            /can i visit/i,
+            /can i get a slot/i,
+            /can i get an appointment/i,
+        ];
+        if (bookingInquiryPatterns.some(pattern => pattern.test(lower))) {
+            return 'booking_inquiry';
+        }
+        if (lower.includes('help') || lower.includes('question') || lower.includes('info') || lower.includes('what') || lower.includes('how') || lower.includes('price') || lower.includes('cost') || lower.includes('hours') || lower.includes('location')) {
+            return 'faq';
+        }
+        if (lower.includes('confirm') || lower.includes('ok') || lower.includes('sure') || lower.includes('yes please') || lower.includes('sounds good')) {
+            return 'confirmation';
+        }
+        return 'general';
+    }
     constructor(prisma, messageQueue, aiService) {
         this.prisma = prisma;
         this.messageQueue = messageQueue;
@@ -100,7 +138,24 @@ Respond with only the intent (e.g., booking_details).`;
             console.log('Classified as reschedule');
             return 'reschedule';
         }
-        if (lower.includes('book') || lower.includes('appointment') || lower.includes('schedule') || lower.includes('free') || lower.includes('opening') || lower.includes('tomorrow')) {
+        const bookingInquiryPatterns = [
+            /\b(book|booking|appointment|schedule|reserve|slot|meeting|session|consultation)\b/i,
+            /i want to (book|schedule|reserve|set up|make) (an|a)? (appointment|booking|session|meeting)/i,
+            /can i (book|schedule|reserve|set up|make) (an|a)? (appointment|booking|session|meeting)/i,
+            /i'd like to (book|schedule|reserve|set up|make) (an|a)? (appointment|booking|session|meeting)/i,
+            /help me (book|schedule|reserve|set up|make) (an|a)? (appointment|booking|session|meeting)/i,
+            /want to (book|schedule|reserve|set up|make) (an|a)? (appointment|booking|session|meeting)/i,
+            /need to (book|schedule|reserve|set up|make) (an|a)? (appointment|booking|session|meeting)/i,
+            /schedule an appointment/i,
+            /set up an appointment/i,
+            /make a booking/i,
+            /reserve a slot/i,
+            /can i come/i,
+            /can i visit/i,
+            /can i get a slot/i,
+            /can i get an appointment/i,
+        ];
+        if (bookingInquiryPatterns.some(pattern => pattern.test(lower))) {
             console.log('Classified as booking_inquiry');
             return 'booking_inquiry';
         }

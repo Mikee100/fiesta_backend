@@ -6,7 +6,6 @@ export declare class CustomersController {
     create(createCustomerDto: CreateCustomerDto): Promise<{
         id: string;
         createdAt: Date;
-        updatedAt: Date;
         name: string;
         email: string | null;
         phone: string | null;
@@ -20,23 +19,26 @@ export declare class CustomersController {
         dailyTokenUsage: number;
         tokenResetDate: Date | null;
         totalTokensUsed: number;
+        updatedAt: Date;
     }>;
     findAll(): Promise<({
         messages: {
             id: string;
-            customerId: string;
-            createdAt: Date;
             content: string;
             platform: string;
             direction: string;
             externalId: string | null;
+            createdAt: Date;
             handledBy: string | null;
             isResolved: boolean | null;
             isEscalated: boolean | null;
+            customerId: string;
         }[];
         bookings: {
             id: string;
+            createdAt: Date;
             customerId: string;
+            updatedAt: Date;
             service: string;
             dateTime: Date;
             status: string;
@@ -44,13 +46,10 @@ export declare class CustomersController {
             recipientName: string | null;
             recipientPhone: string | null;
             googleEventId: string | null;
-            createdAt: Date;
-            updatedAt: Date;
         }[];
     } & {
         id: string;
         createdAt: Date;
-        updatedAt: Date;
         name: string;
         email: string | null;
         phone: string | null;
@@ -64,23 +63,26 @@ export declare class CustomersController {
         dailyTokenUsage: number;
         tokenResetDate: Date | null;
         totalTokensUsed: number;
+        updatedAt: Date;
     })[]>;
     findOne(id: string): Promise<{
         messages: {
             id: string;
-            customerId: string;
-            createdAt: Date;
             content: string;
             platform: string;
             direction: string;
             externalId: string | null;
+            createdAt: Date;
             handledBy: string | null;
             isResolved: boolean | null;
             isEscalated: boolean | null;
+            customerId: string;
         }[];
         bookings: {
             id: string;
+            createdAt: Date;
             customerId: string;
+            updatedAt: Date;
             service: string;
             dateTime: Date;
             status: string;
@@ -88,13 +90,10 @@ export declare class CustomersController {
             recipientName: string | null;
             recipientPhone: string | null;
             googleEventId: string | null;
-            createdAt: Date;
-            updatedAt: Date;
         }[];
     } & {
         id: string;
         createdAt: Date;
-        updatedAt: Date;
         name: string;
         email: string | null;
         phone: string | null;
@@ -108,11 +107,11 @@ export declare class CustomersController {
         dailyTokenUsage: number;
         tokenResetDate: Date | null;
         totalTokensUsed: number;
+        updatedAt: Date;
     }>;
     update(id: string, updateCustomerDto: Partial<CreateCustomerDto>): Promise<{
         id: string;
         createdAt: Date;
-        updatedAt: Date;
         name: string;
         email: string | null;
         phone: string | null;
@@ -126,12 +125,12 @@ export declare class CustomersController {
         dailyTokenUsage: number;
         tokenResetDate: Date | null;
         totalTokensUsed: number;
+        updatedAt: Date;
     }>;
     sendPhotoLink(id: string, link: string): Promise<any>;
     remove(id: string): Promise<{
         id: string;
         createdAt: Date;
-        updatedAt: Date;
         name: string;
         email: string | null;
         phone: string | null;
@@ -145,11 +144,11 @@ export declare class CustomersController {
         dailyTokenUsage: number;
         tokenResetDate: Date | null;
         totalTokensUsed: number;
+        updatedAt: Date;
     }>;
     toggleAi(id: string, enabled: boolean): Promise<{
         id: string;
         createdAt: Date;
-        updatedAt: Date;
         name: string;
         email: string | null;
         phone: string | null;
@@ -163,6 +162,7 @@ export declare class CustomersController {
         dailyTokenUsage: number;
         tokenResetDate: Date | null;
         totalTokensUsed: number;
+        updatedAt: Date;
     }>;
     getPhotoLinks(id: string): Promise<{
         id: string;

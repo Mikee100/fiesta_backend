@@ -61,22 +61,18 @@ export class BookingStrategy implements ResponseStrategy {
         // Check if complete
         const completion = await aiService.checkAndCompleteIfConfirmed(draft, extraction, customerId, bookingsService);
 
+        // Handle booking conflicts
         if (completion.action === 'conflict') {
             const conflictMessage = typeof completion.message === 'string' ? completion.message : 'That time slot is not available.';
             let response = `I'm sorry, but it looks like you already have a booking around that time. ${conflictMessage}`;
-
             if (completion.suggestions && completion.suggestions.length > 0) {
                 const suggestedTimes = completion.suggestions
-                    .map((s: string, i: number) =>
-                        `${i + 1}. ${DateTime.fromISO(s).toFormat('h:mm a, MMM d')}`
-                    )
+                    .map((s: string, i: number) => `${i + 1}. ${DateTime.fromISO(s).toFormat('h:mm a, MMM d')}`)
                     .join('\n');
-
                 response += `\n\nHere are some available time slots:\n${suggestedTimes}\n\nWhich one would you prefer? (1-${completion.suggestions.length})`;
             } else {
                 response += ' Would you like to try a different time?';
             }
-
             return {
                 response,
                 draft,
@@ -90,9 +86,16 @@ export class BookingStrategy implements ResponseStrategy {
             return { response, draft, updatedHistory: [...history.slice(-historyLimit), { role: 'user', content: message }, { role: 'assistant', content: response }] };
         }
 
-        // STEP 3: All details are present, confirm deposit and payment
+        // Deposit confirmation step
+        // If all details are present, but user hasn't confirmed deposit, prompt for confirmation
+        if (completion.action === 'ready_for_deposit') {
+            const response = `Great! Here are your booking details:\n\n• Package: ${completion.packageName || 'selected'}\n• Date: ${draft.date}\n• Time: ${draft.time}\n• Name: ${draft.name}\n• Phone: ${draft.recipientPhone}\n\nTo confirm your booking, a deposit of KSH ${completion.amount} is required.\n\nReply with *CONFIRM* to accept and receive the payment prompt. If you need to make changes, just let me know!`;
+            return { response, draft, updatedHistory: [...history.slice(-historyLimit), { role: 'user', content: message }, { role: 'assistant', content: response }] };
+        }
+
+        // If user replied CONFIRM, then initiate payment
         if (completion.action === 'payment_initiated') {
-            const response = `Awesome, we're almost done! 🎉\n\nTo lock in your booking for the ${completion.packageName || 'selected'} package, a deposit of KSH ${completion.amount} is required—this helps us secure your spot and prepare everything just for you.\n\nPlease note, paying the deposit is compulsory to confirm your booking.\n\nI will trigger the payment prompt on your phone in the next 3 seconds.`;
+            const response = `Awesome, we're almost done! 🎉\n\nTo lock in your booking for the ${completion.packageName || 'selected'} package, a deposit of KSH ${completion.amount} is required—this helps us secure your spot and prepare everything just for you.\n\nI am now sending the payment prompt to your phone.`;
             return { response, draft, updatedHistory: [...history.slice(-historyLimit), { role: 'user', content: message }, { role: 'assistant', content: response }] };
         }
 

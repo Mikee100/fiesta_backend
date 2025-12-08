@@ -1,5 +1,5 @@
-
 import { Injectable, Logger } from '@nestjs/common';
+import { BookingStep } from './booking-message.service';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -698,10 +698,10 @@ We can't wait to capture your beautiful memories! 💖`;
   }
 
   /**
- * Count bookings for a customer by id, whatsappId, or phone
- * Accepts an object: { id?: string, whatsappId?: string, phone?: string }
- * Returns the number of bookings (all statuses)
- */
+   * Count bookings for a customer by id, whatsappId, or phone
+   * Accepts an object: { id?: string, whatsappId?: string, phone?: string }
+   * Returns the number of bookings (all statuses)
+   */
   async countBookingsForCustomer(query: { id?: string; whatsappId?: string; phone?: string }): Promise<number> {
     // Build where clause for customer
     let customerWhere: any = {};
@@ -763,4 +763,72 @@ We can't wait to capture your beautiful memories! 💖`;
     return mins || null;
   }
 
+  // State machine for booking draft
+  async advanceBookingStep(customerId: string, nextStep: BookingStep) {
+    return this.prisma.bookingDraft.update({
+      where: { customerId },
+      data: { step: nextStep },
+    });
+  }
+
+  async getBookingStep(customerId: string): Promise<BookingStep> {
+    const draft = await this.prisma.bookingDraft.findUnique({ where: { customerId } });
+    return (draft?.step as BookingStep) || 'collect_service';
+  }
+
+  async editBookingDraft(customerId: string, field: string, value: any) {
+    // Allow editing any field in the draft
+    return this.prisma.bookingDraft.update({
+      where: { customerId },
+      data: { [field]: value },
+    });
+  }
+
+  async reviewBookingDraft(customerId: string) {
+    // Return all draft details for review
+    return this.prisma.bookingDraft.findUnique({ where: { customerId } });
+  }
+
+  async confirmBookingDraft(customerId: string) {
+    // Advance to deposit confirmation step
+    return this.advanceBookingStep(customerId, 'confirm_deposit');
+  }
+
+  async cancelBookingDraft(customerId: string) {
+    // Cancel and delete draft
+    await this.prisma.bookingDraft.delete({ where: { customerId } });
+    return true;
+  }
+
+  /**
+ * Parses user command to edit a booking draft field.
+ * Example: "edit date" or "change package"
+ */
+async handleEditCommand(customerId: string, command: string, value: string) {
+  const editMap: { [key: string]: string } = {
+    'date': 'date',
+    'time': 'time',
+    'package': 'service',
+    'service': 'service',
+    'name': 'name',
+    'phone': 'recipientPhone',
+  };
+  const lower = command.toLowerCase();
+  for (const key in editMap) {
+    if (lower.includes(key)) {
+      await this.editBookingDraft(customerId, editMap[key], value);
+      return editMap[key];
+    }
+  }
+  return null;
+}
+
+/**
+ * Generates a booking summary for user review.
+ */
+async getBookingSummary(customerId: string): Promise<string> {
+  const draft = await this.reviewBookingDraft(customerId);
+  if (!draft) return 'No booking draft found.';
+  return `Please review your booking details:\nPackage: ${draft.service}\nDate: ${draft.date}\nTime: ${draft.time}\nName: ${draft.name}\nPhone: ${draft.recipientPhone}\nReply 'edit [field]' to change any detail, or 'confirm' to proceed.`;
+}
 }

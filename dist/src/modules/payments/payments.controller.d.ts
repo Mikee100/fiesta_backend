@@ -10,10 +10,10 @@ export declare class PaymentsController {
         status: string;
         payment: {
             id: string;
-            status: string;
             createdAt: Date;
-            updatedAt: Date;
             phone: string;
+            updatedAt: Date;
+            status: string;
             bookingId: string | null;
             amount: number;
             bookingDraftId: string | null;

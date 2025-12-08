@@ -9,7 +9,6 @@ export declare class BookingsController {
             customer: {
                 id: string;
                 createdAt: Date;
-                updatedAt: Date;
                 name: string;
                 email: string | null;
                 phone: string | null;
@@ -23,10 +22,13 @@ export declare class BookingsController {
                 dailyTokenUsage: number;
                 tokenResetDate: Date | null;
                 totalTokensUsed: number;
+                updatedAt: Date;
             };
         } & {
             id: string;
+            createdAt: Date;
             customerId: string;
+            updatedAt: Date;
             service: string;
             dateTime: Date;
             status: string;
@@ -34,8 +36,6 @@ export declare class BookingsController {
             recipientName: string | null;
             recipientPhone: string | null;
             googleEventId: string | null;
-            createdAt: Date;
-            updatedAt: Date;
         };
     } | {
         status: string;
@@ -43,7 +43,9 @@ export declare class BookingsController {
     }>;
     create(createBookingDto: CreateBookingDto): Promise<{
         id: string;
+        createdAt: Date;
         customerId: string;
+        updatedAt: Date;
         service: string;
         dateTime: Date;
         status: string;
@@ -51,15 +53,12 @@ export declare class BookingsController {
         recipientName: string | null;
         recipientPhone: string | null;
         googleEventId: string | null;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
     findAll(): Promise<{
         bookings: ({
             customer: {
                 id: string;
                 createdAt: Date;
-                updatedAt: Date;
                 name: string;
                 email: string | null;
                 phone: string | null;
@@ -73,10 +72,13 @@ export declare class BookingsController {
                 dailyTokenUsage: number;
                 tokenResetDate: Date | null;
                 totalTokensUsed: number;
+                updatedAt: Date;
             };
         } & {
             id: string;
+            createdAt: Date;
             customerId: string;
+            updatedAt: Date;
             service: string;
             dateTime: Date;
             status: string;
@@ -84,16 +86,14 @@ export declare class BookingsController {
             recipientName: string | null;
             recipientPhone: string | null;
             googleEventId: string | null;
-            createdAt: Date;
-            updatedAt: Date;
         })[];
         total: number;
     }>;
     getPackages(): Promise<{
         id: string;
         createdAt: Date;
-        updatedAt: Date;
         name: string;
+        updatedAt: Date;
         type: string;
         price: number;
         deposit: number;
@@ -112,8 +112,8 @@ export declare class BookingsController {
     createPackage(data: any): Promise<{
         id: string;
         createdAt: Date;
-        updatedAt: Date;
         name: string;
+        updatedAt: Date;
         type: string;
         price: number;
         deposit: number;
@@ -132,8 +132,8 @@ export declare class BookingsController {
     updatePackage(id: string, data: any): Promise<{
         id: string;
         createdAt: Date;
-        updatedAt: Date;
         name: string;
+        updatedAt: Date;
         type: string;
         price: number;
         deposit: number;
@@ -152,8 +152,8 @@ export declare class BookingsController {
     deletePackage(id: string): Promise<{
         id: string;
         createdAt: Date;
-        updatedAt: Date;
         name: string;
+        updatedAt: Date;
         type: string;
         price: number;
         deposit: number;
@@ -181,7 +181,6 @@ export declare class BookingsController {
             customer: {
                 id: string;
                 createdAt: Date;
-                updatedAt: Date;
                 name: string;
                 email: string | null;
                 phone: string | null;
@@ -195,10 +194,13 @@ export declare class BookingsController {
                 dailyTokenUsage: number;
                 tokenResetDate: Date | null;
                 totalTokensUsed: number;
+                updatedAt: Date;
             };
         } & {
             id: string;
+            createdAt: Date;
             customerId: string;
+            updatedAt: Date;
             service: string;
             dateTime: Date;
             status: string;
@@ -206,8 +208,6 @@ export declare class BookingsController {
             recipientName: string | null;
             recipientPhone: string | null;
             googleEventId: string | null;
-            createdAt: Date;
-            updatedAt: Date;
         })[];
         total: number;
     }>;
@@ -215,7 +215,6 @@ export declare class BookingsController {
         customer: {
             id: string;
             createdAt: Date;
-            updatedAt: Date;
             name: string;
             email: string | null;
             phone: string | null;
@@ -229,10 +228,13 @@ export declare class BookingsController {
             dailyTokenUsage: number;
             tokenResetDate: Date | null;
             totalTokensUsed: number;
+            updatedAt: Date;
         };
     } & {
         id: string;
+        createdAt: Date;
         customerId: string;
+        updatedAt: Date;
         service: string;
         dateTime: Date;
         status: string;
@@ -240,14 +242,11 @@ export declare class BookingsController {
         recipientName: string | null;
         recipientPhone: string | null;
         googleEventId: string | null;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
     cancel(id: string): Promise<{
         customer: {
             id: string;
             createdAt: Date;
-            updatedAt: Date;
             name: string;
             email: string | null;
             phone: string | null;
@@ -261,10 +260,13 @@ export declare class BookingsController {
             dailyTokenUsage: number;
             tokenResetDate: Date | null;
             totalTokensUsed: number;
+            updatedAt: Date;
         };
     } & {
         id: string;
+        createdAt: Date;
         customerId: string;
+        updatedAt: Date;
         service: string;
         dateTime: Date;
         status: string;
@@ -272,8 +274,6 @@ export declare class BookingsController {
         recipientName: string | null;
         recipientPhone: string | null;
         googleEventId: string | null;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
     completeDraft(customerId: string): Promise<{
         message: string;
@@ -288,13 +288,13 @@ export declare class BookingsController {
     }[]>;
     updateDraft(customerId: string, updates: any): Promise<{
         id: string;
+        createdAt: Date;
         customerId: string;
+        name: string | null;
+        updatedAt: Date;
         service: string | null;
         recipientName: string | null;
         recipientPhone: string | null;
-        createdAt: Date;
-        updatedAt: Date;
-        name: string | null;
         date: string | null;
         time: string | null;
         dateTimeIso: string | null;

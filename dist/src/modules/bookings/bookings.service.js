@@ -589,6 +589,56 @@ We can't wait to capture your beautiful memories! 💖`;
             mins += parseInt(minMatch[1], 10);
         return mins || null;
     }
+    async advanceBookingStep(customerId, nextStep) {
+        return this.prisma.bookingDraft.update({
+            where: { customerId },
+            data: { step: nextStep },
+        });
+    }
+    async getBookingStep(customerId) {
+        const draft = await this.prisma.bookingDraft.findUnique({ where: { customerId } });
+        return draft?.step || 'collect_service';
+    }
+    async editBookingDraft(customerId, field, value) {
+        return this.prisma.bookingDraft.update({
+            where: { customerId },
+            data: { [field]: value },
+        });
+    }
+    async reviewBookingDraft(customerId) {
+        return this.prisma.bookingDraft.findUnique({ where: { customerId } });
+    }
+    async confirmBookingDraft(customerId) {
+        return this.advanceBookingStep(customerId, 'confirm_deposit');
+    }
+    async cancelBookingDraft(customerId) {
+        await this.prisma.bookingDraft.delete({ where: { customerId } });
+        return true;
+    }
+    async handleEditCommand(customerId, command, value) {
+        const editMap = {
+            'date': 'date',
+            'time': 'time',
+            'package': 'service',
+            'service': 'service',
+            'name': 'name',
+            'phone': 'recipientPhone',
+        };
+        const lower = command.toLowerCase();
+        for (const key in editMap) {
+            if (lower.includes(key)) {
+                await this.editBookingDraft(customerId, editMap[key], value);
+                return editMap[key];
+            }
+        }
+        return null;
+    }
+    async getBookingSummary(customerId) {
+        const draft = await this.reviewBookingDraft(customerId);
+        if (!draft)
+            return 'No booking draft found.';
+        return `Please review your booking details:\nPackage: ${draft.service}\nDate: ${draft.date}\nTime: ${draft.time}\nName: ${draft.name}\nPhone: ${draft.recipientPhone}\nReply 'edit [field]' to change any detail, or 'confirm' to proceed.`;
+    }
 };
 exports.BookingsService = BookingsService;
 exports.BookingsService = BookingsService = BookingsService_1 = __decorate([

@@ -58,6 +58,12 @@ export class WebhooksService {
     const text = message.text?.body;
     const messageId = message.id;
 
+    // Ignore echo/bot messages (sent by the bot itself)
+    if (message.type === 'system' || message.from === 'whatsapp_bot' || message.is_echo) {
+      console.log('Ignoring echo/bot message (sent by bot)');
+      return;
+    }
+
     console.log('Message type:', message.type, 'ID:', message.id);
 
     if (!text) {
