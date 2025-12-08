@@ -28,13 +28,12 @@ export declare class FollowupsService {
             booking: {
                 customer: {
                     id: string;
-                    createdAt: Date;
-                    name: string;
                     email: string | null;
-                    phone: string | null;
                     whatsappId: string | null;
                     instagramId: string | null;
                     messengerId: string | null;
+                    name: string;
+                    phone: string | null;
                     aiEnabled: boolean;
                     isAiPaused: boolean;
                     lastInstagramMessageAt: Date | null;
@@ -42,13 +41,14 @@ export declare class FollowupsService {
                     dailyTokenUsage: number;
                     tokenResetDate: Date | null;
                     totalTokensUsed: number;
+                    createdAt: Date;
                     updatedAt: Date;
                 };
             } & {
                 id: string;
                 createdAt: Date;
-                customerId: string;
                 updatedAt: Date;
+                customerId: string;
                 service: string;
                 dateTime: Date;
                 status: string;
@@ -75,13 +75,12 @@ export declare class FollowupsService {
         booking: {
             customer: {
                 id: string;
-                createdAt: Date;
-                name: string;
                 email: string | null;
-                phone: string | null;
                 whatsappId: string | null;
                 instagramId: string | null;
                 messengerId: string | null;
+                name: string;
+                phone: string | null;
                 aiEnabled: boolean;
                 isAiPaused: boolean;
                 lastInstagramMessageAt: Date | null;
@@ -89,13 +88,14 @@ export declare class FollowupsService {
                 dailyTokenUsage: number;
                 tokenResetDate: Date | null;
                 totalTokensUsed: number;
+                createdAt: Date;
                 updatedAt: Date;
             };
         } & {
             id: string;
             createdAt: Date;
-            customerId: string;
             updatedAt: Date;
+            customerId: string;
             service: string;
             dateTime: Date;
             status: string;
@@ -133,13 +133,12 @@ export declare class FollowupsService {
         booking: {
             customer: {
                 id: string;
-                createdAt: Date;
-                name: string;
                 email: string | null;
-                phone: string | null;
                 whatsappId: string | null;
                 instagramId: string | null;
                 messengerId: string | null;
+                name: string;
+                phone: string | null;
                 aiEnabled: boolean;
                 isAiPaused: boolean;
                 lastInstagramMessageAt: Date | null;
@@ -147,13 +146,14 @@ export declare class FollowupsService {
                 dailyTokenUsage: number;
                 tokenResetDate: Date | null;
                 totalTokensUsed: number;
+                createdAt: Date;
                 updatedAt: Date;
             };
         } & {
             id: string;
             createdAt: Date;
-            customerId: string;
             updatedAt: Date;
+            customerId: string;
             service: string;
             dateTime: Date;
             status: string;
@@ -200,13 +200,12 @@ export declare class FollowupsService {
         booking: {
             customer: {
                 id: string;
-                createdAt: Date;
-                name: string;
                 email: string | null;
-                phone: string | null;
                 whatsappId: string | null;
                 instagramId: string | null;
                 messengerId: string | null;
+                name: string;
+                phone: string | null;
                 aiEnabled: boolean;
                 isAiPaused: boolean;
                 lastInstagramMessageAt: Date | null;
@@ -214,13 +213,14 @@ export declare class FollowupsService {
                 dailyTokenUsage: number;
                 tokenResetDate: Date | null;
                 totalTokensUsed: number;
+                createdAt: Date;
                 updatedAt: Date;
             };
         } & {
             id: string;
             createdAt: Date;
-            customerId: string;
             updatedAt: Date;
+            customerId: string;
             service: string;
             dateTime: Date;
             status: string;

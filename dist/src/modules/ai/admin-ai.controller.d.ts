@@ -244,8 +244,8 @@ export declare class AdminAiController {
         outreach: {
             id: string;
             createdAt: Date;
-            customerId: string;
             updatedAt: Date;
+            customerId: string;
             status: string;
             metadata: import("@prisma/client/runtime/library").JsonValue | null;
             type: string;

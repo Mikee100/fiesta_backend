@@ -1,9 +1,3 @@
-  /**
-   * Public method to get customer by ID
-   */
-  async getCustomerById(customerId: string) {
-    return this.prisma.customer.findUnique({ where: { id: customerId } });
-  }
 import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
@@ -13,6 +7,12 @@ import { AiService } from '../ai/ai.service';
 
 @Injectable()
 export class MessagesService {
+  /**
+   * Public method to get customer by ID
+   */
+  async getCustomerById(customerId: string) {
+    return this.prisma.customer.findUnique({ where: { id: customerId } });
+  }
   /**
    * Static method for intent classification (no dependencies required)
    */

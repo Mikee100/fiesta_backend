@@ -13,16 +13,14 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MessagesService = void 0;
-async;
-getCustomerById(customerId, string);
-{
-    return this.prisma.customer.findUnique({ where: { id: customerId } });
-}
 const common_1 = require("@nestjs/common");
 const bull_1 = require("@nestjs/bull");
 const prisma_service_1 = require("../../prisma/prisma.service");
 const ai_service_1 = require("../ai/ai.service");
 let MessagesService = class MessagesService {
+    async getCustomerById(customerId) {
+        return this.prisma.customer.findUnique({ where: { id: customerId } });
+    }
     static classifyIntentSimple(content) {
         const lower = content.toLowerCase();
         if (lower.includes('hello') || lower.includes('hi') || lower.includes('hey') || lower.includes('good morning') || lower.includes('good afternoon') || lower.includes('good evening')) {

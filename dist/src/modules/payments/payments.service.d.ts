@@ -28,8 +28,8 @@ export declare class PaymentsService {
     constructor(prisma: PrismaService, httpService: HttpService, messagesService: MessagesService, notificationsService: NotificationsService, whatsappService: WhatsappService, aiService: AiService, bookingsService: BookingsService, aiQueue: Queue, paymentsQueue: Queue, packagesService: PackagesService);
     getPaymentByCheckoutRequestId(checkoutRequestId: string): Promise<{
         id: string;
-        createdAt: Date;
         phone: string;
+        createdAt: Date;
         updatedAt: Date;
         status: string;
         bookingId: string | null;
