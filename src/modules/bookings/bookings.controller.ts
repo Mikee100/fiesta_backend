@@ -1,5 +1,5 @@
 
-import { Controller, Get, Post, Put, Delete, Body, Param } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query } from '@nestjs/common';
 import { BookingsService } from './bookings.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 
@@ -95,7 +95,7 @@ export class BookingsController {
   @Get('available-hours/:date')
   async getAvailableHours(
     @Param('date') date: string,
-    @Body('service') service?: string
+    @Query('service') service?: string
   ) {
     // Get all possible slots for the day
     const availableSlots = await this.bookingsService.getAvailableSlotsForDate(date, service);

@@ -8,14 +8,14 @@ export declare class BookingsController {
         booking: {
             customer: {
                 id: string;
-                name: string;
                 createdAt: Date;
                 updatedAt: Date;
+                name: string;
                 email: string | null;
+                phone: string | null;
                 whatsappId: string | null;
                 instagramId: string | null;
                 messengerId: string | null;
-                phone: string | null;
                 aiEnabled: boolean;
                 isAiPaused: boolean;
                 lastInstagramMessageAt: Date | null;
@@ -26,8 +26,6 @@ export declare class BookingsController {
             };
         } & {
             id: string;
-            createdAt: Date;
-            updatedAt: Date;
             customerId: string;
             service: string;
             dateTime: Date;
@@ -36,6 +34,8 @@ export declare class BookingsController {
             recipientName: string | null;
             recipientPhone: string | null;
             googleEventId: string | null;
+            createdAt: Date;
+            updatedAt: Date;
         };
     } | {
         status: string;
@@ -43,8 +43,6 @@ export declare class BookingsController {
     }>;
     create(createBookingDto: CreateBookingDto): Promise<{
         id: string;
-        createdAt: Date;
-        updatedAt: Date;
         customerId: string;
         service: string;
         dateTime: Date;
@@ -53,19 +51,21 @@ export declare class BookingsController {
         recipientName: string | null;
         recipientPhone: string | null;
         googleEventId: string | null;
+        createdAt: Date;
+        updatedAt: Date;
     }>;
     findAll(): Promise<{
         bookings: ({
             customer: {
                 id: string;
-                name: string;
                 createdAt: Date;
                 updatedAt: Date;
+                name: string;
                 email: string | null;
+                phone: string | null;
                 whatsappId: string | null;
                 instagramId: string | null;
                 messengerId: string | null;
-                phone: string | null;
                 aiEnabled: boolean;
                 isAiPaused: boolean;
                 lastInstagramMessageAt: Date | null;
@@ -76,8 +76,6 @@ export declare class BookingsController {
             };
         } & {
             id: string;
-            createdAt: Date;
-            updatedAt: Date;
             customerId: string;
             service: string;
             dateTime: Date;
@@ -86,11 +84,15 @@ export declare class BookingsController {
             recipientName: string | null;
             recipientPhone: string | null;
             googleEventId: string | null;
+            createdAt: Date;
+            updatedAt: Date;
         })[];
         total: number;
     }>;
     getPackages(): Promise<{
         id: string;
+        createdAt: Date;
+        updatedAt: Date;
         name: string;
         type: string;
         price: number;
@@ -106,11 +108,11 @@ export declare class BookingsController {
         balloonBackdrop: boolean;
         wig: boolean;
         notes: string | null;
-        createdAt: Date;
-        updatedAt: Date;
     }[]>;
     createPackage(data: any): Promise<{
         id: string;
+        createdAt: Date;
+        updatedAt: Date;
         name: string;
         type: string;
         price: number;
@@ -126,11 +128,11 @@ export declare class BookingsController {
         balloonBackdrop: boolean;
         wig: boolean;
         notes: string | null;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
     updatePackage(id: string, data: any): Promise<{
         id: string;
+        createdAt: Date;
+        updatedAt: Date;
         name: string;
         type: string;
         price: number;
@@ -146,11 +148,11 @@ export declare class BookingsController {
         balloonBackdrop: boolean;
         wig: boolean;
         notes: string | null;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
     deletePackage(id: string): Promise<{
         id: string;
+        createdAt: Date;
+        updatedAt: Date;
         name: string;
         type: string;
         price: number;
@@ -166,28 +168,26 @@ export declare class BookingsController {
         balloonBackdrop: boolean;
         wig: boolean;
         notes: string | null;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
     getStudioInfo(): Promise<{
         id: string;
-        notes: string;
         createdAt: Date;
         updatedAt: Date;
+        notes: string;
         location: string;
     }>;
     findByCustomer(customerId: string): Promise<{
         bookings: ({
             customer: {
                 id: string;
-                name: string;
                 createdAt: Date;
                 updatedAt: Date;
+                name: string;
                 email: string | null;
+                phone: string | null;
                 whatsappId: string | null;
                 instagramId: string | null;
                 messengerId: string | null;
-                phone: string | null;
                 aiEnabled: boolean;
                 isAiPaused: boolean;
                 lastInstagramMessageAt: Date | null;
@@ -198,8 +198,6 @@ export declare class BookingsController {
             };
         } & {
             id: string;
-            createdAt: Date;
-            updatedAt: Date;
             customerId: string;
             service: string;
             dateTime: Date;
@@ -208,20 +206,22 @@ export declare class BookingsController {
             recipientName: string | null;
             recipientPhone: string | null;
             googleEventId: string | null;
+            createdAt: Date;
+            updatedAt: Date;
         })[];
         total: number;
     }>;
     confirm(id: string): Promise<{
         customer: {
             id: string;
-            name: string;
             createdAt: Date;
             updatedAt: Date;
+            name: string;
             email: string | null;
+            phone: string | null;
             whatsappId: string | null;
             instagramId: string | null;
             messengerId: string | null;
-            phone: string | null;
             aiEnabled: boolean;
             isAiPaused: boolean;
             lastInstagramMessageAt: Date | null;
@@ -232,8 +232,6 @@ export declare class BookingsController {
         };
     } & {
         id: string;
-        createdAt: Date;
-        updatedAt: Date;
         customerId: string;
         service: string;
         dateTime: Date;
@@ -242,18 +240,20 @@ export declare class BookingsController {
         recipientName: string | null;
         recipientPhone: string | null;
         googleEventId: string | null;
+        createdAt: Date;
+        updatedAt: Date;
     }>;
     cancel(id: string): Promise<{
         customer: {
             id: string;
-            name: string;
             createdAt: Date;
             updatedAt: Date;
+            name: string;
             email: string | null;
+            phone: string | null;
             whatsappId: string | null;
             instagramId: string | null;
             messengerId: string | null;
-            phone: string | null;
             aiEnabled: boolean;
             isAiPaused: boolean;
             lastInstagramMessageAt: Date | null;
@@ -264,8 +264,6 @@ export declare class BookingsController {
         };
     } & {
         id: string;
-        createdAt: Date;
-        updatedAt: Date;
         customerId: string;
         service: string;
         dateTime: Date;
@@ -274,6 +272,8 @@ export declare class BookingsController {
         recipientName: string | null;
         recipientPhone: string | null;
         googleEventId: string | null;
+        createdAt: Date;
+        updatedAt: Date;
     }>;
     completeDraft(customerId: string): Promise<{
         message: string;
@@ -288,15 +288,15 @@ export declare class BookingsController {
     }[]>;
     updateDraft(customerId: string, updates: any): Promise<{
         id: string;
-        name: string | null;
-        createdAt: Date;
-        updatedAt: Date;
         customerId: string;
         service: string | null;
         recipientName: string | null;
         recipientPhone: string | null;
-        date: string | null;
+        createdAt: Date;
+        updatedAt: Date;
+        name: string | null;
         time: string | null;
+        date: string | null;
         dateTimeIso: string | null;
         isForSomeoneElse: boolean | null;
         step: string;

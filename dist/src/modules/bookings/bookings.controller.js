@@ -177,7 +177,7 @@ __decorate([
 __decorate([
     (0, common_1.Get)('available-hours/:date'),
     __param(0, (0, common_1.Param)('date')),
-    __param(1, (0, common_1.Body)('service')),
+    __param(1, (0, common_1.Query)('service')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", Promise)
