@@ -1,10 +1,8 @@
 import { OnGatewayConnection, OnGatewayDisconnect } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { MessagesService } from '../modules/messages/messages.service';
 export declare class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
-    private messagesService;
     server: Server;
-    constructor(messagesService: MessagesService);
+    constructor();
     handleConnection(client: Socket): void;
     handleDisconnect(client: Socket): void;
     handleJoin(data: {
@@ -13,4 +11,7 @@ export declare class WebsocketGateway implements OnGatewayConnection, OnGatewayD
     emitNewMessage(platform: string, message: any): void;
     emitConversationUpdate(platform: string, conversation: any): void;
     emitTyping(platform: string, customerId: string, isTyping: boolean): void;
+    emitNewEscalation(escalation: any): void;
+    emitNewNotification(notification: any): void;
+    emitEscalationResolved(escalationId: string): void;
 }

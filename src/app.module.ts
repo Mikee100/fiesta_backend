@@ -28,6 +28,7 @@ import { FollowupsModule } from './modules/followups/followups.module';
 import { InvoicesModule } from './modules/invoices/invoices.module';
 import { ConversationsModule } from './modules/conversations/conversations.module';
 import { SeedingModule } from './modules/seeding/seeding.module';
+import { StatisticsModule } from './modules/statistics/statistics.module';
 
 @Module({
   imports: [
@@ -63,6 +64,7 @@ import { SeedingModule } from './modules/seeding/seeding.module';
     InvoicesModule,
     ConversationsModule,
     SeedingModule,
+    StatisticsModule,
   ],
   controllers: [AppController],
 })

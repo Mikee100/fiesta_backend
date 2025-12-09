@@ -9,13 +9,12 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.WebsocketModule = void 0;
 const common_1 = require("@nestjs/common");
 const websocket_gateway_1 = require("./websocket.gateway");
-const messages_module_1 = require("../modules/messages/messages.module");
 let WebsocketModule = class WebsocketModule {
 };
 exports.WebsocketModule = WebsocketModule;
 exports.WebsocketModule = WebsocketModule = __decorate([
     (0, common_1.Module)({
-        imports: [messages_module_1.MessagesModule],
+        imports: [],
         providers: [websocket_gateway_1.WebsocketGateway],
         exports: [websocket_gateway_1.WebsocketGateway],
     })

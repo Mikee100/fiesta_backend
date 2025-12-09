@@ -25,13 +25,13 @@ export declare class ContentScraperController {
         count: number;
         backdrops: {
             id: string;
+            category: string;
             createdAt: Date;
             updatedAt: Date;
-            title: string | null;
-            url: string;
             description: string | null;
-            category: string;
+            title: string | null;
             subcategory: string | null;
+            url: string;
             mediaType: string;
             source: string;
         }[];
@@ -41,13 +41,13 @@ export declare class ContentScraperController {
         count: number;
         assets: {
             id: string;
+            category: string;
             createdAt: Date;
             updatedAt: Date;
-            title: string | null;
-            url: string;
             description: string | null;
-            category: string;
+            title: string | null;
             subcategory: string | null;
+            url: string;
             mediaType: string;
             source: string;
         }[];

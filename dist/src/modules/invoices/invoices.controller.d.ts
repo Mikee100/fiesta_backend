@@ -6,12 +6,14 @@ export declare class InvoicesController {
     generateInvoice(bookingId: string): Promise<{
         customer: {
             id: string;
+            name: string;
+            createdAt: Date;
+            updatedAt: Date;
+            phone: string | null;
             email: string | null;
             whatsappId: string | null;
             instagramId: string | null;
             messengerId: string | null;
-            name: string;
-            phone: string | null;
             aiEnabled: boolean;
             isAiPaused: boolean;
             lastInstagramMessageAt: Date | null;
@@ -19,29 +21,27 @@ export declare class InvoicesController {
             dailyTokenUsage: number;
             tokenResetDate: Date | null;
             totalTokensUsed: number;
-            createdAt: Date;
-            updatedAt: Date;
         };
         booking: {
             id: string;
-            createdAt: Date;
-            updatedAt: Date;
             customerId: string;
             service: string;
-            dateTime: Date;
-            status: string;
-            durationMinutes: number | null;
             recipientName: string | null;
             recipientPhone: string | null;
+            createdAt: Date;
+            updatedAt: Date;
+            status: string;
+            dateTime: Date;
+            durationMinutes: number | null;
             googleEventId: string | null;
         };
     } & {
         id: string;
+        customerId: string;
+        bookingId: string;
         createdAt: Date;
         updatedAt: Date;
-        customerId: string;
         status: string;
-        bookingId: string;
         sentAt: Date | null;
         total: number;
         invoiceNumber: string;
@@ -60,12 +60,14 @@ export declare class InvoicesController {
     getInvoicesByBooking(bookingId: string): Promise<({
         customer: {
             id: string;
+            name: string;
+            createdAt: Date;
+            updatedAt: Date;
+            phone: string | null;
             email: string | null;
             whatsappId: string | null;
             instagramId: string | null;
             messengerId: string | null;
-            name: string;
-            phone: string | null;
             aiEnabled: boolean;
             isAiPaused: boolean;
             lastInstagramMessageAt: Date | null;
@@ -73,29 +75,27 @@ export declare class InvoicesController {
             dailyTokenUsage: number;
             tokenResetDate: Date | null;
             totalTokensUsed: number;
-            createdAt: Date;
-            updatedAt: Date;
         };
         booking: {
             id: string;
-            createdAt: Date;
-            updatedAt: Date;
             customerId: string;
             service: string;
-            dateTime: Date;
-            status: string;
-            durationMinutes: number | null;
             recipientName: string | null;
             recipientPhone: string | null;
+            createdAt: Date;
+            updatedAt: Date;
+            status: string;
+            dateTime: Date;
+            durationMinutes: number | null;
             googleEventId: string | null;
         };
     } & {
         id: string;
+        customerId: string;
+        bookingId: string;
         createdAt: Date;
         updatedAt: Date;
-        customerId: string;
         status: string;
-        bookingId: string;
         sentAt: Date | null;
         total: number;
         invoiceNumber: string;
@@ -111,12 +111,14 @@ export declare class InvoicesController {
     getInvoicesByCustomer(customerId: string): Promise<({
         customer: {
             id: string;
+            name: string;
+            createdAt: Date;
+            updatedAt: Date;
+            phone: string | null;
             email: string | null;
             whatsappId: string | null;
             instagramId: string | null;
             messengerId: string | null;
-            name: string;
-            phone: string | null;
             aiEnabled: boolean;
             isAiPaused: boolean;
             lastInstagramMessageAt: Date | null;
@@ -124,29 +126,27 @@ export declare class InvoicesController {
             dailyTokenUsage: number;
             tokenResetDate: Date | null;
             totalTokensUsed: number;
-            createdAt: Date;
-            updatedAt: Date;
         };
         booking: {
             id: string;
-            createdAt: Date;
-            updatedAt: Date;
             customerId: string;
             service: string;
-            dateTime: Date;
-            status: string;
-            durationMinutes: number | null;
             recipientName: string | null;
             recipientPhone: string | null;
+            createdAt: Date;
+            updatedAt: Date;
+            status: string;
+            dateTime: Date;
+            durationMinutes: number | null;
             googleEventId: string | null;
         };
     } & {
         id: string;
+        customerId: string;
+        bookingId: string;
         createdAt: Date;
         updatedAt: Date;
-        customerId: string;
         status: string;
-        bookingId: string;
         sentAt: Date | null;
         total: number;
         invoiceNumber: string;
@@ -162,12 +162,14 @@ export declare class InvoicesController {
     getAllInvoices(): Promise<({
         customer: {
             id: string;
+            name: string;
+            createdAt: Date;
+            updatedAt: Date;
+            phone: string | null;
             email: string | null;
             whatsappId: string | null;
             instagramId: string | null;
             messengerId: string | null;
-            name: string;
-            phone: string | null;
             aiEnabled: boolean;
             isAiPaused: boolean;
             lastInstagramMessageAt: Date | null;
@@ -175,29 +177,27 @@ export declare class InvoicesController {
             dailyTokenUsage: number;
             tokenResetDate: Date | null;
             totalTokensUsed: number;
-            createdAt: Date;
-            updatedAt: Date;
         };
         booking: {
             id: string;
-            createdAt: Date;
-            updatedAt: Date;
             customerId: string;
             service: string;
-            dateTime: Date;
-            status: string;
-            durationMinutes: number | null;
             recipientName: string | null;
             recipientPhone: string | null;
+            createdAt: Date;
+            updatedAt: Date;
+            status: string;
+            dateTime: Date;
+            durationMinutes: number | null;
             googleEventId: string | null;
         };
     } & {
         id: string;
+        customerId: string;
+        bookingId: string;
         createdAt: Date;
         updatedAt: Date;
-        customerId: string;
         status: string;
-        bookingId: string;
         sentAt: Date | null;
         total: number;
         invoiceNumber: string;

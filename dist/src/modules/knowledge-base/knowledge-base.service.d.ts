@@ -9,13 +9,13 @@ export declare class KnowledgeBaseService {
         category: string;
     }): Promise<{
         id: string;
-        createdAt: Date;
-        updatedAt: Date;
         question: string;
-        category: string;
         answer: string;
+        category: string;
         embedding: number[];
         mediaUrls: string[];
+        createdAt: Date;
+        updatedAt: Date;
     }>;
     findAll(params?: {
         category?: string;
@@ -25,25 +25,25 @@ export declare class KnowledgeBaseService {
     }): Promise<{
         items: {
             id: string;
-            createdAt: Date;
-            updatedAt: Date;
             question: string;
-            category: string;
             answer: string;
+            category: string;
             embedding: number[];
             mediaUrls: string[];
+            createdAt: Date;
+            updatedAt: Date;
         }[];
         total: number;
     }>;
     findOne(id: string): Promise<{
         id: string;
-        createdAt: Date;
-        updatedAt: Date;
         question: string;
-        category: string;
         answer: string;
+        category: string;
         embedding: number[];
         mediaUrls: string[];
+        createdAt: Date;
+        updatedAt: Date;
     }>;
     update(id: string, data: Partial<{
         question: string;
@@ -51,22 +51,22 @@ export declare class KnowledgeBaseService {
         category: string;
     }>): Promise<{
         id: string;
-        createdAt: Date;
-        updatedAt: Date;
         question: string;
-        category: string;
         answer: string;
+        category: string;
         embedding: number[];
         mediaUrls: string[];
+        createdAt: Date;
+        updatedAt: Date;
     }>;
     remove(id: string): Promise<{
         id: string;
-        createdAt: Date;
-        updatedAt: Date;
         question: string;
-        category: string;
         answer: string;
+        category: string;
         embedding: number[];
         mediaUrls: string[];
+        createdAt: Date;
+        updatedAt: Date;
     }>;
 }

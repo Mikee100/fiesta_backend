@@ -16,11 +16,8 @@ exports.WebsocketGateway = void 0;
 const websockets_1 = require("@nestjs/websockets");
 const socket_io_1 = require("socket.io");
 const common_1 = require("@nestjs/common");
-const messages_service_1 = require("../modules/messages/messages.service");
 let WebsocketGateway = class WebsocketGateway {
-    constructor(messagesService) {
-        this.messagesService = messagesService;
-    }
+    constructor() { }
     handleConnection(client) {
         console.log('Client connected:', client.id);
     }
@@ -39,6 +36,16 @@ let WebsocketGateway = class WebsocketGateway {
     }
     emitTyping(platform, customerId, isTyping) {
         this.server.to(platform).emit('typing', { customerId, isTyping });
+    }
+    emitNewEscalation(escalation) {
+        this.server.to('admin').emit('newEscalation', escalation);
+    }
+    emitNewNotification(notification) {
+        this.server.to('admin').emit('newNotification', notification);
+        this.server.to('admin').emit('notificationCountUpdate');
+    }
+    emitEscalationResolved(escalationId) {
+        this.server.to('admin').emit('escalationResolved', { escalationId });
     }
 };
 exports.WebsocketGateway = WebsocketGateway;
@@ -61,6 +68,6 @@ exports.WebsocketGateway = WebsocketGateway = __decorate([
         },
     }),
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [messages_service_1.MessagesService])
+    __metadata("design:paramtypes", [])
 ], WebsocketGateway);
 //# sourceMappingURL=websocket.gateway.js.map

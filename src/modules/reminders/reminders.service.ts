@@ -232,10 +232,21 @@ export class RemindersService {
         const formattedDate = bookingDateTime.toFormat('EEEE, MMMM d, yyyy');
         const formattedTime = bookingDateTime.toFormat('h:mm a');
 
+        // Helper function to clean up customer name (remove "WhatsApp User" prefix)
+        const cleanName = (name: string | null | undefined): string => {
+            if (!name) return 'there';
+            const cleaned = name.replace(/^WhatsApp User\s+/i, '').trim();
+            return cleaned || 'there';
+        };
+
+        const displayName = booking.recipientName 
+            ? cleanName(booking.recipientName)
+            : cleanName(booking.customer?.name);
+
         if (reminder.type === '48hr') {
             return `🌸 *Reminder: Your Maternity Photoshoot is in 2 Days!* 🌸
 
-Hi ${booking.recipientName || booking.customer.name}! 💖
+Hi ${displayName}! 💖
 
 Your beautiful maternity photoshoot is coming up soon:
 📅 *Date:* ${formattedDate}
@@ -260,7 +271,7 @@ See you soon! 🌟`;
         } else if (reminder.type === '24hr') {
             return `⏰ *Tomorrow is Your Special Day!* ⏰
 
-Hi ${booking.recipientName || booking.customer.name}! 💖
+Hi ${displayName}! 💖
 
 Just a friendly reminder that your maternity photoshoot is tomorrow:
 📅 *Date:* ${formattedDate}

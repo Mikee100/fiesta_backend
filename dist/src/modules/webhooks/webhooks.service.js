@@ -25,8 +25,10 @@ const payments_service_1 = require("../payments/payments.service");
 const whatsapp_service_1 = require("../whatsapp/whatsapp.service");
 const instagram_service_1 = require("../instagram/instagram.service");
 const messenger_send_service_1 = require("./messenger-send.service");
+const notifications_service_1 = require("../notifications/notifications.service");
+const luxon_1 = require("luxon");
 let WebhooksService = class WebhooksService {
-    constructor(messagesService, customersService, aiService, aiSettingsService, bookingsService, paymentsService, whatsappService, instagramService, messengerSendService, messageQueue, websocketGateway) {
+    constructor(messagesService, customersService, aiService, aiSettingsService, bookingsService, paymentsService, whatsappService, instagramService, messengerSendService, messageQueue, websocketGateway, notificationsService) {
         this.messagesService = messagesService;
         this.customersService = customersService;
         this.aiService = aiService;
@@ -38,6 +40,7 @@ let WebhooksService = class WebhooksService {
         this.messengerSendService = messengerSendService;
         this.messageQueue = messageQueue;
         this.websocketGateway = websocketGateway;
+        this.notificationsService = notificationsService;
     }
     async handleWhatsAppWebhook(body) {
         if (body.object !== 'whatsapp_business_account') {
@@ -131,6 +134,23 @@ let WebhooksService = class WebhooksService {
                 return;
             }
             if (hoursDiff < 72) {
+                const bookingDt = luxon_1.DateTime.fromJSDate(booking.dateTime).setZone('Africa/Nairobi');
+                if (this.notificationsService) {
+                    await this.notificationsService.createNotification({
+                        type: 'reschedule_request',
+                        title: 'Reschedule Request - Within 72 Hours',
+                        message: `Customer ${customer.name || customer.phone || from} requested to reschedule booking "${booking.service}" scheduled for ${bookingDt.toFormat('MMMM dd, yyyy')} at ${bookingDt.toFormat('h:mm a')}. Only ${Math.round(hoursDiff)} hours until booking.`,
+                        metadata: {
+                            customerId: customer.id,
+                            customerName: customer.name,
+                            customerPhone: customer.phone || from,
+                            bookingId: booking.id,
+                            hoursUntilBooking: Math.round(hoursDiff),
+                            originalDateTime: booking.dateTime,
+                            platform: 'whatsapp',
+                        },
+                    });
+                }
                 await this.whatsappService.sendMessage(from, `Rescheduling is only allowed at least 72 hours before your booking. Please contact support for urgent changes.`);
                 return;
             }
@@ -231,7 +251,14 @@ Just let me know! 💖`);
             const customerAiEnabled = customer.aiEnabled ?? true;
             if (globalAiEnabled && customerAiEnabled) {
                 console.log("Queueing message for AI...");
-                await this.messageQueue.add("processMessage", { messageId: created.id });
+                try {
+                    const job = await this.messageQueue.add("processMessage", { messageId: created.id });
+                    console.log(`[QUEUE DEBUG] Job added successfully: ${job.id}, messageId: ${created.id}`);
+                }
+                catch (error) {
+                    console.error('[QUEUE ERROR] Failed to add job to queue:', error);
+                    throw error;
+                }
             }
             else {
                 console.log('AI disabled (global or customer-specific) - message not queued');
@@ -309,6 +336,23 @@ Just let me know! 💖`);
                     return;
                 }
                 if (hoursDiff < 72) {
+                    const bookingDt = luxon_1.DateTime.fromJSDate(booking.dateTime).setZone('Africa/Nairobi');
+                    if (this.notificationsService) {
+                        await this.notificationsService.createNotification({
+                            type: 'reschedule_request',
+                            title: 'Reschedule Request - Within 72 Hours',
+                            message: `Customer ${customer.name || customer.phone || from} requested to reschedule booking "${booking.service}" scheduled for ${bookingDt.toFormat('MMMM dd, yyyy')} at ${bookingDt.toFormat('h:mm a')}. Only ${Math.round(hoursDiff)} hours until booking.`,
+                            metadata: {
+                                customerId: customer.id,
+                                customerName: customer.name,
+                                customerPhone: customer.phone || from,
+                                bookingId: booking.id,
+                                hoursUntilBooking: Math.round(hoursDiff),
+                                originalDateTime: booking.dateTime,
+                                platform: 'instagram',
+                            },
+                        });
+                    }
                     await this.instagramService.sendMessage(from, `Rescheduling is only allowed at least 72 hours before your booking. Please contact support for urgent changes.`);
                     return;
                 }
@@ -434,6 +478,23 @@ Just let me know! 💖`);
                         return;
                     }
                     if (hoursDiff < 72) {
+                        const bookingDt = luxon_1.DateTime.fromJSDate(booking.dateTime).setZone('Africa/Nairobi');
+                        if (this.notificationsService) {
+                            await this.notificationsService.createNotification({
+                                type: 'reschedule_request',
+                                title: 'Reschedule Request - Within 72 Hours',
+                                message: `Customer ${customer.name || customer.phone || senderId} requested to reschedule booking "${booking.service}" scheduled for ${bookingDt.toFormat('MMMM dd, yyyy')} at ${bookingDt.toFormat('h:mm a')}. Only ${Math.round(hoursDiff)} hours until booking.`,
+                                metadata: {
+                                    customerId: customer.id,
+                                    customerName: customer.name,
+                                    customerPhone: customer.phone || senderId,
+                                    bookingId: booking.id,
+                                    hoursUntilBooking: Math.round(hoursDiff),
+                                    originalDateTime: booking.dateTime,
+                                    platform: 'messenger',
+                                },
+                            });
+                        }
                         await this.messengerSendService.sendMessage(senderId, `Rescheduling is only allowed at least 72 hours before your booking. Please contact support for urgent changes.`);
                         return;
                     }
@@ -580,6 +641,7 @@ exports.WebhooksService = WebhooksService = __decorate([
         payments_service_1.PaymentsService,
         whatsapp_service_1.WhatsappService,
         instagram_service_1.InstagramService,
-        messenger_send_service_1.MessengerSendService, Object, websocket_gateway_1.WebsocketGateway])
+        messenger_send_service_1.MessengerSendService, Object, websocket_gateway_1.WebsocketGateway,
+        notifications_service_1.NotificationsService])
 ], WebhooksService);
 //# sourceMappingURL=webhooks.service.js.map

@@ -180,7 +180,7 @@ let BookingsService = BookingsService_1 = class BookingsService {
         });
     }
     async deleteBookingDraft(customerId) {
-        return this.prisma.bookingDraft.delete({ where: { customerId } });
+        return this.prisma.bookingDraft.deleteMany({ where: { customerId } });
     }
     async createBooking(customerId, opts) {
         let parsedDateTime = null;
@@ -516,6 +516,15 @@ let BookingsService = BookingsService_1 = class BookingsService {
             });
             remindersText = `\n\n⏰ *Reminders Scheduled:*\n${reminderLines.join('\n')}`;
         }
+        const cleanName = (name) => {
+            if (!name)
+                return 'Guest';
+            const cleaned = name.replace(/^WhatsApp User\s+/i, '').trim();
+            return cleaned || 'Guest';
+        };
+        const displayName = booking.recipientName
+            ? cleanName(booking.recipientName)
+            : cleanName(booking.customer?.name);
         const message = `✅ *Booking Confirmed!* ✨
 
 📦 *Package:* ${packageInfo.name} (${packageInfo.type === 'outdoor' ? 'Outdoor' : 'Studio'})
@@ -526,7 +535,7 @@ let BookingsService = BookingsService_1 = class BookingsService {
 Date: ${formattedDate}
 Time: ${formattedTime} (EAT)
 
-👤 *Recipient:* ${booking.recipientName || booking.customer?.name || 'Guest'}
+👤 *Recipient:* ${displayName}
 📱 *Contact:* ${booking.recipientPhone || booking.customer?.phone}
 
 🎁 *Package Includes:*
@@ -612,7 +621,7 @@ We can't wait to capture your beautiful memories! 💖`;
         return this.advanceBookingStep(customerId, 'confirm_deposit');
     }
     async cancelBookingDraft(customerId) {
-        await this.prisma.bookingDraft.delete({ where: { customerId } });
+        await this.prisma.bookingDraft.deleteMany({ where: { customerId } });
         return true;
     }
     async handleEditCommand(customerId, command, value) {

@@ -8,36 +8,36 @@ export declare class KnowledgeBaseController {
         category: string;
     }): Promise<{
         id: string;
-        createdAt: Date;
-        updatedAt: Date;
         question: string;
-        category: string;
         answer: string;
+        category: string;
         embedding: number[];
         mediaUrls: string[];
+        createdAt: Date;
+        updatedAt: Date;
     }>;
     findAll(category?: string, search?: string): Promise<{
         items: {
             id: string;
-            createdAt: Date;
-            updatedAt: Date;
             question: string;
-            category: string;
             answer: string;
+            category: string;
             embedding: number[];
             mediaUrls: string[];
+            createdAt: Date;
+            updatedAt: Date;
         }[];
         total: number;
     }>;
     findOne(id: string): Promise<{
         id: string;
-        createdAt: Date;
-        updatedAt: Date;
         question: string;
-        category: string;
         answer: string;
+        category: string;
         embedding: number[];
         mediaUrls: string[];
+        createdAt: Date;
+        updatedAt: Date;
     }>;
     update(id: string, updateDto: Partial<{
         question: string;
@@ -45,22 +45,22 @@ export declare class KnowledgeBaseController {
         category: string;
     }>): Promise<{
         id: string;
-        createdAt: Date;
-        updatedAt: Date;
         question: string;
-        category: string;
         answer: string;
+        category: string;
         embedding: number[];
         mediaUrls: string[];
+        createdAt: Date;
+        updatedAt: Date;
     }>;
     remove(id: string): Promise<{
         id: string;
-        createdAt: Date;
-        updatedAt: Date;
         question: string;
-        category: string;
         answer: string;
+        category: string;
         embedding: number[];
         mediaUrls: string[];
+        createdAt: Date;
+        updatedAt: Date;
     }>;
 }

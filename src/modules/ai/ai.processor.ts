@@ -32,4 +32,16 @@ export class AiProcessor {
     await this.messagesService.sendOutboundMessage(customerId, reminderMessage, 'whatsapp');
     return true;
   }
+
+  // Generic processor for all aiQueue jobs
+  @Process()
+  async handleAnyJob(job: Job) {
+    console.log(`[AI DEBUG] Processing generic job:`, job.data);
+    if (job.data && job.data.question) {
+      const answer = await this.aiService.processAiRequest(job.data);
+      console.log(`[AI DEBUG] AI answer:`, answer);
+      return { answer };
+    }
+    return { status: 'processed', data: job.data };
+  }
 }

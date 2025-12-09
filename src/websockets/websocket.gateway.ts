@@ -9,7 +9,6 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { Injectable } from '@nestjs/common';
-import { MessagesService } from '../modules/messages/messages.service';
 
 @WebSocketGateway({
   cors: {
@@ -21,7 +20,7 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
   @WebSocketServer()
   server: Server;
 
-  constructor(private messagesService: MessagesService) {}
+  constructor() {}
 
   handleConnection(client: Socket) {
     console.log('Client connected:', client.id);
@@ -50,5 +49,22 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
   // Method to emit typing indicator
   emitTyping(platform: string, customerId: string, isTyping: boolean) {
     this.server.to(platform).emit('typing', { customerId, isTyping });
+  }
+
+  // Method to emit new escalation to admin clients
+  emitNewEscalation(escalation: any) {
+    this.server.to('admin').emit('newEscalation', escalation);
+  }
+
+  // Method to emit new notification to admin clients
+  emitNewNotification(notification: any) {
+    this.server.to('admin').emit('newNotification', notification);
+    // Also emit notification count update
+    this.server.to('admin').emit('notificationCountUpdate');
+  }
+
+  // Method to emit escalation resolved
+  emitEscalationResolved(escalationId: string) {
+    this.server.to('admin').emit('escalationResolved', { escalationId });
   }
 }

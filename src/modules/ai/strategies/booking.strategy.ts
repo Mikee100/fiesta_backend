@@ -1,8 +1,11 @@
 import { ResponseStrategy } from './response-strategy.interface';
 
 export class BookingStrategy implements ResponseStrategy {
+    readonly priority = 10; // Run last (lowest priority)
+
     canHandle(intent: string, context: any): boolean {
         const { hasDraft } = context;
+        // FAQ strategy handles FAQ questions, so we only handle booking intents
         return hasDraft || intent === 'booking';
     }
 
@@ -11,6 +14,37 @@ export class BookingStrategy implements ResponseStrategy {
         const { DateTime } = require('luxon');
 
         // logger.log(`[STRATEGY] Executing BookingStrategy for: "${message}"`);
+
+        // Check if this is just an acknowledgment/confirmation, not a booking request
+        // This prevents false triggers when user is just acknowledging FAQ answers
+        // IMPORTANT: Check this BEFORE deleting any drafts
+        if (!hasDraft) {
+            const recentAssistantMsgs = history
+                .filter((msg) => msg.role === 'assistant')
+                .slice(-3)
+                .map(msg => msg.content.toLowerCase())
+                .join(' ');
+            
+            const acknowledgmentPatterns = [
+                /^(ok|okay|sure|yes|yeah|yep|alright|sounds good|got it|understood|perfect|great|thanks|thank you)/i,
+                /^(ok|okay|sure|yes|yeah|yep|alright|sounds good|got it|understood|perfect|great|thanks|thank you).*(then|i will|i'll)/i,
+                /^(okay|ok|sure|yes|yeah|yep|alright).*then.*(i will|i'll)/i,
+                /i will (come|bring|do)/i,
+                /i'll (come|bring|do)/i,
+            ];
+            
+            const isAcknowledgment = acknowledgmentPatterns.some(pattern => pattern.test(message)) &&
+                !/(book|appointment|schedule|reserve|available|slot|date|time|when|what time|make a booking|new booking)/i.test(message);
+            
+            const recentWasFaq = /(welcome|fine|allowed|bring|include|can i|is it|are.*allowed|photographer|family|partner|guests|questions|feel free|anything else)/i.test(recentAssistantMsgs) &&
+                !/(book|appointment|schedule|reserve|available|slot|date|time|when|what time|make a booking|new booking)/i.test(recentAssistantMsgs);
+            
+            if (isAcknowledgment && recentWasFaq) {
+                // This is just an acknowledgment, not a booking request
+                logger.debug(`[STRATEGY] Detected acknowledgment, skipping booking flow`);
+                return null; // Return null to let other strategies or FAQ handle it
+            }
+        }
 
         // Always start a fresh booking draft for every new booking intent
         // Remove any previous draft/payment state

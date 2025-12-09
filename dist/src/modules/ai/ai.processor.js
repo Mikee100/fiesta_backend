@@ -37,6 +37,15 @@ let AiProcessor = class AiProcessor {
         await this.messagesService.sendOutboundMessage(customerId, reminderMessage, 'whatsapp');
         return true;
     }
+    async handleAnyJob(job) {
+        console.log(`[AI DEBUG] Processing generic job:`, job.data);
+        if (job.data && job.data.question) {
+            const answer = await this.aiService.processAiRequest(job.data);
+            console.log(`[AI DEBUG] AI answer:`, answer);
+            return { answer };
+        }
+        return { status: 'processed', data: job.data };
+    }
 };
 exports.AiProcessor = AiProcessor;
 __decorate([
@@ -45,6 +54,12 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", Promise)
 ], AiProcessor.prototype, "handleReminder", null);
+__decorate([
+    (0, bull_1.Process)(),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], AiProcessor.prototype, "handleAnyJob", null);
 exports.AiProcessor = AiProcessor = __decorate([
     (0, bull_1.Processor)('aiQueue'),
     __metadata("design:paramtypes", [ai_service_1.AiService,

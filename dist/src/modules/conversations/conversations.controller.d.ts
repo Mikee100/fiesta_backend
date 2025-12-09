@@ -48,6 +48,7 @@ export declare class ConversationsController {
         platform: string;
     }): Promise<{
         id: string;
+        customerId: string;
         createdAt: Date;
         content: string;
         platform: string;
@@ -56,6 +57,5 @@ export declare class ConversationsController {
         handledBy: string | null;
         isResolved: boolean | null;
         isEscalated: boolean | null;
-        customerId: string;
     }>;
 }

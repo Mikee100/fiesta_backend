@@ -5,6 +5,8 @@ export declare class PackagesService {
     constructor(prisma: PrismaService);
     getPackages(type?: string): Promise<{
         id: string;
+        createdAt: Date;
+        updatedAt: Date;
         name: string;
         type: string;
         price: number;
@@ -20,11 +22,11 @@ export declare class PackagesService {
         balloonBackdrop: boolean;
         wig: boolean;
         notes: string | null;
-        createdAt: Date;
-        updatedAt: Date;
     }[]>;
     getPackageById(id: string): Promise<{
         id: string;
+        createdAt: Date;
+        updatedAt: Date;
         name: string;
         type: string;
         price: number;
@@ -40,11 +42,11 @@ export declare class PackagesService {
         balloonBackdrop: boolean;
         wig: boolean;
         notes: string | null;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
     createPackage(data: any): Promise<{
         id: string;
+        createdAt: Date;
+        updatedAt: Date;
         name: string;
         type: string;
         price: number;
@@ -60,11 +62,11 @@ export declare class PackagesService {
         balloonBackdrop: boolean;
         wig: boolean;
         notes: string | null;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
     updatePackage(id: string, data: any): Promise<{
         id: string;
+        createdAt: Date;
+        updatedAt: Date;
         name: string;
         type: string;
         price: number;
@@ -80,11 +82,11 @@ export declare class PackagesService {
         balloonBackdrop: boolean;
         wig: boolean;
         notes: string | null;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
     deletePackage(id: string): Promise<{
         id: string;
+        createdAt: Date;
+        updatedAt: Date;
         name: string;
         type: string;
         price: number;
@@ -100,11 +102,11 @@ export declare class PackagesService {
         balloonBackdrop: boolean;
         wig: boolean;
         notes: string | null;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
     findPackageByName(name: string): Promise<{
         id: string;
+        createdAt: Date;
+        updatedAt: Date;
         name: string;
         type: string;
         price: number;
@@ -120,7 +122,5 @@ export declare class PackagesService {
         balloonBackdrop: boolean;
         wig: boolean;
         notes: string | null;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
 }

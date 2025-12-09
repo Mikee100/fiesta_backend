@@ -20,6 +20,8 @@ const bookings_module_1 = require("../bookings/bookings.module");
 const messages_module_1 = require("../messages/messages.module");
 const customers_module_1 = require("../customers/customers.module");
 const payments_module_1 = require("../payments/payments.module");
+const notifications_module_1 = require("../notifications/notifications.module");
+const websocket_module_1 = require("../../websockets/websocket.module");
 const customer_memory_service_1 = require("./services/customer-memory.service");
 const conversation_learning_service_1 = require("./services/conversation-learning.service");
 const domain_expertise_service_1 = require("./services/domain-expertise.service");
@@ -48,6 +50,8 @@ exports.AiModule = AiModule = __decorate([
                 name: 'outreachQueue',
             }),
             (0, common_1.forwardRef)(() => payments_module_1.PaymentsModule),
+            notifications_module_1.NotificationsModule,
+            websocket_module_1.WebsocketModule,
         ],
         controllers: [ai_controller_1.AiController, admin_ai_controller_1.AdminAiController],
         providers: [

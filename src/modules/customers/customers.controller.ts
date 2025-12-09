@@ -45,4 +45,14 @@ export class CustomersController {
   getPhotoLinks(@Param('id') id: string) {
     return this.customersService.getPhotoLinks(id);
   }
+
+  @Get(':id/session-notes')
+  getSessionNotes(@Param('id') id: string) {
+    return this.customersService.getSessionNotes(id);
+  }
+
+  @Patch('session-notes/:noteId')
+  updateSessionNote(@Param('noteId') noteId: string, @Body() data: { status?: string; adminNotes?: string; reviewedBy?: string }) {
+    return this.customersService.updateSessionNote(noteId, data);
+  }
 }

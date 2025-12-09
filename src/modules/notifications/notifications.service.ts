@@ -1,17 +1,21 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { WebsocketGateway } from '../../websockets/websocket.gateway';
 
 @Injectable()
 export class NotificationsService {
     private readonly logger = new Logger(NotificationsService.name);
 
-    constructor(private prisma: PrismaService) { }
+    constructor(
+        private prisma: PrismaService,
+        @Inject(forwardRef(() => WebsocketGateway)) private websocketGateway?: WebsocketGateway
+    ) { }
 
     /**
      * Create a new notification
      */
     async createNotification(data: {
-        type: 'booking' | 'reschedule' | 'payment';
+        type: 'booking' | 'reschedule' | 'payment' | 'ai_escalation' | 'reschedule_request';
         title: string;
         message: string;
         metadata?: any;
@@ -27,6 +31,16 @@ export class NotificationsService {
             });
 
             this.logger.log(`Notification created: ${notification.id} - ${notification.type}`);
+
+            // Emit WebSocket event to admin clients
+            if (this.websocketGateway) {
+                try {
+                    this.websocketGateway.emitNewNotification(notification);
+                } catch (error) {
+                    this.logger.error(`Failed to emit notification WebSocket event: ${error.message}`);
+                }
+            }
+
             return notification;
         } catch (error) {
             this.logger.error(`Failed to create notification: ${error.message}`, error);

@@ -80,10 +80,10 @@ export declare class CustomerMemoryService {
             id: string;
             createdAt: Date;
             updatedAt: Date;
+            status: string;
             customerId: string;
             service: string;
             dateTime: Date;
-            status: string;
             durationMinutes: number | null;
             recipientName: string | null;
             recipientPhone: string | null;

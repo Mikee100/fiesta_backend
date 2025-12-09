@@ -11,6 +11,7 @@ import { WebsocketModule } from '../../websockets/websocket.module';
 import { WhatsappModule } from '../whatsapp/whatsapp.module';
 import { MessengerModule } from './messenger.module';
 import { InstagramModule } from '../instagram/instagram.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { InstagramModule } from '../instagram/instagram.module';
     WebsocketModule,
     MessengerModule,
     InstagramModule,
+    NotificationsModule,
   ],
   controllers: [WebhooksController],
   providers: [WebhooksService],

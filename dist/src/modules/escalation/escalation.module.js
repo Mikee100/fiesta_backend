@@ -11,12 +11,14 @@ const common_1 = require("@nestjs/common");
 const escalation_service_1 = require("./escalation.service");
 const escalation_controller_1 = require("./escalation.controller");
 const prisma_module_1 = require("../../prisma/prisma.module");
+const websocket_module_1 = require("../../websockets/websocket.module");
+const notifications_module_1 = require("../notifications/notifications.module");
 let EscalationModule = class EscalationModule {
 };
 exports.EscalationModule = EscalationModule;
 exports.EscalationModule = EscalationModule = __decorate([
     (0, common_1.Module)({
-        imports: [prisma_module_1.PrismaModule],
+        imports: [prisma_module_1.PrismaModule, websocket_module_1.WebsocketModule, (0, common_1.forwardRef)(() => notifications_module_1.NotificationsModule)],
         controllers: [escalation_controller_1.EscalationController],
         providers: [escalation_service_1.EscalationService],
         exports: [escalation_service_1.EscalationService],

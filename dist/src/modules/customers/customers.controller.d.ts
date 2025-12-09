@@ -5,12 +5,14 @@ export declare class CustomersController {
     constructor(customersService: CustomersService);
     create(createCustomerDto: CreateCustomerDto): Promise<{
         id: string;
+        name: string;
+        createdAt: Date;
+        updatedAt: Date;
+        phone: string | null;
         email: string | null;
         whatsappId: string | null;
         instagramId: string | null;
         messengerId: string | null;
-        name: string;
-        phone: string | null;
         aiEnabled: boolean;
         isAiPaused: boolean;
         lastInstagramMessageAt: Date | null;
@@ -18,12 +20,11 @@ export declare class CustomersController {
         dailyTokenUsage: number;
         tokenResetDate: Date | null;
         totalTokensUsed: number;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
     findAll(): Promise<({
         messages: {
             id: string;
+            customerId: string;
             createdAt: Date;
             content: string;
             platform: string;
@@ -32,29 +33,30 @@ export declare class CustomersController {
             handledBy: string | null;
             isResolved: boolean | null;
             isEscalated: boolean | null;
-            customerId: string;
         }[];
         bookings: {
             id: string;
-            createdAt: Date;
-            updatedAt: Date;
             customerId: string;
             service: string;
-            dateTime: Date;
-            status: string;
-            durationMinutes: number | null;
             recipientName: string | null;
             recipientPhone: string | null;
+            createdAt: Date;
+            updatedAt: Date;
+            status: string;
+            dateTime: Date;
+            durationMinutes: number | null;
             googleEventId: string | null;
         }[];
     } & {
         id: string;
+        name: string;
+        createdAt: Date;
+        updatedAt: Date;
+        phone: string | null;
         email: string | null;
         whatsappId: string | null;
         instagramId: string | null;
         messengerId: string | null;
-        name: string;
-        phone: string | null;
         aiEnabled: boolean;
         isAiPaused: boolean;
         lastInstagramMessageAt: Date | null;
@@ -62,12 +64,11 @@ export declare class CustomersController {
         dailyTokenUsage: number;
         tokenResetDate: Date | null;
         totalTokensUsed: number;
-        createdAt: Date;
-        updatedAt: Date;
     })[]>;
     findOne(id: string): Promise<{
         messages: {
             id: string;
+            customerId: string;
             createdAt: Date;
             content: string;
             platform: string;
@@ -76,29 +77,30 @@ export declare class CustomersController {
             handledBy: string | null;
             isResolved: boolean | null;
             isEscalated: boolean | null;
-            customerId: string;
         }[];
         bookings: {
             id: string;
-            createdAt: Date;
-            updatedAt: Date;
             customerId: string;
             service: string;
-            dateTime: Date;
-            status: string;
-            durationMinutes: number | null;
             recipientName: string | null;
             recipientPhone: string | null;
+            createdAt: Date;
+            updatedAt: Date;
+            status: string;
+            dateTime: Date;
+            durationMinutes: number | null;
             googleEventId: string | null;
         }[];
     } & {
         id: string;
+        name: string;
+        createdAt: Date;
+        updatedAt: Date;
+        phone: string | null;
         email: string | null;
         whatsappId: string | null;
         instagramId: string | null;
         messengerId: string | null;
-        name: string;
-        phone: string | null;
         aiEnabled: boolean;
         isAiPaused: boolean;
         lastInstagramMessageAt: Date | null;
@@ -106,17 +108,17 @@ export declare class CustomersController {
         dailyTokenUsage: number;
         tokenResetDate: Date | null;
         totalTokensUsed: number;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
     update(id: string, updateCustomerDto: Partial<CreateCustomerDto>): Promise<{
         id: string;
+        name: string;
+        createdAt: Date;
+        updatedAt: Date;
+        phone: string | null;
         email: string | null;
         whatsappId: string | null;
         instagramId: string | null;
         messengerId: string | null;
-        name: string;
-        phone: string | null;
         aiEnabled: boolean;
         isAiPaused: boolean;
         lastInstagramMessageAt: Date | null;
@@ -124,18 +126,18 @@ export declare class CustomersController {
         dailyTokenUsage: number;
         tokenResetDate: Date | null;
         totalTokensUsed: number;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
     sendPhotoLink(id: string, link: string): Promise<any>;
     remove(id: string): Promise<{
         id: string;
+        name: string;
+        createdAt: Date;
+        updatedAt: Date;
+        phone: string | null;
         email: string | null;
         whatsappId: string | null;
         instagramId: string | null;
         messengerId: string | null;
-        name: string;
-        phone: string | null;
         aiEnabled: boolean;
         isAiPaused: boolean;
         lastInstagramMessageAt: Date | null;
@@ -143,17 +145,17 @@ export declare class CustomersController {
         dailyTokenUsage: number;
         tokenResetDate: Date | null;
         totalTokensUsed: number;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
     toggleAi(id: string, enabled: boolean): Promise<{
         id: string;
+        name: string;
+        createdAt: Date;
+        updatedAt: Date;
+        phone: string | null;
         email: string | null;
         whatsappId: string | null;
         instagramId: string | null;
         messengerId: string | null;
-        name: string;
-        phone: string | null;
         aiEnabled: boolean;
         isAiPaused: boolean;
         lastInstagramMessageAt: Date | null;
@@ -161,8 +163,6 @@ export declare class CustomersController {
         dailyTokenUsage: number;
         tokenResetDate: Date | null;
         totalTokensUsed: number;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
     getPhotoLinks(id: string): Promise<{
         id: string;
@@ -170,4 +170,47 @@ export declare class CustomersController {
         link: string;
         sentAt: Date;
     }[]>;
+    getSessionNotes(id: string): Promise<({
+        booking: {
+            id: string;
+            service: string;
+            status: string;
+            dateTime: Date;
+        };
+    } & {
+        id: string;
+        customerId: string;
+        bookingId: string | null;
+        createdAt: Date;
+        updatedAt: Date;
+        status: string;
+        platform: string | null;
+        description: string | null;
+        type: string;
+        items: string[];
+        adminNotes: string | null;
+        reviewedBy: string | null;
+        reviewedAt: Date | null;
+        sourceMessage: string | null;
+    })[]>;
+    updateSessionNote(noteId: string, data: {
+        status?: string;
+        adminNotes?: string;
+        reviewedBy?: string;
+    }): Promise<{
+        id: string;
+        customerId: string;
+        bookingId: string | null;
+        createdAt: Date;
+        updatedAt: Date;
+        status: string;
+        platform: string | null;
+        description: string | null;
+        type: string;
+        items: string[];
+        adminNotes: string | null;
+        reviewedBy: string | null;
+        reviewedAt: Date | null;
+        sourceMessage: string | null;
+    }>;
 }

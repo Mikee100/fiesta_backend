@@ -1,20 +1,22 @@
 import { PrismaService } from '../../prisma/prisma.service';
+import { WebsocketGateway } from '../../websockets/websocket.gateway';
 export declare class NotificationsService {
     private prisma;
+    private websocketGateway?;
     private readonly logger;
-    constructor(prisma: PrismaService);
+    constructor(prisma: PrismaService, websocketGateway?: WebsocketGateway);
     createNotification(data: {
-        type: 'booking' | 'reschedule' | 'payment';
+        type: 'booking' | 'reschedule' | 'payment' | 'ai_escalation' | 'reschedule_request';
         title: string;
         message: string;
         metadata?: any;
     }): Promise<{
         id: string;
-        type: string;
         createdAt: Date;
         message: string;
-        title: string;
+        type: string;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
+        title: string;
         read: boolean;
     }>;
     getNotifications(options?: {
@@ -25,11 +27,11 @@ export declare class NotificationsService {
     }): Promise<{
         notifications: {
             id: string;
-            type: string;
             createdAt: Date;
             message: string;
-            title: string;
+            type: string;
             metadata: import("@prisma/client/runtime/library").JsonValue | null;
+            title: string;
             read: boolean;
         }[];
         total: number;
@@ -38,11 +40,11 @@ export declare class NotificationsService {
     getUnreadCount(): Promise<number>;
     markAsRead(id: string): Promise<{
         id: string;
-        type: string;
         createdAt: Date;
         message: string;
-        title: string;
+        type: string;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
+        title: string;
         read: boolean;
     }>;
     markAllAsRead(): Promise<import(".prisma/client").Prisma.BatchPayload>;

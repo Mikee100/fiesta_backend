@@ -407,6 +407,40 @@ Additional inclusions vary by package:
 - Styled wigs (VVIP Studio)
 
 Extra services available: additional images (KSH 500 each), digital art edits (KSH 2,000), extra outfits (KSH 2,500).`
+            },
+            {
+                question: 'Can I bring my family members for the shoot?',
+                answer: `Yes, absolutely! Partners and family members are always welcome to join your photoshoot. Many of our packages include couple and family shots - it's a beautiful way to celebrate this journey together! 💖
+
+You can bring:
+- Your partner/spouse
+- Children
+- Other family members
+
+We love capturing these precious moments with your loved ones! Just let us know when you book so we can plan accordingly.`
+            },
+            {
+                question: 'Can I bring my partner to the photoshoot?',
+                answer: `Absolutely! Partners are always welcome and we encourage it! Many of our packages include couple shots - it's such a beautiful way to celebrate this journey together. 💖
+
+Your partner can join you for the entire session, and we'll capture beautiful moments of you both. Just let us know when you book so we can plan accordingly!`
+            },
+            {
+                question: 'What can I bring to my photoshoot?',
+                answer: `Here's what you can bring to your shoot:
+
+✅ Your chosen outfits (2-3 options)
+✅ Comfortable shoes for between shots
+✅ Any special props or accessories
+✅ Snacks and water
+✅ Your partner/family if they're joining
+
+We provide:
+✨ All backdrops and studio props
+✨ Professional makeup & styling (if in package)
+✨ Maternity gowns (if you'd like to use ours)
+
+Just bring yourself and your beautiful bump! 🌸`
             }
         ];
 

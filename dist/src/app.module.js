@@ -37,6 +37,7 @@ const followups_module_1 = require("./modules/followups/followups.module");
 const invoices_module_1 = require("./modules/invoices/invoices.module");
 const conversations_module_1 = require("./modules/conversations/conversations.module");
 const seeding_module_1 = require("./modules/seeding/seeding.module");
+const statistics_module_1 = require("./modules/statistics/statistics.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -75,6 +76,7 @@ exports.AppModule = AppModule = __decorate([
             invoices_module_1.InvoicesModule,
             conversations_module_1.ConversationsModule,
             seeding_module_1.SeedingModule,
+            statistics_module_1.StatisticsModule,
         ],
         controllers: [app_controller_1.AppController],
     })

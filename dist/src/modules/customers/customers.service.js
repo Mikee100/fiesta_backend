@@ -134,6 +134,31 @@ let CustomersService = class CustomersService {
             orderBy: { sentAt: 'desc' },
         });
     }
+    async getSessionNotes(customerId) {
+        return this.prisma.customerSessionNote.findMany({
+            where: { customerId },
+            include: {
+                booking: {
+                    select: {
+                        id: true,
+                        service: true,
+                        dateTime: true,
+                        status: true,
+                    },
+                },
+            },
+            orderBy: { createdAt: 'desc' },
+        });
+    }
+    async updateSessionNote(noteId, data) {
+        return this.prisma.customerSessionNote.update({
+            where: { id: noteId },
+            data: {
+                ...data,
+                reviewedAt: data.status && data.status !== 'pending' ? new Date() : undefined,
+            },
+        });
+    }
 };
 exports.CustomersService = CustomersService;
 exports.CustomersService = CustomersService = __decorate([

@@ -11,6 +11,8 @@ import { PaymentsService } from '../payments/payments.service';
 import { WhatsappService } from '../whatsapp/whatsapp.service';
 import { InstagramService } from '../instagram/instagram.service';
 import { MessengerSendService } from './messenger-send.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { DateTime } from 'luxon';
 
 @Injectable()
 export class WebhooksService {
@@ -26,6 +28,7 @@ export class WebhooksService {
     private messengerSendService: MessengerSendService,
     @InjectQueue('messageQueue') private messageQueue: Queue,
     private websocketGateway: WebsocketGateway,
+    private notificationsService?: NotificationsService,
   ) { }
   async handleWhatsAppWebhook(body: any) {
     if (body.object !== 'whatsapp_business_account') {
@@ -146,6 +149,24 @@ export class WebhooksService {
         return;
       }
       if (hoursDiff < 72) {
+        // Create admin alert for reschedule request within 72 hours
+        const bookingDt = DateTime.fromJSDate(booking.dateTime).setZone('Africa/Nairobi');
+        if (this.notificationsService) {
+          await this.notificationsService.createNotification({
+            type: 'reschedule_request',
+            title: 'Reschedule Request - Within 72 Hours',
+            message: `Customer ${customer.name || customer.phone || from} requested to reschedule booking "${booking.service}" scheduled for ${bookingDt.toFormat('MMMM dd, yyyy')} at ${bookingDt.toFormat('h:mm a')}. Only ${Math.round(hoursDiff)} hours until booking.`,
+            metadata: {
+              customerId: customer.id,
+              customerName: customer.name,
+              customerPhone: customer.phone || from,
+              bookingId: booking.id,
+              hoursUntilBooking: Math.round(hoursDiff),
+              originalDateTime: booking.dateTime,
+              platform: 'whatsapp',
+            },
+          });
+        }
         await this.whatsappService.sendMessage(from, `Rescheduling is only allowed at least 72 hours before your booking. Please contact support for urgent changes.`);
         return;
       }
@@ -279,7 +300,13 @@ Just let me know! 💖`
 
       if (globalAiEnabled && customerAiEnabled) {
         console.log("Queueing message for AI...");
-        await this.messageQueue.add("processMessage", { messageId: created.id });
+        try {
+          const job = await this.messageQueue.add("processMessage", { messageId: created.id });
+          console.log(`[QUEUE DEBUG] Job added successfully: ${job.id}, messageId: ${created.id}`);
+        } catch (error) {
+          console.error('[QUEUE ERROR] Failed to add job to queue:', error);
+          throw error;
+        }
       } else {
         console.log('AI disabled (global or customer-specific) - message not queued');
       }
@@ -378,10 +405,28 @@ Just let me know! 💖`
               await this.instagramService.sendMessage(from, `Your booking cannot be rescheduled as it is already completed or cancelled.`);
               return;
             }
-            if (hoursDiff < 72) {
-              await this.instagramService.sendMessage(from, `Rescheduling is only allowed at least 72 hours before your booking. Please contact support for urgent changes.`);
-              return;
-            }
+                if (hoursDiff < 72) {
+                    // Create admin alert for reschedule request within 72 hours
+                    const bookingDt = DateTime.fromJSDate(booking.dateTime).setZone('Africa/Nairobi');
+                    if (this.notificationsService) {
+                        await this.notificationsService.createNotification({
+                            type: 'reschedule_request',
+                            title: 'Reschedule Request - Within 72 Hours',
+                            message: `Customer ${customer.name || customer.phone || from} requested to reschedule booking "${booking.service}" scheduled for ${bookingDt.toFormat('MMMM dd, yyyy')} at ${bookingDt.toFormat('h:mm a')}. Only ${Math.round(hoursDiff)} hours until booking.`,
+                            metadata: {
+                                customerId: customer.id,
+                                customerName: customer.name,
+                                customerPhone: customer.phone || from,
+                                bookingId: booking.id,
+                                hoursUntilBooking: Math.round(hoursDiff),
+                                originalDateTime: booking.dateTime,
+                                platform: 'instagram',
+                            },
+                        });
+                    }
+                    await this.instagramService.sendMessage(from, `Rescheduling is only allowed at least 72 hours before your booking. Please contact support for urgent changes.`);
+                    return;
+                }
             // Step 4: Prompt for new date/time or handle reschedule flow
             const isAwaitingRescheduleTime = await this.bookingsService.isAwaitingRescheduleTime(booking.id);
             if (!isAwaitingRescheduleTime) {
@@ -537,6 +582,24 @@ Just let me know! 💖`
             return;
           }
           if (hoursDiff < 72) {
+            // Create admin alert for reschedule request within 72 hours
+            const bookingDt = DateTime.fromJSDate(booking.dateTime).setZone('Africa/Nairobi');
+            if (this.notificationsService) {
+                await this.notificationsService.createNotification({
+                    type: 'reschedule_request',
+                    title: 'Reschedule Request - Within 72 Hours',
+                    message: `Customer ${customer.name || customer.phone || senderId} requested to reschedule booking "${booking.service}" scheduled for ${bookingDt.toFormat('MMMM dd, yyyy')} at ${bookingDt.toFormat('h:mm a')}. Only ${Math.round(hoursDiff)} hours until booking.`,
+                    metadata: {
+                        customerId: customer.id,
+                        customerName: customer.name,
+                        customerPhone: customer.phone || senderId,
+                        bookingId: booking.id,
+                        hoursUntilBooking: Math.round(hoursDiff),
+                        originalDateTime: booking.dateTime,
+                        platform: 'messenger',
+                    },
+                });
+            }
             await this.messengerSendService.sendMessage(senderId, `Rescheduling is only allowed at least 72 hours before your booking. Please contact support for urgent changes.`);
             return;
           }

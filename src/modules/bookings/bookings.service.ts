@@ -235,7 +235,8 @@ export class BookingsService {
   }
 
   async deleteBookingDraft(customerId: string) {
-    return this.prisma.bookingDraft.delete({ where: { customerId } });
+    // Use deleteMany to avoid errors if draft doesn't exist
+    return this.prisma.bookingDraft.deleteMany({ where: { customerId } });
   }
 
   /* --------------------------
@@ -668,6 +669,19 @@ export class BookingsService {
       remindersText = `\n\n⏰ *Reminders Scheduled:*\n${reminderLines.join('\n')}`;
     }
 
+    // Helper function to clean up customer name (remove "WhatsApp User" prefix)
+    const cleanName = (name: string | null | undefined): string => {
+      if (!name) return 'Guest';
+      // Remove "WhatsApp User" prefix if present
+      const cleaned = name.replace(/^WhatsApp User\s+/i, '').trim();
+      return cleaned || 'Guest';
+    };
+
+    // Determine the display name: prefer recipientName, then customer name (cleaned)
+    const displayName = booking.recipientName 
+      ? cleanName(booking.recipientName)
+      : cleanName(booking.customer?.name);
+
     // Format the comprehensive message
     const message = `✅ *Booking Confirmed!* ✨
 
@@ -679,7 +693,7 @@ export class BookingsService {
 Date: ${formattedDate}
 Time: ${formattedTime} (EAT)
 
-👤 *Recipient:* ${booking.recipientName || booking.customer?.name || 'Guest'}
+👤 *Recipient:* ${displayName}
 📱 *Contact:* ${booking.recipientPhone || booking.customer?.phone}
 
 🎁 *Package Includes:*
@@ -795,8 +809,8 @@ We can't wait to capture your beautiful memories! 💖`;
   }
 
   async cancelBookingDraft(customerId: string) {
-    // Cancel and delete draft
-    await this.prisma.bookingDraft.delete({ where: { customerId } });
+    // Cancel and delete draft (use deleteMany to avoid errors if draft doesn't exist)
+    await this.prisma.bookingDraft.deleteMany({ where: { customerId } });
     return true;
   }
 

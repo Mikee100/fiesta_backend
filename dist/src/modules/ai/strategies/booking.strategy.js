@@ -2,6 +2,9 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BookingStrategy = void 0;
 class BookingStrategy {
+    constructor() {
+        this.priority = 10;
+    }
     canHandle(intent, context) {
         const { hasDraft } = context;
         return hasDraft || intent === 'booking';
@@ -9,6 +12,28 @@ class BookingStrategy {
     async generateResponse(message, context) {
         const { aiService, logger, history, historyLimit, customerId, bookingsService, hasDraft } = context;
         const { DateTime } = require('luxon');
+        if (!hasDraft) {
+            const recentAssistantMsgs = history
+                .filter((msg) => msg.role === 'assistant')
+                .slice(-3)
+                .map(msg => msg.content.toLowerCase())
+                .join(' ');
+            const acknowledgmentPatterns = [
+                /^(ok|okay|sure|yes|yeah|yep|alright|sounds good|got it|understood|perfect|great|thanks|thank you)/i,
+                /^(ok|okay|sure|yes|yeah|yep|alright|sounds good|got it|understood|perfect|great|thanks|thank you).*(then|i will|i'll)/i,
+                /^(okay|ok|sure|yes|yeah|yep|alright).*then.*(i will|i'll)/i,
+                /i will (come|bring|do)/i,
+                /i'll (come|bring|do)/i,
+            ];
+            const isAcknowledgment = acknowledgmentPatterns.some(pattern => pattern.test(message)) &&
+                !/(book|appointment|schedule|reserve|available|slot|date|time|when|what time|make a booking|new booking)/i.test(message);
+            const recentWasFaq = /(welcome|fine|allowed|bring|include|can i|is it|are.*allowed|photographer|family|partner|guests|questions|feel free|anything else)/i.test(recentAssistantMsgs) &&
+                !/(book|appointment|schedule|reserve|available|slot|date|time|when|what time|make a booking|new booking)/i.test(recentAssistantMsgs);
+            if (isAcknowledgment && recentWasFaq) {
+                logger.debug(`[STRATEGY] Detected acknowledgment, skipping booking flow`);
+                return null;
+            }
+        }
         await bookingsService.deleteBookingDraft(customerId);
         let draft = await aiService.getOrCreateDraft(customerId);
         const extraction = await aiService.extractBookingDetails(message, history);

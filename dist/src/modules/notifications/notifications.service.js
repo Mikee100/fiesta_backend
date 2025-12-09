@@ -8,14 +8,19 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
 var NotificationsService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.NotificationsService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../../prisma/prisma.service");
+const websocket_gateway_1 = require("../../websockets/websocket.gateway");
 let NotificationsService = NotificationsService_1 = class NotificationsService {
-    constructor(prisma) {
+    constructor(prisma, websocketGateway) {
         this.prisma = prisma;
+        this.websocketGateway = websocketGateway;
         this.logger = new common_1.Logger(NotificationsService_1.name);
     }
     async createNotification(data) {
@@ -29,6 +34,14 @@ let NotificationsService = NotificationsService_1 = class NotificationsService {
                 },
             });
             this.logger.log(`Notification created: ${notification.id} - ${notification.type}`);
+            if (this.websocketGateway) {
+                try {
+                    this.websocketGateway.emitNewNotification(notification);
+                }
+                catch (error) {
+                    this.logger.error(`Failed to emit notification WebSocket event: ${error.message}`);
+                }
+            }
             return notification;
         }
         catch (error) {
@@ -96,6 +109,8 @@ let NotificationsService = NotificationsService_1 = class NotificationsService {
 exports.NotificationsService = NotificationsService;
 exports.NotificationsService = NotificationsService = NotificationsService_1 = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
+    __param(1, (0, common_1.Inject)((0, common_1.forwardRef)(() => websocket_gateway_1.WebsocketGateway))),
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService,
+        websocket_gateway_1.WebsocketGateway])
 ], NotificationsService);
 //# sourceMappingURL=notifications.service.js.map

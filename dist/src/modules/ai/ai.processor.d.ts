@@ -6,4 +6,16 @@ export declare class AiProcessor {
     private messagesService;
     constructor(aiService: AiService, messagesService: MessagesService);
     handleReminder(job: Job): Promise<boolean>;
+    handleAnyJob(job: Job): Promise<{
+        answer: {
+            text: string;
+            mediaUrls: string[];
+        };
+        status?: undefined;
+        data?: undefined;
+    } | {
+        status: string;
+        data: any;
+        answer?: undefined;
+    }>;
 }

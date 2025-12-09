@@ -8,12 +8,14 @@ export declare class MessagesService {
     private aiService;
     getCustomerById(customerId: string): Promise<{
         id: string;
+        name: string;
+        createdAt: Date;
+        updatedAt: Date;
+        phone: string | null;
         email: string | null;
         whatsappId: string | null;
         instagramId: string | null;
         messengerId: string | null;
-        name: string;
-        phone: string | null;
         aiEnabled: boolean;
         isAiPaused: boolean;
         lastInstagramMessageAt: Date | null;
@@ -21,13 +23,12 @@ export declare class MessagesService {
         dailyTokenUsage: number;
         tokenResetDate: Date | null;
         totalTokensUsed: number;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
     static classifyIntentSimple(content: string): string;
     constructor(prisma: PrismaService, messageQueue: Queue, aiService: AiService);
     create(createMessageDto: CreateMessageDto): Promise<{
         id: string;
+        customerId: string;
         createdAt: Date;
         content: string;
         platform: string;
@@ -36,17 +37,18 @@ export declare class MessagesService {
         handledBy: string | null;
         isResolved: boolean | null;
         isEscalated: boolean | null;
-        customerId: string;
     }>;
     findAll(): Promise<({
         customer: {
             id: string;
+            name: string;
+            createdAt: Date;
+            updatedAt: Date;
+            phone: string | null;
             email: string | null;
             whatsappId: string | null;
             instagramId: string | null;
             messengerId: string | null;
-            name: string;
-            phone: string | null;
             aiEnabled: boolean;
             isAiPaused: boolean;
             lastInstagramMessageAt: Date | null;
@@ -54,11 +56,10 @@ export declare class MessagesService {
             dailyTokenUsage: number;
             tokenResetDate: Date | null;
             totalTokensUsed: number;
-            createdAt: Date;
-            updatedAt: Date;
         };
     } & {
         id: string;
+        customerId: string;
         createdAt: Date;
         content: string;
         platform: string;
@@ -67,18 +68,19 @@ export declare class MessagesService {
         handledBy: string | null;
         isResolved: boolean | null;
         isEscalated: boolean | null;
-        customerId: string;
     })[]>;
     countMessages(args: any): Promise<number>;
     findByCustomer(customerId: string): Promise<({
         customer: {
             id: string;
+            name: string;
+            createdAt: Date;
+            updatedAt: Date;
+            phone: string | null;
             email: string | null;
             whatsappId: string | null;
             instagramId: string | null;
             messengerId: string | null;
-            name: string;
-            phone: string | null;
             aiEnabled: boolean;
             isAiPaused: boolean;
             lastInstagramMessageAt: Date | null;
@@ -86,11 +88,10 @@ export declare class MessagesService {
             dailyTokenUsage: number;
             tokenResetDate: Date | null;
             totalTokensUsed: number;
-            createdAt: Date;
-            updatedAt: Date;
         };
     } & {
         id: string;
+        customerId: string;
         createdAt: Date;
         content: string;
         platform: string;
@@ -99,17 +100,18 @@ export declare class MessagesService {
         handledBy: string | null;
         isResolved: boolean | null;
         isEscalated: boolean | null;
-        customerId: string;
     })[]>;
     findOne(id: string): Promise<{
         customer: {
             id: string;
+            name: string;
+            createdAt: Date;
+            updatedAt: Date;
+            phone: string | null;
             email: string | null;
             whatsappId: string | null;
             instagramId: string | null;
             messengerId: string | null;
-            name: string;
-            phone: string | null;
             aiEnabled: boolean;
             isAiPaused: boolean;
             lastInstagramMessageAt: Date | null;
@@ -117,11 +119,10 @@ export declare class MessagesService {
             dailyTokenUsage: number;
             tokenResetDate: Date | null;
             totalTokensUsed: number;
-            createdAt: Date;
-            updatedAt: Date;
         };
     } & {
         id: string;
+        customerId: string;
         createdAt: Date;
         content: string;
         platform: string;
@@ -130,17 +131,18 @@ export declare class MessagesService {
         handledBy: string | null;
         isResolved: boolean | null;
         isEscalated: boolean | null;
-        customerId: string;
     }>;
     findByExternalId(externalId: string): Promise<{
         customer: {
             id: string;
+            name: string;
+            createdAt: Date;
+            updatedAt: Date;
+            phone: string | null;
             email: string | null;
             whatsappId: string | null;
             instagramId: string | null;
             messengerId: string | null;
-            name: string;
-            phone: string | null;
             aiEnabled: boolean;
             isAiPaused: boolean;
             lastInstagramMessageAt: Date | null;
@@ -148,11 +150,10 @@ export declare class MessagesService {
             dailyTokenUsage: number;
             tokenResetDate: Date | null;
             totalTokensUsed: number;
-            createdAt: Date;
-            updatedAt: Date;
         };
     } & {
         id: string;
+        customerId: string;
         createdAt: Date;
         content: string;
         platform: string;
@@ -161,11 +162,11 @@ export declare class MessagesService {
         handledBy: string | null;
         isResolved: boolean | null;
         isEscalated: boolean | null;
-        customerId: string;
     }>;
     classifyIntent(content: string, history?: string[]): Promise<string>;
     sendOutboundMessage(customerId: string, content: string, platform: string): Promise<{
         id: string;
+        customerId: string;
         createdAt: Date;
         content: string;
         platform: string;
@@ -174,7 +175,6 @@ export declare class MessagesService {
         handledBy: string | null;
         isResolved: boolean | null;
         isEscalated: boolean | null;
-        customerId: string;
     }>;
     getConversationHistory(customerId: string, limit?: number): Promise<Array<{
         role: 'user' | 'assistant';
@@ -190,36 +190,35 @@ export declare class MessagesService {
             totalBookings: number;
             recentBookings: {
                 id: string;
-                createdAt: Date;
-                updatedAt: Date;
                 customerId: string;
                 service: string;
-                dateTime: Date;
-                status: string;
-                durationMinutes: number | null;
                 recipientName: string | null;
                 recipientPhone: string | null;
+                createdAt: Date;
+                updatedAt: Date;
+                status: string;
+                dateTime: Date;
+                durationMinutes: number | null;
                 googleEventId: string | null;
             }[];
             isReturning: boolean;
         };
         bookingDraft: {
             id: string;
-            name: string | null;
+            customerId: string;
+            service: string;
+            date: string;
+            time: string;
+            dateTimeIso: string;
+            name: string;
+            recipientName: string;
+            recipientPhone: string;
+            isForSomeoneElse: boolean;
+            step: string;
+            conflictResolution: string;
+            version: number;
             createdAt: Date;
             updatedAt: Date;
-            customerId: string;
-            service: string | null;
-            recipientName: string | null;
-            recipientPhone: string | null;
-            date: string | null;
-            time: string | null;
-            dateTimeIso: string | null;
-            isForSomeoneElse: boolean | null;
-            step: string;
-            conflictResolution: string | null;
-            bookingId: string | null;
-            version: number;
         };
     }>;
 }

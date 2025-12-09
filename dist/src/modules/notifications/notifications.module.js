@@ -12,12 +12,13 @@ const notifications_service_1 = require("./notifications.service");
 const notifications_controller_1 = require("./notifications.controller");
 const prisma_module_1 = require("../../prisma/prisma.module");
 const notification_listener_1 = require("./listeners/notification.listener");
+const websocket_module_1 = require("../../websockets/websocket.module");
 let NotificationsModule = class NotificationsModule {
 };
 exports.NotificationsModule = NotificationsModule;
 exports.NotificationsModule = NotificationsModule = __decorate([
     (0, common_1.Module)({
-        imports: [prisma_module_1.PrismaModule],
+        imports: [prisma_module_1.PrismaModule, websocket_module_1.WebsocketModule],
         controllers: [notifications_controller_1.NotificationsController],
         providers: [notifications_service_1.NotificationsService, notification_listener_1.NotificationListener],
         exports: [notifications_service_1.NotificationsService],

@@ -37,6 +37,7 @@ model Customer {
   invoices  Invoice[]
   customerMemory CustomerMemory?
   conversationLearnings ConversationLearning[]
+  sessionNotes CustomerSessionNote[]
   
   // Advanced AI Relations
   proactiveOutreaches ProactiveOutreach[]
@@ -85,6 +86,7 @@ model Booking {
   payments    Payment[]
   followups   PostShootFollowup[]
   reminders   BookingReminder[]
+  sessionNotes CustomerSessionNote[]
 
   @@map("bookings")
 }
@@ -375,6 +377,39 @@ model CustomerMemory {
   updatedAt         DateTime @updatedAt
 
   @@map("customer_memory")
+}
+
+model CustomerSessionNote {
+  id            String   @id @default(cuid())
+  customerId    String
+  customer      Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  
+  // What the customer mentioned bringing
+  type          String   // 'external_people' | 'external_items' | 'special_request' | 'other'
+  items         String[] @default([]) // e.g., ["makeup artist", "photographer"]
+  description   String?  // Full description or original message
+  
+  // Booking context
+  bookingId     String?
+  booking       Booking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  
+  // Admin actions
+  status        String   @default("pending") // pending, reviewed, approved, declined
+  adminNotes    String?  // Admin's notes or actions taken
+  reviewedBy    String?  // Admin user ID who reviewed
+  reviewedAt    DateTime?
+  
+  // Metadata
+  sourceMessage String?  // Original message that triggered this note
+  platform      String?  // whatsapp, instagram, messenger
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("customer_session_notes")
+  @@index([customerId])
+  @@index([bookingId])
+  @@index([status])
 }
 
 model ConversationLearning {

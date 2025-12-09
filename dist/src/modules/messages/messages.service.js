@@ -221,6 +221,23 @@ Respond with only the intent (e.g., booking_details).`;
             }),
             this.prisma.bookingDraft.findUnique({
                 where: { customerId },
+                select: {
+                    id: true,
+                    customerId: true,
+                    service: true,
+                    date: true,
+                    time: true,
+                    dateTimeIso: true,
+                    name: true,
+                    recipientName: true,
+                    recipientPhone: true,
+                    isForSomeoneElse: true,
+                    step: true,
+                    conflictResolution: true,
+                    version: true,
+                    createdAt: true,
+                    updatedAt: true,
+                },
             }),
         ]);
         return {

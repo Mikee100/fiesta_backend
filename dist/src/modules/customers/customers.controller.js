@@ -44,6 +44,12 @@ let CustomersController = class CustomersController {
     getPhotoLinks(id) {
         return this.customersService.getPhotoLinks(id);
     }
+    getSessionNotes(id) {
+        return this.customersService.getSessionNotes(id);
+    }
+    updateSessionNote(noteId, data) {
+        return this.customersService.updateSessionNote(noteId, data);
+    }
 };
 exports.CustomersController = CustomersController;
 __decorate([
@@ -104,6 +110,21 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], CustomersController.prototype, "getPhotoLinks", null);
+__decorate([
+    (0, common_1.Get)(':id/session-notes'),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], CustomersController.prototype, "getSessionNotes", null);
+__decorate([
+    (0, common_1.Patch)('session-notes/:noteId'),
+    __param(0, (0, common_1.Param)('noteId')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], CustomersController.prototype, "updateSessionNote", null);
 exports.CustomersController = CustomersController = __decorate([
     (0, common_1.Controller)('customers'),
     __metadata("design:paramtypes", [customers_service_1.CustomersService])

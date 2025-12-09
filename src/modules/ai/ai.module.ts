@@ -11,6 +11,8 @@ import { BookingsModule } from '../bookings/bookings.module';
 import { MessagesModule } from '../messages/messages.module';
 import { CustomersModule } from '../customers/customers.module';
 import { PaymentsModule } from '../payments/payments.module';
+import { NotificationsModule } from '../notifications/notifications.module';
+import { WebsocketModule } from '../../websockets/websocket.module';
 
 // Learning AI Services
 import { CustomerMemoryService } from './services/customer-memory.service';
@@ -40,6 +42,8 @@ import { OutreachScheduler } from './schedulers/outreach.scheduler';
       name: 'outreachQueue',
     }),
     forwardRef(() => PaymentsModule),
+    NotificationsModule,
+    WebsocketModule,
   ],
   controllers: [AiController, AdminAiController],
   providers: [

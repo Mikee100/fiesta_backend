@@ -36,260 +36,283 @@ let MessageQueueProcessor = MessageQueueProcessor_1 = class MessageQueueProcesso
         this.HISTORY_LIMIT = 8;
     }
     async process(job) {
-        let customerId;
-        let messageContent;
-        let platform;
-        let from;
-        if (job.data.messageId) {
-            const message = await this.messagesService.findOne(job.data.messageId);
-            if (!message) {
-                this.logger.warn('Message not found for job', job.data);
-                return { processed: false, error: 'Message not found' };
-            }
-            customerId = message.customerId;
-            messageContent = message.content;
-            platform = message.platform;
-            from = message.customer?.whatsappId || message.customer?.instagramId || message.customer?.phone;
-        }
-        else {
-            ({ customerId, message: messageContent, platform, from } = job.data);
-            if (!customerId || !messageContent) {
-                this.logger.warn('Invalid job payload', job.data);
-                return { processed: false, error: 'Invalid job payload' };
-            }
-        }
-        const enrichedContext = await this.messagesService.getEnrichedContext(customerId);
-        const history = enrichedContext.history;
-        const lastInbound = [...history].reverse().find(h => h.role === 'user');
-        const lastOutbound = [...history].reverse().find(h => h.role === 'assistant');
-        if (lastInbound && lastInbound.content === messageContent) {
-            if (lastOutbound) {
-            }
-        }
-        let response = '';
-        let mediaUrls = [];
-        let draft = null;
+        this.logger.log(`[QUEUE DEBUG] Processing job: ${JSON.stringify(job.data)}`);
         try {
-            const result = await this.aiService.handleConversation(messageContent, customerId, history, this.bookingsService, 0, enrichedContext);
-            if (typeof result.response === 'object' && result.response !== null && 'text' in result.response) {
-                response = result.response.text;
-                mediaUrls = result.response.mediaUrls || [];
+            let customerId;
+            let messageContent;
+            let platform;
+            let from;
+            if (job.data.messageId) {
+                this.logger.log(`[QUEUE DEBUG] Loading message by ID: ${job.data.messageId}`);
+                const message = await this.messagesService.findOne(job.data.messageId);
+                if (!message) {
+                    this.logger.warn('Message not found for job', job.data);
+                    return { processed: false, error: 'Message not found' };
+                }
+                customerId = message.customerId;
+                messageContent = message.content;
+                platform = message.platform;
+                from = message.customer?.whatsappId || message.customer?.instagramId || message.customer?.phone;
+                this.logger.log(`[QUEUE DEBUG] Loaded message - customerId: ${customerId}, platform: ${platform}, content: ${messageContent.substring(0, 50)}...`);
             }
             else {
-                response = typeof result.response === 'string' ? result.response : JSON.stringify(result.response);
-            }
-            draft = result.draft;
-        }
-        catch (err) {
-            this.logger.error('Error in AI conversation handling', err);
-            response = 'Sorry — I had trouble processing that. Could you please rephrase?';
-        }
-        if (platform === 'whatsapp' && from) {
-            try {
-                await this.whatsappService.sendMessage(from, response);
-                if (mediaUrls && mediaUrls.length > 0) {
-                    for (const url of mediaUrls) {
-                        await this.whatsappService.sendImage(from, url);
-                        await new Promise(resolve => setTimeout(resolve, 500));
-                    }
+                ({ customerId, message: messageContent, platform, from } = job.data);
+                if (!customerId || !messageContent) {
+                    this.logger.warn('Invalid job payload', job.data);
+                    return { processed: false, error: 'Invalid job payload' };
                 }
             }
-            catch (err) {
-                this.logger.error('Error sending WhatsApp message', err);
-                return { processed: false, error: 'Failed to send WhatsApp message' };
+            this.logger.log(`[QUEUE DEBUG] Loading enriched context for customerId: ${customerId}`);
+            const enrichedContext = await this.messagesService.getEnrichedContext(customerId);
+            const history = enrichedContext.history;
+            this.logger.log(`[QUEUE DEBUG] Loaded context with ${history.length} history messages`);
+            const lastInbound = [...history].reverse().find(h => h.role === 'user');
+            const lastOutbound = [...history].reverse().find(h => h.role === 'assistant');
+            if (lastInbound && lastInbound.content === messageContent) {
+                if (lastOutbound) {
+                }
             }
+            this.logger.log(`[QUEUE DEBUG] Calling AI service for message: ${messageContent.substring(0, 50)}...`);
+            let response = '';
+            let mediaUrls = [];
+            let draft = null;
             try {
-                const outboundMessage = await this.messagesService.create({
-                    content: response,
-                    platform: 'whatsapp',
-                    direction: 'outbound',
-                    customerId,
-                });
-                const customer = await this.customersService.findOne(customerId).catch(() => null);
-                this.websocketGateway.emitNewMessage('whatsapp', {
-                    id: outboundMessage.id,
-                    from: '',
-                    to: from,
-                    content: response,
-                    timestamp: outboundMessage.createdAt.toISOString(),
-                    direction: 'outbound',
-                    customerId,
-                    customerName: customer?.name,
-                });
-            }
-            catch (err) {
-                this.logger.error('Error recording outbound message', err);
-            }
-        }
-        else if (platform === 'instagram' && from) {
-            try {
-                const MAX_LENGTH = 950;
-                if (response.length > MAX_LENGTH) {
-                    const messages = [];
-                    let remaining = response;
-                    while (remaining.length > 0) {
-                        if (remaining.length <= MAX_LENGTH) {
-                            messages.push(remaining);
-                            break;
-                        }
-                        let breakPoint = MAX_LENGTH;
-                        const chunk = remaining.substring(0, MAX_LENGTH);
-                        const lastParagraph = chunk.lastIndexOf('\n\n');
-                        if (lastParagraph > MAX_LENGTH * 0.5) {
-                            breakPoint = lastParagraph + 2;
-                        }
-                        else {
-                            const lastSentence = Math.max(chunk.lastIndexOf('. '), chunk.lastIndexOf('! '), chunk.lastIndexOf('? '));
-                            if (lastSentence > MAX_LENGTH * 0.5) {
-                                breakPoint = lastSentence + 2;
-                            }
-                            else {
-                                const lastSpace = chunk.lastIndexOf(' ');
-                                if (lastSpace > MAX_LENGTH * 0.7) {
-                                    breakPoint = lastSpace + 1;
-                                }
-                            }
-                        }
-                        messages.push(remaining.substring(0, breakPoint).trim());
-                        remaining = remaining.substring(breakPoint).trim();
-                    }
-                    this.logger.log(`Splitting Instagram message into ${messages.length} parts`);
-                    for (let i = 0; i < messages.length; i++) {
-                        const part = messages.length > 1 ? `(${i + 1}/${messages.length}) ${messages[i]}` : messages[i];
-                        await this.instagramService.sendMessage(from, part);
-                        if (i < messages.length - 1) {
-                            await new Promise(resolve => setTimeout(resolve, 1000));
-                        }
-                    }
+                const result = await this.aiService.handleConversation(messageContent, customerId, history, this.bookingsService, 0, enrichedContext);
+                this.logger.log(`[QUEUE DEBUG] AI service returned response: ${typeof result.response === 'string' ? result.response.substring(0, 50) : 'object'}...`);
+                if (typeof result.response === 'object' && result.response !== null && 'text' in result.response) {
+                    response = result.response.text;
+                    mediaUrls = result.response.mediaUrls || [];
                 }
                 else {
-                    await this.instagramService.sendMessage(from, response);
+                    response = typeof result.response === 'string' ? result.response : JSON.stringify(result.response);
+                }
+                draft = result.draft;
+            }
+            catch (err) {
+                this.logger.error('[QUEUE ERROR] Error in AI conversation handling', err);
+                response = 'Sorry — I had trouble processing that. Could you please rephrase?';
+                if (!response) {
+                    response = 'I\'m experiencing some technical difficulties. A team member will assist you shortly! 💖';
                 }
             }
-            catch (err) {
-                this.logger.error('Error sending Instagram message', err);
-                return { processed: false, error: 'Failed to send Instagram message' };
-            }
-            try {
-                const outboundMessage = await this.messagesService.create({
-                    content: response,
-                    platform: 'instagram',
-                    direction: 'outbound',
-                    customerId,
-                });
-                const customer = await this.customersService.findOne(customerId).catch(() => null);
-                this.websocketGateway.emitNewMessage('instagram', {
-                    id: outboundMessage.id,
-                    from: '',
-                    to: from,
-                    content: response,
-                    timestamp: outboundMessage.createdAt.toISOString(),
-                    direction: 'outbound',
-                    customerId,
-                    customerName: customer?.name,
-                });
-            }
-            catch (err) {
-                this.logger.error('Error recording outbound message (instagram)', err);
-            }
-        }
-        else if (platform === 'messenger' && from) {
-            try {
-                const MAX_LENGTH = 1950;
-                if (response.length > MAX_LENGTH) {
-                    const messages = [];
-                    let remaining = response;
-                    while (remaining.length > 0) {
-                        if (remaining.length <= MAX_LENGTH) {
-                            messages.push(remaining);
-                            break;
+            this.logger.log(`[QUEUE DEBUG] Preparing to send response via ${platform} to ${from}`);
+            if (platform === 'whatsapp' && from) {
+                try {
+                    this.logger.log(`[QUEUE DEBUG] Sending WhatsApp message to ${from}`);
+                    await this.whatsappService.sendMessage(from, response);
+                    this.logger.log(`[QUEUE DEBUG] WhatsApp message sent successfully`);
+                    if (mediaUrls && mediaUrls.length > 0) {
+                        for (const url of mediaUrls) {
+                            await this.whatsappService.sendImage(from, url);
+                            await new Promise(resolve => setTimeout(resolve, 500));
                         }
-                        let breakPoint = MAX_LENGTH;
-                        const chunk = remaining.substring(0, MAX_LENGTH);
-                        const lastParagraph = chunk.lastIndexOf('\n\n');
-                        if (lastParagraph > MAX_LENGTH * 0.5) {
-                            breakPoint = lastParagraph + 2;
-                        }
-                        else {
-                            const lastSentence = Math.max(chunk.lastIndexOf('. '), chunk.lastIndexOf('! '), chunk.lastIndexOf('? '));
-                            if (lastSentence > MAX_LENGTH * 0.5) {
-                                breakPoint = lastSentence + 2;
+                    }
+                }
+                catch (err) {
+                    this.logger.error('[QUEUE ERROR] Error sending WhatsApp message', err);
+                    throw err;
+                }
+                try {
+                    this.logger.log(`[QUEUE DEBUG] Recording outbound message in database`);
+                    const outboundMessage = await this.messagesService.create({
+                        content: response,
+                        platform: 'whatsapp',
+                        direction: 'outbound',
+                        customerId,
+                    });
+                    const customer = await this.customersService.findOne(customerId).catch(() => null);
+                    this.websocketGateway.emitNewMessage('whatsapp', {
+                        id: outboundMessage.id,
+                        from: '',
+                        to: from,
+                        content: response,
+                        timestamp: outboundMessage.createdAt.toISOString(),
+                        direction: 'outbound',
+                        customerId,
+                        customerName: customer?.name,
+                    });
+                    this.logger.log(`[QUEUE DEBUG] Outbound message recorded and websocket event emitted`);
+                }
+                catch (err) {
+                    this.logger.error('[QUEUE ERROR] Error recording outbound message', err);
+                }
+            }
+            else if (platform === 'instagram' && from) {
+                try {
+                    const MAX_LENGTH = 950;
+                    if (response.length > MAX_LENGTH) {
+                        const messages = [];
+                        let remaining = response;
+                        while (remaining.length > 0) {
+                            if (remaining.length <= MAX_LENGTH) {
+                                messages.push(remaining);
+                                break;
+                            }
+                            let breakPoint = MAX_LENGTH;
+                            const chunk = remaining.substring(0, MAX_LENGTH);
+                            const lastParagraph = chunk.lastIndexOf('\n\n');
+                            if (lastParagraph > MAX_LENGTH * 0.5) {
+                                breakPoint = lastParagraph + 2;
                             }
                             else {
-                                const lastSpace = chunk.lastIndexOf(' ');
-                                if (lastSpace > MAX_LENGTH * 0.7) {
-                                    breakPoint = lastSpace + 1;
+                                const lastSentence = Math.max(chunk.lastIndexOf('. '), chunk.lastIndexOf('! '), chunk.lastIndexOf('? '));
+                                if (lastSentence > MAX_LENGTH * 0.5) {
+                                    breakPoint = lastSentence + 2;
+                                }
+                                else {
+                                    const lastSpace = chunk.lastIndexOf(' ');
+                                    if (lastSpace > MAX_LENGTH * 0.7) {
+                                        breakPoint = lastSpace + 1;
+                                    }
                                 }
                             }
+                            messages.push(remaining.substring(0, breakPoint).trim());
+                            remaining = remaining.substring(breakPoint).trim();
                         }
-                        messages.push(remaining.substring(0, breakPoint).trim());
-                        remaining = remaining.substring(breakPoint).trim();
+                        this.logger.log(`Splitting Instagram message into ${messages.length} parts`);
+                        for (let i = 0; i < messages.length; i++) {
+                            const part = messages.length > 1 ? `(${i + 1}/${messages.length}) ${messages[i]}` : messages[i];
+                            await this.instagramService.sendMessage(from, part);
+                            if (i < messages.length - 1) {
+                                await new Promise(resolve => setTimeout(resolve, 1000));
+                            }
+                        }
                     }
-                    this.logger.log(`Splitting Messenger message into ${messages.length} parts`);
-                    for (let i = 0; i < messages.length; i++) {
-                        const part = messages.length > 1 ? `(${i + 1}/${messages.length}) ${messages[i]}` : messages[i];
-                        await this.messengerSendService.sendMessage(from, part);
-                        if (i < messages.length - 1) {
-                            await new Promise(resolve => setTimeout(resolve, 1000));
-                        }
+                    else {
+                        await this.instagramService.sendMessage(from, response);
                     }
                 }
-                else {
-                    await this.messengerSendService.sendMessage(from, response);
+                catch (err) {
+                    this.logger.error('[QUEUE ERROR] Error sending Instagram message', err);
+                    throw err;
+                }
+                try {
+                    const outboundMessage = await this.messagesService.create({
+                        content: response,
+                        platform: 'instagram',
+                        direction: 'outbound',
+                        customerId,
+                    });
+                    const customer = await this.customersService.findOne(customerId).catch(() => null);
+                    this.websocketGateway.emitNewMessage('instagram', {
+                        id: outboundMessage.id,
+                        from: '',
+                        to: from,
+                        content: response,
+                        timestamp: outboundMessage.createdAt.toISOString(),
+                        direction: 'outbound',
+                        customerId,
+                        customerName: customer?.name,
+                    });
+                }
+                catch (err) {
+                    this.logger.error('[QUEUE ERROR] Error recording outbound message (instagram)', err);
                 }
             }
-            catch (err) {
-                this.logger.error('Error sending Messenger message', err);
-                return { processed: false, error: 'Failed to send Messenger message' };
+            else if (platform === 'messenger' && from) {
+                try {
+                    const MAX_LENGTH = 1950;
+                    if (response.length > MAX_LENGTH) {
+                        const messages = [];
+                        let remaining = response;
+                        while (remaining.length > 0) {
+                            if (remaining.length <= MAX_LENGTH) {
+                                messages.push(remaining);
+                                break;
+                            }
+                            let breakPoint = MAX_LENGTH;
+                            const chunk = remaining.substring(0, MAX_LENGTH);
+                            const lastParagraph = chunk.lastIndexOf('\n\n');
+                            if (lastParagraph > MAX_LENGTH * 0.5) {
+                                breakPoint = lastParagraph + 2;
+                            }
+                            else {
+                                const lastSentence = Math.max(chunk.lastIndexOf('. '), chunk.lastIndexOf('! '), chunk.lastIndexOf('? '));
+                                if (lastSentence > MAX_LENGTH * 0.5) {
+                                    breakPoint = lastSentence + 2;
+                                }
+                                else {
+                                    const lastSpace = chunk.lastIndexOf(' ');
+                                    if (lastSpace > MAX_LENGTH * 0.7) {
+                                        breakPoint = lastSpace + 1;
+                                    }
+                                }
+                            }
+                            messages.push(remaining.substring(0, breakPoint).trim());
+                            remaining = remaining.substring(breakPoint).trim();
+                        }
+                        this.logger.log(`Splitting Messenger message into ${messages.length} parts`);
+                        for (let i = 0; i < messages.length; i++) {
+                            const part = messages.length > 1 ? `(${i + 1}/${messages.length}) ${messages[i]}` : messages[i];
+                            await this.messengerSendService.sendMessage(from, part);
+                            if (i < messages.length - 1) {
+                                await new Promise(resolve => setTimeout(resolve, 1000));
+                            }
+                        }
+                    }
+                    else {
+                        await this.messengerSendService.sendMessage(from, response);
+                    }
+                }
+                catch (err) {
+                    this.logger.error('[QUEUE ERROR] Error sending Messenger message', err);
+                    throw err;
+                }
+                try {
+                    const outboundMessage = await this.messagesService.create({
+                        content: response,
+                        platform: 'messenger',
+                        direction: 'outbound',
+                        customerId,
+                    });
+                    const customer = await this.customersService.findOne(customerId).catch(() => null);
+                    this.websocketGateway.emitNewMessage('messenger', {
+                        id: outboundMessage.id,
+                        from: '',
+                        to: from,
+                        content: response,
+                        timestamp: outboundMessage.createdAt.toISOString(),
+                        direction: 'outbound',
+                        customerId,
+                        customerName: customer?.name,
+                    });
+                }
+                catch (err) {
+                    this.logger.error('[QUEUE ERROR] Error recording outbound message (messenger)', err);
+                }
             }
-            try {
-                const outboundMessage = await this.messagesService.create({
-                    content: response,
-                    platform: 'messenger',
-                    direction: 'outbound',
-                    customerId,
-                });
-                const customer = await this.customersService.findOne(customerId).catch(() => null);
-                this.websocketGateway.emitNewMessage('messenger', {
-                    id: outboundMessage.id,
-                    from: '',
-                    to: from,
-                    content: response,
-                    timestamp: outboundMessage.createdAt.toISOString(),
-                    direction: 'outbound',
-                    customerId,
-                    customerName: customer?.name,
-                });
+            else {
+                try {
+                    const outboundMessage = await this.messagesService.create({
+                        content: response,
+                        platform: platform || 'unknown',
+                        direction: 'outbound',
+                        customerId,
+                    });
+                    const customer = await this.customersService.findOne(customerId).catch(() => null);
+                    this.websocketGateway.emitNewMessage(platform || 'unknown', {
+                        id: outboundMessage.id,
+                        from: '',
+                        to: from || '',
+                        content: response,
+                        timestamp: outboundMessage.createdAt.toISOString(),
+                        direction: 'outbound',
+                        customerId,
+                        customerName: customer?.name,
+                    });
+                }
+                catch (err) {
+                    this.logger.error('[QUEUE ERROR] Error recording outbound message (unknown platform)', err);
+                }
             }
-            catch (err) {
-                this.logger.error('Error recording outbound message (messenger)', err);
-            }
+            this.logger.log(`[QUEUE DEBUG] Job completed successfully for customerId: ${customerId}`);
+            return { processed: true };
         }
-        else {
-            try {
-                const outboundMessage = await this.messagesService.create({
-                    content: response,
-                    platform: platform || 'unknown',
-                    direction: 'outbound',
-                    customerId,
-                });
-                const customer = await this.customersService.findOne(customerId).catch(() => null);
-                this.websocketGateway.emitNewMessage(platform || 'unknown', {
-                    id: outboundMessage.id,
-                    from: '',
-                    to: from || '',
-                    content: response,
-                    timestamp: outboundMessage.createdAt.toISOString(),
-                    direction: 'outbound',
-                    customerId,
-                    customerName: customer?.name,
-                });
-            }
-            catch (err) {
-                this.logger.error('Error recording outbound message (unknown platform)', err);
-            }
+        catch (error) {
+            this.logger.error(`[QUEUE ERROR] Failed to process job: ${JSON.stringify(job.data)}`, error);
+            this.logger.error(`[QUEUE ERROR] Stack trace:`, error.stack);
+            throw error;
         }
-        return { processed: true };
     }
     async sendOutboundMessage(job) {
         const { customerId, content, platform } = job.data;
