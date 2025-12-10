@@ -10,13 +10,13 @@ export declare class PaymentsController {
         status: string;
         payment: {
             id: string;
-            bookingId: string | null;
+            status: string;
             createdAt: Date;
             updatedAt: Date;
-            amount: number;
-            status: string;
-            bookingDraftId: string | null;
             phone: string;
+            bookingId: string | null;
+            bookingDraftId: string | null;
+            amount: number;
             mpesaReceipt: string | null;
             checkoutRequestId: string | null;
         };

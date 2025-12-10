@@ -64,7 +64,12 @@ export class NotificationsService {
         }
 
         if (options?.type) {
-            where.type = options.type;
+            // Handle both 'reschedule' and 'reschedule_request' types for backward compatibility
+            if (options.type === 'reschedule_request') {
+                where.type = { in: ['reschedule', 'reschedule_request'] };
+            } else {
+                where.type = options.type;
+            }
         }
 
         const [notifications, total] = await Promise.all([

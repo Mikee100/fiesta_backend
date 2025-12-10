@@ -95,9 +95,35 @@ export class CustomersService {
   }
 
   async getAll() {
-    return this.prisma.customer.findMany({
-      include: { messages: true, bookings: true },
+    // Get customers with their latest message timestamp for proper ordering
+    const customers = await this.prisma.customer.findMany({
+      include: { 
+        messages: {
+          orderBy: { createdAt: 'desc' },
+          take: 1, // Only get the latest message for performance
+        },
+        bookings: {
+          orderBy: { createdAt: 'desc' },
+          take: 5, // Only get recent bookings
+        },
+      },
     });
+
+    // Sort by latest message timestamp or updatedAt, whichever is more recent
+    const sortedCustomers = customers.sort((a, b) => {
+      const aLatestMessage = a.messages[0]?.createdAt || a.updatedAt;
+      const bLatestMessage = b.messages[0]?.createdAt || b.updatedAt;
+      return new Date(bLatestMessage).getTime() - new Date(aLatestMessage).getTime();
+    });
+
+    // Add platform field based on which ID is populated
+    return sortedCustomers.map(customer => ({
+      ...customer,
+      platform: customer.whatsappId ? 'whatsapp' 
+        : customer.instagramId ? 'instagram'
+        : customer.messengerId ? 'messenger'
+        : 'other',
+    }));
   }
 
   async findAll() {

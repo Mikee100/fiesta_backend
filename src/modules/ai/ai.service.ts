@@ -1745,6 +1745,11 @@ IMPORTANT: If you ever mention the delivery time for edited photos, you MUST say
         messages.push(...prunedHistory.map(h => ({ role: h.role, content: h.content })));
         messages.push({ role: 'user', content: question });
 
+        // Determine max_tokens based on question type
+        // Contact-related questions need more tokens for complete responses
+        const isContactQuery = /(contact|phone|email|address|location|hours|website)/i.test(question);
+        const maxTokens = isContactQuery ? 500 : 280; // More tokens for contact info
+
         // OpenAI call with retry logic and model fallback
         try {
           const rsp = await this.retryOpenAICall(
@@ -1752,7 +1757,7 @@ IMPORTANT: If you ever mention the delivery time for edited photos, you MUST say
               return await this.openai.chat.completions.create({
                 model,
                 messages,
-                max_tokens: 280,
+                max_tokens: maxTokens,
                 temperature: 0.6,
               });
             },
@@ -1825,12 +1830,28 @@ IMPORTANT: If you ever mention the delivery time for edited photos, you MUST say
   /* --------------------------
    * Strict JSON booking extractor
    * -------------------------- */
-  async extractBookingDetails(message: string, history: HistoryMsg[] = []): Promise<{
+  async extractBookingDetails(message: string, history: HistoryMsg[] = [], existingDraft?: any): Promise<{
     service?: string; date?: string; time?: string; name?: string; recipientName?: string; recipientPhone?: string; isForSomeoneElse?: boolean; subIntent: 'start' | 'provide' | 'confirm' | 'cancel' | 'unknown';
   }> {
     const currentDate = DateTime.now().setZone(this.studioTz).toFormat('yyyy-MM-dd');
     const currentDayOfMonth = DateTime.now().setZone(this.studioTz).day;
     const currentMonth = DateTime.now().setZone(this.studioTz).toFormat('MMMM');
+
+    // Build context about existing draft to prevent mixing things up
+    const draftContext = existingDraft ? `
+CURRENT BOOKING DRAFT STATE (DO NOT OVERWRITE UNLESS USER EXPLICITLY CHANGES IT):
+  - Service: ${existingDraft.service || 'not set'}
+  - Date: ${existingDraft.date || 'not set'}
+  - Time: ${existingDraft.time || 'not set'}
+  - Name: ${existingDraft.name || 'not set'}
+  - Phone: ${existingDraft.recipientPhone || 'not set'}
+  - Step: ${existingDraft.step || 'service'}
+  
+CRITICAL: If the user's message only mentions ONE thing (e.g., just a date), only extract THAT ONE thing.
+Do NOT extract other fields that aren't mentioned in the current message. This prevents overwriting valid existing data.
+` : `
+NO EXISTING BOOKING DRAFT - Starting fresh booking.
+`;
 
     const systemPrompt = `You are a precise JSON extractor for maternity photoshoot bookings.
 Return ONLY valid JSON (no commentary, no explanation). Schema:
@@ -1841,19 +1862,25 @@ Return ONLY valid JSON (no commentary, no explanation). Schema:
   "time": string | null,
   "name": string | null,
   "recipientPhone": string | null,
-  "subIntent": "start" | "provide" | "confirm" | "cancel" | "reschedule" | "unknown"
+  "subIntent": "start" | "provide" | "confirm" | "deposit_confirmed" | "cancel" | "reschedule" | "unknown"
 }
 
 CONTEXT:
 Current Date: ${currentDate} (Today is day ${currentDayOfMonth} of ${currentMonth})
 Timezone: Africa/Nairobi (EAT)
+${draftContext}
 
-EXTRACTION RULES:
+EXTRACTION RULES (CRITICAL - FOLLOW STRICTLY):
 1. Extract ONLY what is explicitly present in the CURRENT message
 2. If user mentions a change/correction to a previous value, extract the NEW value
 3. Use null for anything not mentioned or unclear
 4. Do NOT include extra fields or prose
 5. Do NOT invent values
+6. PRESERVE EXISTING DATA: If user only mentions one field (e.g., just a date), only extract that field
+7. CORRECTION DETECTION: Words like "change", "actually", "instead", "correction" indicate user wants to update a specific field
+8. CONTEXT AWARENESS: If existing draft has data and user only provides one new piece, don't extract fields they didn't mention
+9. ALTERNATIVE QUERIES: If message asks for "another slot", "another time", "what's another", etc., return all nulls (these are queries, not data extraction)
+10. DATE/TIME IN MESSAGE: When user provides explicit date/time (e.g., "18th at 7pm", "Dec 18 at 7pm"), extract it even if draft has different values
 
 DATE RESOLUTION (Critical - Get This Right):
 - "tomorrow" → ${DateTime.now().setZone(this.studioTz).plus({ days: 1 }).toFormat('yyyy-MM-dd')}
@@ -1879,7 +1906,8 @@ PHONE EXTRACTION:
 SUB-INTENT DETECTION:
 - start: User initiating a new booking ("I want to book", "Can I schedule")
 - provide: User providing/updating information ("My name is...", "Change time to...")
-- confirm: Short confirmations ("yes", "confirm", "that's right", "sounds good")
+- confirm: Short confirmations ("yes", "confirm", "that's right", "sounds good") - BUT if draft.step is 'confirm' and message is "confirm", use 'deposit_confirmed'
+- deposit_confirmed: User confirming deposit payment ("confirm", "yes" when asked to confirm deposit)
 - cancel: Cancellation request ("cancel", "forget it", "never mind")
 - reschedule: Requesting to change existing booking ("reschedule", "move my booking")
 - unknown: Can't determine intent
@@ -1941,13 +1969,20 @@ User: "yes please"
         return { subIntent: 'unknown' };
       }
 
+      // Special handling: if draft is in 'confirm' step and message is "confirm", set to deposit_confirmed
+      let detectedSubIntent = parsed.subIntent;
+      if (existingDraft && existingDraft.step === 'confirm' && 
+          /^(confirm|yes|ok|okay|sure|proceed|go ahead)$/i.test(message.trim())) {
+        detectedSubIntent = 'deposit_confirmed';
+      }
+
       const extraction = {
         service: typeof parsed.service === 'string' ? parsed.service : undefined,
         date: typeof parsed.date === 'string' ? parsed.date : undefined,
         time: typeof parsed.time === 'string' ? parsed.time : undefined,
         name: typeof parsed.name === 'string' ? parsed.name : undefined,
         recipientPhone: typeof parsed.recipientPhone === 'string' ? parsed.recipientPhone : undefined,
-        subIntent: ['start', 'provide', 'confirm', 'cancel', 'reschedule', 'unknown'].includes(parsed.subIntent) ? parsed.subIntent : 'unknown',
+        subIntent: ['start', 'provide', 'confirm', 'deposit_confirmed', 'cancel', 'reschedule', 'unknown'].includes(detectedSubIntent) ? detectedSubIntent : 'unknown',
       };
 
       // Log extraction for debugging
@@ -1966,6 +2001,7 @@ User: "yes please"
    * generate assistant reply for booking
    * -------------------------- */
   private async generateBookingReply(message: string, draft: any, extraction: any, history: HistoryMsg[] = [], bookingsService?: any) {
+    // Determine missing fields in order of flow progression
     const missing = [];
     if (!draft.service) missing.push('service');
     if (!draft.date) missing.push('date');
@@ -1976,10 +2012,23 @@ User: "yes please"
     // Default recipientName to name for all bookings
     if (!draft.recipientName && draft.name) {
       draft.recipientName = draft.name;
+      // Persist this default
+      await this.mergeIntoDraft(draft.customerId, { recipientName: draft.name }, draft);
     }
 
-    const nextStep = missing.length === 0 ? 'confirm' : missing[0];
-    const isUpdate = extraction.service || extraction.date || extraction.time || extraction.name || extraction.recipientName || extraction.recipientPhone;
+    // Determine next step based on current draft state (respects step progression)
+    const nextStep = this.determineBookingStep(draft);
+    
+    // Check if user provided any updates in this message
+    const isUpdate = !!(extraction.service || extraction.date || extraction.time || extraction.name || extraction.recipientName || extraction.recipientPhone);
+    
+    // Detect if user is correcting/updating something specific
+    const isCorrection = /(change|actually|instead|correction|wrong|update|modify)/i.test(message) && isUpdate;
+    
+    // If user provided an update, acknowledge it specifically
+    const updateAcknowledgment = isUpdate && !isCorrection ? 
+      `Got it! I've ${extraction.service ? `updated the package to ${extraction.service}` : ''}${extraction.date ? `noted ${extraction.date}` : ''}${extraction.time ? `set the time to ${extraction.time}` : ''}${extraction.name ? `saved your name as ${extraction.name}` : ''}${extraction.recipientPhone ? `saved your phone number` : ''}. ` : 
+      (isCorrection ? "No problem! I've updated that for you. " : "");
 
     // STUCK-STATE DETECTION: Check if we're repeating the same question
     const recentAssistantMsgs = history.filter(h => h.role === 'assistant').slice(-3);
@@ -2049,8 +2098,12 @@ CURRENT BOOKING STATE:
   Name: ${draft.name ?? 'not provided yet'}
   Phone: ${draft.recipientPhone ?? 'not provided yet'}
   
+  Current Step: ${draft.step || 'service'}
   Next info needed: ${nextStep}
-  User just updated something: ${isUpdate}
+  User just updated: ${isUpdate ? 'Yes - ' + Object.keys(extraction).filter(k => extraction[k]).join(', ') : 'No'}
+  User is correcting: ${isCorrection ? 'Yes' : 'No'}
+  
+${updateAcknowledgment ? `IMPORTANT: Acknowledge what user just provided: "${updateAcknowledgment}"` : ''}
 
 USER'S LATEST MESSAGE: "${message}"
 WHAT WE EXTRACTED: ${JSON.stringify(extraction)}
@@ -2148,21 +2201,59 @@ DO NOT repeat your previous question. Instead:
     return draft;
   }
 
-  async mergeIntoDraft(customerId: string, extraction: any) {
-    const existingDraft = await this.prisma.bookingDraft.findUnique({ where: { customerId } });
+  async mergeIntoDraft(customerId: string, extraction: any, existingDraft?: any) {
+    // Get existing draft if not provided
+    if (!existingDraft) {
+      existingDraft = await this.prisma.bookingDraft.findUnique({ where: { customerId } });
+    }
+    
     const updates: any = {};
-    if (extraction.service) updates.service = extraction.service;
-    if (extraction.date) updates.date = extraction.date;
-    if (extraction.time) updates.time = extraction.time;
-    if (extraction.name) updates.name = extraction.name;
+    
+    // Only update fields that were explicitly extracted (not null)
+    // This prevents overwriting valid data with null values
+    if (extraction.service !== undefined && extraction.service !== null) {
+      updates.service = extraction.service;
+    }
+    if (extraction.date !== undefined && extraction.date !== null) {
+      updates.date = extraction.date;
+    }
+    if (extraction.time !== undefined && extraction.time !== null) {
+      updates.time = extraction.time;
+    }
+    if (extraction.name !== undefined && extraction.name !== null) {
+      updates.name = extraction.name;
+    }
 
-    if (extraction.recipientPhone) {
+    if (extraction.recipientPhone !== undefined && extraction.recipientPhone !== null) {
       if (this.validatePhoneNumber(extraction.recipientPhone)) {
         updates.recipientPhone = extraction.recipientPhone;
       } else {
         this.logger.warn(`Invalid phone number provided: ${extraction.recipientPhone}`);
         // Optionally, we could return an error or handle this differently, 
         // but for now we just won't update the draft with the invalid phone
+      }
+    }
+    
+    // Update step based on what we have
+    // CRITICAL: Preserve reschedule steps - don't override them
+    if (Object.keys(updates).length > 0) {
+      // Only determine step if we're NOT in reschedule mode
+      if (existingDraft && (existingDraft.step === 'reschedule' || existingDraft.step === 'reschedule_confirm')) {
+        // Preserve reschedule step and bookingId
+        // Don't change step during reschedule flow
+        if (existingDraft.bookingId) {
+          // Ensure bookingId is preserved (it might be stored in recipientPhone field temporarily)
+          // Actually, bookingId should be in the bookingId field, but let's make sure it's preserved
+        }
+      } else {
+        // Determine appropriate step based on current state (only for new bookings)
+        const nextStep = this.determineBookingStep({
+          ...existingDraft,
+          ...updates
+        });
+        if (nextStep) {
+          updates.step = nextStep;
+        }
       }
     }
 
@@ -2182,13 +2273,28 @@ DO NOT repeat your previous question. Instead:
       }
     }
 
+    // CRITICAL: Preserve bookingId and reschedule step when updating
+    const updateData: any = {
+      ...updates,
+      version: { increment: 1 },
+      updatedAt: new Date(),
+    };
+    
+    // If we're in reschedule mode, preserve the bookingId and step
+    if (existingDraft && (existingDraft.step === 'reschedule' || existingDraft.step === 'reschedule_confirm')) {
+      // Don't overwrite bookingId or step if they exist
+      if (existingDraft.bookingId && !updates.bookingId) {
+        updateData.bookingId = existingDraft.bookingId;
+      }
+      // Preserve the step - don't let determineBookingStep override it
+      if (!updates.step) {
+        updateData.step = existingDraft.step;
+      }
+    }
+
     const updated = await this.prisma.bookingDraft.upsert({
       where: { customerId },
-      update: {
-        ...updates,
-        version: { increment: 1 },
-        updatedAt: new Date(),
-      },
+      update: updateData,
       create: {
         customerId,
         step: 'service',
@@ -2197,6 +2303,27 @@ DO NOT repeat your previous question. Instead:
       },
     });
     return updated;
+  }
+
+  /**
+   * Determine the appropriate booking step based on draft state
+   * This ensures clear step progression and prevents mixing things up
+   */
+  private determineBookingStep(draft: any): string | null {
+    // If we have all required fields, move to confirm step
+    if (draft.service && draft.date && draft.time && draft.name && draft.recipientPhone) {
+      return 'confirm';
+    }
+    
+    // Otherwise, determine which field is missing in order
+    if (!draft.service) return 'service';
+    if (!draft.date) return 'date';
+    if (!draft.time) return 'time';
+    if (!draft.name) return 'name';
+    if (!draft.recipientPhone) return 'phone';
+    
+    // If we have everything, stay in confirm
+    return 'confirm';
   }
 
   async checkAndCompleteIfConfirmed(draft: any, extraction: any, customerId: string, bookingsService: any) {
@@ -2272,7 +2399,23 @@ DO NOT repeat your previous question. Instead:
       // If extraction.subIntent is 'deposit_confirmed', initiate payment
       const pkg = await bookingsService.packagesService.findPackageByName(draft.service);
       const depositAmount = pkg?.deposit || 2000;
+      
+      // SECURITY: Check if there's a failed payment before treating "Yes" as deposit confirmation
+      // If payment failed, "Yes" means "resend payment" not "deposit confirmed"
+      const latestPayment = await bookingsService.getLatestPaymentForDraft(customerId);
       if (extraction.subIntent === 'deposit_confirmed' || (typeof extraction.content === 'string' && extraction.content.trim().toLowerCase() === 'confirm')) {
+        // Double-check payment status before initiating
+        if (latestPayment && latestPayment.status === 'failed') {
+          this.logger.debug(`[SECURITY] Payment failed, treating deposit_confirmed as resend request`);
+          // Payment failed - don't initiate again, let strategy handle resend
+          return {
+            action: 'ready_for_deposit',
+            amount: depositAmount,
+            packageName: pkg?.name || draft.service,
+            requiresResend: true,
+          };
+        }
+
         try {
           const result = await this.retryOperation(
             () => bookingsService.completeBookingDraft(customerId, dateObj),
@@ -2549,6 +2692,7 @@ DO NOT repeat your previous question. Instead:
   private async attemptRecovery(error: any, context: any): Promise<any> {
     if (context.retryCount > 1) {
       this.logger.error('Max retries exceeded in attemptRecovery', error);
+      this.logger.error('Error details:', error instanceof Error ? error.stack : error);
       // Return a fallback response instead of throwing to avoid crashing the request
       return {
         response: "I'm having a little trouble processing that right now. Could you try saying it differently? 🥺",
@@ -2563,14 +2707,48 @@ DO NOT repeat your previous question. Instead:
       return this.handleConversation(context.message, context.customerId, shorterHistory, context.bookingsService, context.retryCount + 1);
     }
 
-    // Rethrow other errors to be handled by caller or global filter
-    throw error;
+    // For other errors, log and return a helpful fallback instead of rethrowing
+    this.logger.error('Error in attemptRecovery, returning fallback', error);
+    this.logger.error('Error details:', error instanceof Error ? error.stack : error);
+    return {
+      response: "I'm having a little trouble processing that right now. Could you try rephrasing your request? If the issue persists, feel free to contact our team directly! 💖",
+      draft: null,
+      updatedHistory: context.history
+    };
   }
 
   /* --------------------------
    * Core conversation logic
    * -------------------------- */
   private async processConversationLogic(message: string, customerId: string, history: HistoryMsg[] = [], bookingsService?: any, enrichedContext?: any, intentAnalysis?: any) {
+    // ============================================
+    // CONTEXT AWARENESS: Distinguish booking intents early
+    // ============================================
+    // Get draft early for context awareness checks (will be redeclared later but we need it here)
+    const earlyDraft = await this.getOrCreateDraft(customerId);
+    
+    // Check for existing confirmed bookings
+    const existingBooking = bookingsService ? await bookingsService.getLatestConfirmedBooking(customerId) : null;
+    
+    // Detect if this is FAQ about bookings (not actually booking)
+    // Distinguish between:
+    // - "How do I make a booking?" / "I want to book" → START BOOKING (BookingStrategy)
+    // - "How does the booking process work?" / "What's the booking process?" → FAQ
+    // - "How long does booking take?" → FAQ
+    const isFaqAboutBookingProcess = /(how.*(does|is|are|work|long|much)|what.*(is|are|the|process|include|cost|amount)|booking.*(process|work|cost|include|policy|hours|refund|cancel)|deposit.*(amount|cost|is)|refund|cancel.*policy|when.*(are|is).*open)/i.test(message);
+    const wantsToStartBooking = /(how.*(do|can).*(make|book|start|get|schedule).*(booking|appointment)|(i want|i'd like|i need|can i|please).*(to book|booking|appointment|make.*booking|schedule)|let.*book|start.*booking)/i.test(message);
+    
+    // If user wants to START booking, don't treat as FAQ
+    // If it's informational about booking process/cost/policies, treat as FAQ
+    const hasEarlyDraft = !!(earlyDraft && (earlyDraft.service || earlyDraft.date));
+    const isFaqAboutBooking = isFaqAboutBookingProcess && !wantsToStartBooking && !hasEarlyDraft;
+    
+    // If FAQ about booking, let FAQ strategy handle it (don't interfere)
+    if (isFaqAboutBooking && !earlyDraft.service && !earlyDraft.date) {
+      this.logger.debug('[CONTEXT] Detected FAQ about booking, letting FAQ strategy handle');
+      // Continue - let other strategies handle it
+    }
+    
     // ============================================
     // HANDLE "YES" RESPONSE TO CONNECTION QUESTION
     // ============================================
@@ -2724,7 +2902,8 @@ DO NOT repeat your previous question. Instead:
       return { response: escalationMsg, draft: null, updatedHistory: [...history, { role: 'user', content: message }, { role: 'assistant', content: escalationMsg }] };
     }
 
-    let draft = await this.prisma.bookingDraft.findUnique({ where: { customerId } });
+    // Get or create draft (reuse early draft if we have it, otherwise fetch)
+    let draft = earlyDraft || await this.prisma.bookingDraft.findUnique({ where: { customerId } });
     let hasDraft = !!draft;
 
 
@@ -2760,23 +2939,34 @@ DO NOT repeat your previous question. Instead:
       'when can i come', 'when can i book', 'when is open', 'when are you open', 'when is free',
     ];
     const slotIntent = slotKeywords.some(kw => lower.includes(kw));
+    // Also catch patterns like "another free slot", "what's another", "give me another time"
+    const anotherSlotPattern = /(another|other|what.*another|what.*other|so what|give me|show me).*(slot|time|hour|free|available)/i;
     // Also catch direct patterns like "available (hours|times|slots) (on|for|tomorrow|today)"
     const slotIntentRegex = /(available|free|open)\s+(hours|times|slots)(\s+(on|for|tomorrow|today|\d{4}-\d{2}-\d{2}))?/i;
-    const slotIntentDetected = slotIntent || slotIntentRegex.test(message);
+    const slotIntentDetected = slotIntent || slotIntentRegex.test(message) || anotherSlotPattern.test(message);
 
     if (slotIntentDetected) {
+      // For "another slot" queries, use draft date/service if available
+      const isAnotherSlotQuery = anotherSlotPattern.test(message);
+      
       // Try to extract date (e.g., 'tomorrow', 'on 2025-11-20', etc.)
       let dateStr: string | undefined;
-      if (/tomorrow/.test(lower)) {
+      if (isAnotherSlotQuery && draft?.date) {
+        // Use draft date for "another slot" queries
+        dateStr = draft.date;
+      } else if (/tomorrow/.test(lower)) {
         dateStr = DateTime.now().setZone(this.studioTz).plus({ days: 1 }).toFormat('yyyy-MM-dd');
       } else {
-        // Try to extract explicit date
+        // Try to extract explicit date from message
         const dateMatch = lower.match(/(\d{4}-\d{2}-\d{2})/);
         if (dateMatch) dateStr = dateMatch[1];
       }
 
       // Try to get package/service from draft or message
-      let service: string | undefined = draft?.service;
+      let service: string | undefined = isAnotherSlotQuery ? draft?.service : undefined;
+      if (!service) {
+        service = draft?.service;
+      }
       if (!service) {
         // Try to match a known package in the message
         if (this.bookingsService) {
@@ -3185,6 +3375,7 @@ DO NOT repeat your previous question. Instead:
     // IMPORTANT: Check this BEFORE "new booking" intent to prevent "make a reschedule" from matching "make...booking"
     const isRescheduleIntent =
       /\b(reschedul\w*)\b/i.test(message) || // Matches "reschedule", "rescheduling", etc. standalone
+      /(i want to|i'd like to|i need to|can i|can we).*reschedule/i.test(message) || // "i want to reschedule", "can we reschedule"
       /(change|move|modify).*(booking|appointment|date|time)/i.test(message);
 
     // Check if user is responding to "which booking" question (even without explicit reschedule keyword)
@@ -3198,10 +3389,36 @@ DO NOT repeat your previous question. Instead:
       /upcoming bookings/i.test(recentRescheduleMsgs);
 
     if (isRescheduleIntent || (draft && draft.step === 'reschedule') || isRespondingToBookingSelection) {
-      this.logger.log(`[RESCHEDULE] Detected intent or active flow for customer ${customerId}`);
+      this.logger.log(`[RESCHEDULE] Detected intent or active flow for customer ${customerId}, draft step: ${draft?.step}, bookingId: ${draft?.bookingId}`);
+
+      // CRITICAL: Refresh draft from database to ensure we have the latest state
+      // This is important because the draft might have been updated by mergeIntoDraft or other processes
+      let currentDraft = await this.prisma.bookingDraft.findUnique({ where: { customerId } });
+      if (!currentDraft && draft) {
+        currentDraft = draft; // Fallback to the draft we already have
+      }
+
+      // If user explicitly says "i want to reschedule" and there's a booking draft, clear it first
+      // This allows them to reschedule an existing booking instead of continuing the new booking
+      if (isRescheduleIntent && currentDraft && currentDraft.step !== 'reschedule' && currentDraft.step !== 'reschedule_confirm' && !currentDraft.bookingId) {
+        this.logger.log(`[RESCHEDULE] User wants to reschedule, clearing existing booking draft`);
+        await this.prisma.bookingDraft.delete({ where: { customerId } }).catch(() => {
+          // Ignore if draft doesn't exist
+        });
+        currentDraft = null; // Reset draft so we start fresh
+        draft = null; // Also reset the local draft variable
+      }
 
       // If this is a new request (not yet in reschedule step), setup the draft
-      if (!draft || draft.step !== 'reschedule') {
+      // CRITICAL: Also check if draft.step === 'reschedule_confirm' - don't re-enter setup in that case
+      // This prevents re-running the 72-hour check when user provides new date/time
+      // Also check if draft has bookingId - if it does, we're already in reschedule mode
+      const isAlreadyInReschedule = currentDraft && (currentDraft.step === 'reschedule' || currentDraft.step === 'reschedule_confirm' || currentDraft.bookingId);
+      
+      this.logger.log(`[RESCHEDULE] isAlreadyInReschedule: ${isAlreadyInReschedule}, currentDraft step: ${currentDraft?.step}, bookingId: ${currentDraft?.bookingId}`);
+      
+      if (!isAlreadyInReschedule) {
+        this.logger.log(`[RESCHEDULE] Setting up new reschedule request for customer ${customerId}`);
         // Get ALL confirmed bookings for this customer
         const allBookings = await this.prisma.booking.findMany({
           where: {
@@ -3589,8 +3806,15 @@ DO NOT repeat your previous question. Instead:
 
     // 5. CONTINUE RESCHEDULE FLOW (if we're in reschedule mode)
     // This handles the rest of the reschedule logic after the initial setup above
-    if (draft && draft.step === 'reschedule') {
-      this.logger.log(`[RESCHEDULE] Continuing reschedule flow for customer ${customerId}`);
+    // CRITICAL: Refresh draft from database to ensure we have the latest state
+    let rescheduleDraft = await this.prisma.bookingDraft.findUnique({ where: { customerId } });
+    if (!rescheduleDraft && draft) {
+      rescheduleDraft = draft; // Fallback to the draft we already have
+    }
+    
+    if (rescheduleDraft && (rescheduleDraft.step === 'reschedule' || rescheduleDraft.step === 'reschedule_confirm')) {
+      this.logger.log(`[RESCHEDULE] Continuing reschedule flow for customer ${customerId}, draft step: ${rescheduleDraft.step}, bookingId: ${rescheduleDraft.bookingId}`);
+      draft = rescheduleDraft; // Update local draft variable for consistency
 
       // CRITICAL FIX: If user asks an FAQ/general question while in reschedule mode,
       // bypass the reschedule flow and answer their question instead of staying stuck

@@ -7,6 +7,7 @@ import { BookingsService } from '../bookings/bookings.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PackagesService } from '../packages/packages.service';
 import { WhatsappService } from '../whatsapp/whatsapp.service';
+import { MessengerSendService } from '../webhooks/messenger-send.service';
 export declare class PaymentsService {
     private prisma;
     private httpService;
@@ -18,6 +19,7 @@ export declare class PaymentsService {
     private aiQueue;
     private paymentsQueue;
     private packagesService;
+    private messengerSendService;
     private readonly logger;
     private readonly mpesaBaseUrl;
     private readonly consumerKey;
@@ -25,16 +27,16 @@ export declare class PaymentsService {
     private readonly shortcode;
     private readonly passkey;
     private readonly callbackUrl;
-    constructor(prisma: PrismaService, httpService: HttpService, messagesService: MessagesService, notificationsService: NotificationsService, whatsappService: WhatsappService, aiService: AiService, bookingsService: BookingsService, aiQueue: Queue, paymentsQueue: Queue, packagesService: PackagesService);
+    constructor(prisma: PrismaService, httpService: HttpService, messagesService: MessagesService, notificationsService: NotificationsService, whatsappService: WhatsappService, aiService: AiService, bookingsService: BookingsService, aiQueue: Queue, paymentsQueue: Queue, packagesService: PackagesService, messengerSendService: MessengerSendService);
     getPaymentByCheckoutRequestId(checkoutRequestId: string): Promise<{
         id: string;
-        bookingId: string | null;
+        status: string;
         createdAt: Date;
         updatedAt: Date;
-        amount: number;
-        status: string;
-        bookingDraftId: string | null;
         phone: string;
+        bookingId: string | null;
+        bookingDraftId: string | null;
+        amount: number;
         mpesaReceipt: string | null;
         checkoutRequestId: string | null;
     }>;
@@ -47,6 +49,17 @@ export declare class PaymentsService {
     handlePaymentWebhook(checkoutRequestId: string, status: string): Promise<void>;
     private confirmPayment;
     handlePaymentFailure(payment: any, reason: string, resultCode?: number | string): Promise<void>;
+    checkStuckPayments(): Promise<void>;
+    queryTransactionStatus(checkoutRequestId: string): Promise<{
+        success: boolean;
+        receipt?: string;
+        error?: string;
+    }>;
+    verifyReceiptWithMpesaAPI(paymentId: string, receiptNumber: string): Promise<{
+        valid: boolean;
+        matches: boolean;
+        error?: string;
+    }>;
     testStkPush(phone: string, amount: number): Promise<{
         checkoutRequestId: any;
         merchantRequestId: any;

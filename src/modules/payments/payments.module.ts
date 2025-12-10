@@ -12,6 +12,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { PaymentListener } from './listeners/payment.listener';
 import { PackagesModule } from '../packages/packages.module';
 import { WhatsappModule } from '../whatsapp/whatsapp.module';
+import { MessengerModule } from '../webhooks/messenger.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { WhatsappModule } from '../whatsapp/whatsapp.module';
     }),
     forwardRef(() => AiModule),
     WhatsappModule,
+    MessengerModule,
   ],
   providers: [PaymentsService, PaymentsProcessor, PaymentListener],
   controllers: [PaymentsController],

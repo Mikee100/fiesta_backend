@@ -71,6 +71,11 @@ export class BookingsController {
     return this.bookingsService.getStudioInfo();
   }
 
+  @Get('by-id/:id')
+  getBookingById(@Param('id') id: string) {
+    return this.bookingsService.getBookingById(id);
+  }
+
   @Get(':customerId')
   findByCustomer(@Param('customerId') customerId: string) {
     return this.bookingsService.getBookings(customerId);
@@ -84,6 +89,15 @@ export class BookingsController {
   @Post(':id/cancel')
   cancel(@Param('id') id: string) {
     return this.bookingsService.cancelBooking(id);
+  }
+
+  @Put(':id')
+  update(@Param('id') id: string, @Body() updates: { service?: string; dateTime?: string }) {
+    const dateTime = updates.dateTime ? new Date(updates.dateTime) : undefined;
+    return this.bookingsService.updateBooking(id, {
+      service: updates.service,
+      dateTime,
+    });
   }
 
   @Post('complete-draft/:customerId')

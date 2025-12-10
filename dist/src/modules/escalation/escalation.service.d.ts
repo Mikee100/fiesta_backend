@@ -9,35 +9,35 @@ export declare class EscalationService {
     constructor(prisma: PrismaService, websocketGateway?: WebsocketGateway, notificationsService?: NotificationsService);
     createEscalation(customerId: string, reason?: string, escalationType?: string, metadata?: any, sentimentScore?: number): Promise<{
         id: string;
-        reason: string | null;
-        description: string | null;
-        status: string;
-        escalationType: string;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
-        sentimentScore: number | null;
         createdAt: Date;
-        updatedAt: Date;
         customerId: string;
+        status: string;
+        updatedAt: Date;
+        sentimentScore: number | null;
+        description: string | null;
+        reason: string | null;
+        escalationType: string;
     }>;
     resolveEscalation(escalationId: string): Promise<{
         id: string;
-        reason: string | null;
-        description: string | null;
-        status: string;
-        escalationType: string;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
-        sentimentScore: number | null;
         createdAt: Date;
-        updatedAt: Date;
         customerId: string;
+        status: string;
+        updatedAt: Date;
+        sentimentScore: number | null;
+        description: string | null;
+        reason: string | null;
+        escalationType: string;
     }>;
     isCustomerEscalated(customerId: string): Promise<boolean>;
     getOpenEscalations(): Promise<({
         customer: {
             id: string;
             createdAt: Date;
-            updatedAt: Date;
             name: string;
+            updatedAt: Date;
             email: string | null;
             phone: string | null;
             whatsappId: string | null;
@@ -53,14 +53,14 @@ export declare class EscalationService {
         };
     } & {
         id: string;
-        reason: string | null;
-        description: string | null;
-        status: string;
-        escalationType: string;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
-        sentimentScore: number | null;
         createdAt: Date;
-        updatedAt: Date;
         customerId: string;
+        status: string;
+        updatedAt: Date;
+        sentimentScore: number | null;
+        description: string | null;
+        reason: string | null;
+        escalationType: string;
     })[]>;
 }

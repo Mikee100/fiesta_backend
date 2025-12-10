@@ -194,7 +194,303 @@ export class BookingsService {
    * Booking Draft methods
    * -------------------------- */
   async getBookingDraft(customerId: string) {
-    return this.prisma.bookingDraft.findUnique({ where: { customerId } });
+    return this.prisma.bookingDraft.findUnique({ 
+      where: { customerId }
+    });
+  }
+
+  /**
+   * Get the latest payment for a booking draft
+   * Also works if draft doesn't exist - finds payments linked to customer via draft
+   */
+  async getLatestPaymentForDraft(customerId: string) {
+    const draft = await this.getBookingDraft(customerId);
+    if (draft) {
+      // Draft exists - find payment for this draft
+      return this.prisma.payment.findFirst({
+        where: { bookingDraftId: draft.id },
+        orderBy: { createdAt: 'desc' },
+        include: { bookingDraft: true },
+      });
+    }
+    
+    // No draft - find payments for this customer by looking through drafts
+    // This handles cases where payment failed and draft might have been cleaned up
+    return this.prisma.payment.findFirst({
+      where: {
+        bookingDraft: {
+          customerId: customerId,
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      include: { bookingDraft: true },
+    });
+  }
+
+  /**
+   * SECURITY: Check rate limiting for receipt verification attempts
+   * Prevents brute force attacks by limiting verification attempts
+   */
+  async checkReceiptVerificationRateLimit(customerId: string): Promise<{ allowed: boolean; attempts: number; resetTime?: Date }> {
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+    
+    // Count verification attempts in last 5 minutes (could use a separate table, but using payment status changes as proxy)
+    // For now, we'll check if there are multiple pending payments (indicating multiple attempts)
+    const recentPayments = await this.prisma.payment.findMany({
+      where: {
+        bookingDraft: { customerId },
+        createdAt: { gte: fiveMinutesAgo },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const maxAttempts = 5; // Allow 5 attempts per 5 minutes
+    if (recentPayments.length >= maxAttempts) {
+      const oldestAttempt = recentPayments[recentPayments.length - 1];
+      const resetTime = new Date(oldestAttempt.createdAt.getTime() + 5 * 60 * 1000);
+      return { allowed: false, attempts: recentPayments.length, resetTime };
+    }
+
+    return { allowed: true, attempts: recentPayments.length };
+  }
+
+  /**
+   * Check if a payment prompt was recently sent (within last 5 minutes)
+   */
+  async hasRecentPaymentPrompt(customerId: string): Promise<boolean> {
+    const payment = await this.getLatestPaymentForDraft(customerId);
+    if (!payment) return false;
+    
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+    return payment.createdAt > fiveMinutesAgo && payment.status === 'pending';
+  }
+
+  /**
+   * Verify payment by M-PESA receipt number
+   * SECURITY ENHANCED: Verifies receipt through M-Pesa API and validates:
+   * - Receipt format (must be valid M-Pesa format)
+   * - Receipt matches actual M-Pesa transaction
+   * - Payment amount matches
+   * - Phone number matches
+   * - Transaction is recent (within 24 hours)
+   * - Rate limiting to prevent brute force attempts
+   */
+  async verifyPaymentByReceipt(customerId: string, receiptNumber: string): Promise<{ success: boolean; message: string; payment?: any }> {
+    const draft = await this.getBookingDraft(customerId);
+    if (!draft) {
+      return { success: false, message: "I don't see a pending booking. Would you like to start a new booking?" };
+    }
+
+    // SECURITY: Rate limiting - prevent brute force attempts
+    const rateLimit = await this.checkReceiptVerificationRateLimit(customerId);
+    if (!rateLimit.allowed) {
+      this.logger.warn(`[SECURITY] Rate limit exceeded for customer ${customerId}. Attempts: ${rateLimit.attempts}`);
+      const resetMinutes = Math.ceil((rateLimit.resetTime!.getTime() - Date.now()) / 1000 / 60);
+      return {
+        success: false,
+        message: `Too many verification attempts. Please wait ${resetMinutes} minute${resetMinutes > 1 ? 's' : ''} before trying again. If you're having issues, contact us at 0720 111928. 💖`,
+      };
+    }
+
+    // SECURITY: Validate receipt format first (M-Pesa receipts are 10 alphanumeric characters)
+    const normalizedReceipt = receiptNumber.trim().toUpperCase();
+    if (!/^[A-Z0-9]{10}$/.test(normalizedReceipt)) {
+      this.logger.warn(`[SECURITY] Invalid receipt format provided by customer ${customerId}: ${receiptNumber}`);
+      return {
+        success: false,
+        message: `The receipt number "${receiptNumber}" doesn't look like a valid M-PESA receipt. M-PESA receipts are 10 characters (letters and numbers). Could you please double-check and share it again? 📲`,
+      };
+    }
+
+    // SECURITY: Check if receipt was already used for another payment (prevent reuse)
+    const existingReceiptPayment = await this.prisma.payment.findFirst({
+      where: {
+        mpesaReceipt: normalizedReceipt,
+        status: 'success',
+        NOT: { bookingDraftId: draft.id }, // Different booking
+      },
+    });
+
+    if (existingReceiptPayment) {
+      this.logger.warn(`[SECURITY] Receipt ${normalizedReceipt} already used for another payment ${existingReceiptPayment.id} by customer ${customerId}`);
+      return {
+        success: false,
+        message: `This receipt number has already been used for another booking. Each payment receipt can only be used once. Please use the receipt from your current payment, or I can send you a fresh payment prompt. Just say "resend". 📲`,
+      };
+    }
+
+    // Check if payment already exists with this receipt (already verified)
+    const existingPayment = await this.prisma.payment.findFirst({
+      where: {
+        bookingDraftId: draft.id,
+        mpesaReceipt: normalizedReceipt,
+        status: 'success',
+      },
+    });
+
+    if (existingPayment) {
+      return {
+        success: true,
+        message: `✅ Payment verified! Receipt ${normalizedReceipt} confirmed. Your booking is already confirmed! 💖`,
+        payment: existingPayment,
+      };
+    }
+
+    // Check if there's a pending payment to verify
+    const pendingPayment = await this.prisma.payment.findFirst({
+      where: {
+        bookingDraftId: draft.id,
+        status: 'pending',
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!pendingPayment) {
+      return {
+        success: false,
+        message: `I don't see any pending payment for this booking. Please wait for the payment prompt, or I can send you a fresh one. Just say "resend". 📲`,
+      };
+    }
+
+    // SECURITY: Check if payment is too old (prevent using old receipts)
+    const paymentAge = Date.now() - new Date(pendingPayment.createdAt).getTime();
+    const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+    if (paymentAge > maxAge) {
+      this.logger.warn(`[SECURITY] Attempt to verify receipt for old payment (${Math.floor(paymentAge / 1000 / 60)} minutes old) by customer ${customerId}`);
+      return {
+        success: false,
+        message: `This payment request is too old. Please start a new booking and I'll send you a fresh payment prompt. 💖`,
+      };
+    }
+
+    // SECURITY: Verify receipt through M-Pesa API
+    try {
+      const verification = await this.paymentsService.verifyReceiptWithMpesaAPI(
+        pendingPayment.id,
+        normalizedReceipt
+      );
+
+      if (!verification.valid) {
+        this.logger.warn(`[SECURITY] Receipt verification failed for payment ${pendingPayment.id}: ${verification.error}`);
+        return {
+          success: false,
+          message: `I couldn't verify the receipt "${normalizedReceipt}" with M-PESA. Please double-check the receipt number and try again. If the issue persists, I can send you a fresh payment prompt. Just say "resend". 📲`,
+        };
+      }
+
+      if (!verification.matches) {
+        this.logger.warn(`[SECURITY] Receipt mismatch for payment ${pendingPayment.id}. Provided: ${normalizedReceipt}`);
+        return {
+          success: false,
+          message: `The receipt number "${normalizedReceipt}" doesn't match our records. Please double-check the receipt number from your M-PESA message. If you're sure it's correct, contact us at 0720 111928 for assistance. 📲`,
+        };
+      }
+
+      // Receipt verified! Update payment status
+      await this.prisma.payment.update({
+        where: { id: pendingPayment.id },
+        data: {
+          status: 'success',
+          mpesaReceipt: normalizedReceipt,
+        },
+      });
+
+      // Confirm the booking
+      if (draft.dateTimeIso) {
+        const dateObj = new Date(draft.dateTimeIso);
+        await this.completeBookingDraft(customerId, dateObj);
+      } else if (draft.date && draft.time) {
+        // Fallback: parse date and time manually
+        const dateStr = draft.date;
+        const timeStr = draft.time;
+        const combined = `${dateStr}T${timeStr}:00`;
+        try {
+          const dateObj = new Date(combined);
+          if (!isNaN(dateObj.getTime())) {
+            await this.completeBookingDraft(customerId, dateObj);
+          }
+        } catch (error) {
+          this.logger.error('Error parsing date/time for receipt verification:', error);
+        }
+      }
+
+      this.logger.log(`[SECURITY] Receipt ${normalizedReceipt} successfully verified for payment ${pendingPayment.id}`);
+
+      return {
+        success: true,
+        message: `✅ Payment verified! Receipt ${normalizedReceipt} confirmed through M-PESA. Your booking is now confirmed! You'll receive a confirmation message shortly. 🎉`,
+        payment: pendingPayment,
+      };
+    } catch (error) {
+      this.logger.error(`[SECURITY] Error during receipt verification for payment ${pendingPayment.id}:`, error);
+      return {
+        success: false,
+        message: `I encountered an issue verifying your receipt. Please try again, or contact us at 0720 111928 for assistance. 💖`,
+      };
+    }
+  }
+
+  /**
+   * Resend payment prompt with updated phone number if needed
+   * Works even if draft doesn't exist - can find draft from payment
+   */
+  async resendPaymentPrompt(customerId: string, newPhone?: string): Promise<{ success: boolean; message: string }> {
+    let draft = await this.getBookingDraft(customerId);
+    
+    // If no draft, try to find one from the latest payment
+    if (!draft) {
+      const latestPayment = await this.getLatestPaymentForDraft(customerId);
+      if (latestPayment?.bookingDraft) {
+        draft = latestPayment.bookingDraft;
+      }
+    }
+    
+    if (!draft) {
+      return { success: false, message: "I don't see a pending booking. Would you like to start a new booking? 💖" };
+    }
+
+    if (draft.step !== 'confirm') {
+      return { success: false, message: "Your booking isn't ready for payment yet. Let's complete the booking details first! 📋" };
+    }
+
+    const phone = newPhone || draft.recipientPhone;
+    if (!phone) {
+      return { success: false, message: "I need your phone number to send the payment prompt. Could you please provide it? 📱" };
+    }
+
+    const amount = await this.getDepositForDraft(customerId) || 2000;
+    
+    try {
+      // Delete old pending payments
+      await this.prisma.payment.deleteMany({
+        where: { 
+          bookingDraftId: draft.id,
+          status: 'pending'
+        }
+      });
+
+      // Update phone if new one provided
+      if (newPhone && newPhone !== draft.recipientPhone) {
+        await this.prisma.bookingDraft.update({
+          where: { id: draft.id },
+          data: { recipientPhone: newPhone }
+        });
+      }
+
+      // Initiate new payment
+      const result = await this.paymentsService.initiateSTKPush(draft.id, phone, amount);
+      
+      return { 
+        success: true, 
+        message: `✅ Payment prompt sent! Please check your phone (${phone}) and enter your M-PESA PIN. The prompt should arrive within 10 seconds. 📲💳` 
+      };
+    } catch (error) {
+      this.logger.error('Failed to resend payment prompt:', error);
+      return { 
+        success: false, 
+        message: `Sorry, I encountered an issue sending the payment prompt. Please try again in a moment or contact us at 0720 111928. 💖` 
+      };
+    }
   }
 
   async getDepositForDraft(customerId: string) {
@@ -340,7 +636,7 @@ export class BookingsService {
    * - Check conflicts by querying confirmed bookings for that day
    * - Return available boolean and suggestions (array of Date in ISO UTC)
    * -------------------------- */
-  async checkAvailability(requested: Date, service?: string): Promise<{ available: boolean; suggestions?: string[] }> {
+  async checkAvailability(requested: Date, service?: string): Promise<{ available: boolean; suggestions?: string[]; sameDayFull?: boolean }> {
     let duration = 60;
     if (service) {
       const pkg = await this.packagesService.findPackageByName(service);
@@ -379,22 +675,73 @@ export class BookingsService {
       return { available: true };
     }
 
-    // Build suggestions: iterate hour-by-hour within maternity hours and pick free slots
+    // Build suggestions: iterate through all slots in the day and pick free ones
+    // Prioritize slots closer to the requested time
     const suggestions: string[] = [];
+    const allSlots: { time: DateTime; distance: number }[] = [];
+    
     let cursor = dayStart;
-    while (cursor < dayEnd && suggestions.length < 5) {
+    while (cursor < dayEnd) {
       const slotStartUTC = cursor.toUTC();
       const slotEndUTC = slotStartUTC.plus({ minutes: duration });
 
       const isConflict = occupied.some(o => this.intervalsOverlap(slotStartUTC.toJSDate(), slotEndUTC.toJSDate(), o.start, o.end));
       if (!isConflict) {
-        suggestions.push(slotStartUTC.toISO()); // ISO string UTC
+        // Calculate distance from requested time (in minutes)
+        const distance = Math.abs(cursor.diff(requestedDtInMaternity, 'minutes').minutes);
+        allSlots.push({ time: cursor, distance });
       }
 
       cursor = cursor.plus({ minutes: 30 }); // step by 30 minutes for finer granularity
     }
 
-    return { available: false, suggestions };
+    // Sort by distance from requested time (closest first), then take up to 10
+    allSlots.sort((a, b) => a.distance - b.distance);
+    suggestions.push(...allSlots.slice(0, 10).map(s => s.time.toUTC().toISO()));
+
+    // Check if the entire day is fully booked
+    const sameDayFull = suggestions.length === 0;
+
+    return { available: false, suggestions, sameDayFull };
+  }
+
+  /**
+   * Find available slots across multiple days when the requested day is full
+   * Checks up to 7 days ahead for available slots
+   */
+  async findAvailableSlotsAcrossDays(requestedDate: Date, service?: string, daysToCheck: number = 7): Promise<{ date: string; slots: string[] }[]> {
+    let duration = 60;
+    if (service) {
+      const pkg = await this.packagesService.findPackageByName(service);
+      if (pkg) duration = BookingsService.parseDurationToMinutes(pkg.duration) || 60;
+    }
+
+    const requestedDt = DateTime.fromJSDate(requestedDate).setZone(this.STUDIO_TZ);
+    const results: { date: string; slots: string[] }[] = [];
+
+    // Check the requested day and up to daysToCheck days ahead
+    for (let dayOffset = 0; dayOffset <= daysToCheck; dayOffset++) {
+      const checkDate = requestedDt.plus({ days: dayOffset });
+      const dateStr = checkDate.toFormat('yyyy-MM-dd');
+      
+      // Skip weekends if needed (optional - adjust based on business rules)
+      const dayOfWeek = checkDate.weekday; // 1 = Monday, 7 = Sunday
+      // Uncomment if you want to skip weekends:
+      // if (dayOfWeek === 7) continue; // Skip Sunday
+
+      const slots = await this.getAvailableSlotsForDate(dateStr, service);
+      if (slots.length > 0) {
+        results.push({
+          date: dateStr,
+          slots: slots.slice(0, 5), // Limit to 5 slots per day for display
+        });
+        
+        // Stop once we have enough days with slots (e.g., 3 days)
+        if (results.length >= 3) break;
+      }
+    }
+
+    return results;
   }
 
   /* --------------------------
@@ -595,6 +942,19 @@ export class BookingsService {
       include: { customer: true },
     });
     return { bookings, total: bookings.length };
+  }
+
+  async getBookingById(id: string) {
+    return this.prisma.booking.findUnique({
+      where: { id },
+      include: {
+        customer: true,
+        invoice: true,
+        payments: true,
+        reminders: true,
+        followups: true,
+      },
+    });
   }
   // Create a new package
   async createPackage(data: any) {

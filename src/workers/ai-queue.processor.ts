@@ -7,6 +7,7 @@ import { WhatsappService } from '../modules/whatsapp/whatsapp.service';
 import { InstagramService } from '../modules/instagram/instagram.service';
 import { MessagesService } from '../modules/messages/messages.service';
 import { CustomersService } from '../modules/customers/customers.service';
+import { BookingsService } from '../modules/bookings/bookings.service';
 import { WebsocketGateway } from '../websockets/websocket.gateway';
 
 @Processor('aiQueue')
@@ -21,10 +22,11 @@ export class AiQueueProcessor {
     private readonly instagramService: InstagramService,
     private readonly messagesService: MessagesService,
     private readonly customersService: CustomersService,
+    private readonly bookingsService: BookingsService,
     private readonly websocketGateway: WebsocketGateway,
   ) {}
 
-  @Process()
+  @Process('handleAiJob')
   async handleAiJob(job: Job) {
     const { customerId, message, platform } = job.data;
     this.logger.log(`Processing centralized AI job: customerId=${customerId}, platform=${platform}, message=${message}`);
@@ -36,7 +38,8 @@ export class AiQueueProcessor {
       const history = await this.messagesService.getConversationHistory(customerId, 10);
 
       // Generate AI response with timeout
-      const aiPromise = this.aiService.handleConversation(message, customerId, history);
+      // Pass bookingsService so booking strategy can work properly
+      const aiPromise = this.aiService.handleConversation(message, customerId, history, this.bookingsService);
       const timeoutPromise = new Promise((_, reject) =>
         setTimeout(() => reject(new Error('AI processing timeout')), 30000) // 30 second timeout
       );
@@ -47,16 +50,24 @@ export class AiQueueProcessor {
       if (aiResult?.response) {
         if (typeof aiResult.response === 'string') {
           aiResponse = aiResult.response;
-        } else if (typeof aiResult.response === 'object' && aiResult.response.text) {
-          aiResponse = aiResult.response.text;
+        } else if (typeof aiResult.response === 'object' && aiResult.response !== null) {
+          if ('text' in aiResult.response) {
+            aiResponse = aiResult.response.text;
+          } else {
+            this.logger.warn(`AI result has unexpected object format: ${JSON.stringify(aiResult.response)}`);
+            aiResponse = "Sorry, I couldn't process your request.";
+          }
         } else {
+          this.logger.warn(`AI result response is in unexpected format: ${typeof aiResult.response}`);
           aiResponse = "Sorry, I couldn't process your request.";
         }
       } else {
-        this.logger.warn('AI result has no response, using fallback');
+        this.logger.warn(`AI result has no response. Full result: ${JSON.stringify(aiResult)}`);
+        aiResponse = "Sorry, I couldn't process your request.";
       }
     } catch (error) {
       this.logger.error('AI processing failed, using fallback response', error);
+      this.logger.error('Error details:', error instanceof Error ? error.stack : error);
       // aiResponse is already set to fallback
     }
 

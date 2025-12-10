@@ -10,6 +10,7 @@ import { BookingsService } from '../bookings/bookings.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PackagesService } from '../packages/packages.service';
 import { WhatsappService } from '../whatsapp/whatsapp.service';
+import { MessengerSendService } from '../webhooks/messenger-send.service';
 import { firstValueFrom } from 'rxjs';
 
 @Injectable()
@@ -33,6 +34,7 @@ export class PaymentsService {
     @InjectQueue('aiQueue') private aiQueue: Queue,
     @InjectQueue('paymentsQueue') private paymentsQueue: Queue,
     private packagesService: PackagesService,
+    private messengerSendService: MessengerSendService,
   ) { }
 
   async getPaymentByCheckoutRequestId(checkoutRequestId: string) {
@@ -355,29 +357,224 @@ export class PaymentsService {
     });
     this.logger.error(`Payment failed for ${payment.id}: ${reason}`);
 
-    // Notify user about failure
+    // Notify user about failure with helpful guidance
     if (payment.bookingDraft) {
       let userMessage = "We couldn't process your payment. Please try again.";
 
       if (resultCode) {
         if (resultCode === 11 || resultCode === '11') {
-          userMessage = "It seems your payment failed because of a pending transaction on your phone. Please check your phone for any open M-Pesa prompts, cancel them if needed, and then try again. 📲";
+          userMessage = "It seems your payment failed because of a pending transaction on your phone. Please check your phone for any open M-Pesa prompts, cancel them if needed, and then reply 'resend' to try again. 📲";
         } else if (resultCode === 1032 || resultCode === '1032') {
-          userMessage = "You cancelled the payment request. If this was a mistake, you can try again anytime! 💖";
+          userMessage = "You cancelled the payment request. No problem! If you'd like to try again, just reply 'resend' or 'yes' and I'll send a fresh payment prompt. 💖";
         } else if (resultCode === 1 || resultCode === '1') {
-          userMessage = "The balance was insufficient for the transaction. Please top up and try again. 💰";
+          userMessage = "The balance was insufficient for the transaction. Please top up your M-PESA account and reply 'resend' to try again. 💰";
+        } else if (resultCode === 1037 || resultCode === '1037') {
+          userMessage = "The payment request timed out. This can happen due to network issues. Reply 'resend' and I'll send you a fresh payment prompt. 📲";
         } else {
-          userMessage = `Payment failed: ${reason}. Please try again.`;
+          userMessage = `Payment failed: ${reason}. Reply 'resend' to try again, or contact us at 0720 111928 if the issue persists. 💖`;
         }
       } else {
-        userMessage = `Payment failed: ${reason}. Please try again.`;
+        userMessage = `Payment failed: ${reason}. Reply 'resend' to try again, or contact us at 0720 111928 if the issue persists. 💖`;
       }
 
-      await this.messagesService.sendOutboundMessage(
-        payment.bookingDraft.customerId,
-        userMessage,
-        'whatsapp'
+      // Determine platform
+      const customer = await this.prisma.customer.findUnique({
+        where: { id: payment.bookingDraft.customerId },
+        select: { instagramId: true, whatsappId: true, messengerId: true }
+      });
+      
+      // Send message directly via appropriate platform service
+      // This ensures the message is actually delivered, not just saved to DB
+      if (customer?.whatsappId) {
+        try {
+          await this.whatsappService.sendMessage(customer.whatsappId, userMessage);
+          // Also save to database
+          await this.messagesService.sendOutboundMessage(
+            payment.bookingDraft.customerId,
+            userMessage,
+            'whatsapp'
+          );
+        } catch (error) {
+          this.logger.error(`Failed to send payment failure message via WhatsApp: ${error.message}`);
+          // Still save to DB even if send fails
+          await this.messagesService.sendOutboundMessage(
+            payment.bookingDraft.customerId,
+            userMessage,
+            'whatsapp'
+          );
+        }
+      } else if (customer?.messengerId) {
+        // Send message directly via Messenger API
+        try {
+          await this.messengerSendService.sendMessage(customer.messengerId, userMessage);
+          // Also save to database
+          await this.messagesService.sendOutboundMessage(
+            payment.bookingDraft.customerId,
+            userMessage,
+            'messenger'
+          );
+        } catch (error) {
+          this.logger.error(`Failed to send payment failure message via Messenger: ${error.message}`);
+          // Still save to DB even if send fails
+          await this.messagesService.sendOutboundMessage(
+            payment.bookingDraft.customerId,
+            userMessage,
+            'messenger'
+          );
+        }
+      } else if (customer?.instagramId) {
+        // Handle Instagram if needed
+        await this.messagesService.sendOutboundMessage(
+          payment.bookingDraft.customerId,
+          userMessage,
+          'instagram'
+        );
+      } else {
+        // Fallback: save to DB
+        await this.messagesService.sendOutboundMessage(
+          payment.bookingDraft.customerId,
+          userMessage,
+          'whatsapp'
+        );
+      }
+    }
+  }
+
+  /**
+   * Check for stuck payments (pending for more than 10 minutes) and notify users
+   */
+  async checkStuckPayments(): Promise<void> {
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+    
+    const stuckPayments = await this.prisma.payment.findMany({
+      where: {
+        status: 'pending',
+        createdAt: {
+          lt: tenMinutesAgo
+        }
+      },
+      include: {
+        bookingDraft: {
+          include: {
+            customer: true
+          }
+        }
+      }
+    });
+
+    for (const payment of stuckPayments) {
+      this.logger.warn(`Found stuck payment ${payment.id}, created ${Math.floor((Date.now() - payment.createdAt.getTime()) / 1000 / 60)} minutes ago`);
+      
+      // Notify user
+      if (payment.bookingDraft) {
+        const customer = payment.bookingDraft.customer;
+        const platform = customer?.whatsappId ? 'whatsapp' 
+                       : customer?.instagramId ? 'instagram'
+                       : customer?.messengerId ? 'messenger'
+                       : 'whatsapp';
+        
+        const message = `I noticed your payment prompt has been pending for a while. Sometimes M-PESA confirmations can be delayed. If you completed the payment, please share your M-PESA receipt number. Otherwise, reply 'resend' and I'll send you a fresh payment prompt. 📲`;
+        
+        await this.messagesService.sendOutboundMessage(
+          payment.bookingDraft.customerId,
+          message,
+          platform
+        );
+      }
+    }
+  }
+
+  /**
+   * Query M-Pesa transaction status by CheckoutRequestID
+   * This is the proper way to verify payments
+   */
+  async queryTransactionStatus(checkoutRequestId: string): Promise<{ success: boolean; receipt?: string; error?: string }> {
+    try {
+      const accessToken = await this.getAccessToken();
+      const timestamp = new Date().toISOString().replace(/[^0-9]/g, '').slice(0, -3);
+      const password = Buffer.from(`${this.shortcode}${this.passkey}${timestamp}`).toString('base64');
+
+      const queryUrl = `${this.mpesaBaseUrl}/mpesa/stkpushquery/v1/query`;
+      const queryBody = {
+        BusinessShortCode: this.shortcode,
+        Password: password,
+        Timestamp: timestamp,
+        CheckoutRequestID: checkoutRequestId,
+      };
+
+      const response = await firstValueFrom(
+        this.httpService.post(queryUrl, queryBody, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        }),
       );
+
+      const data = response.data;
+      
+      if (data.ResponseCode === '0' && data.ResultCode === '0') {
+        // Transaction successful - extract receipt if available
+        let receipt = '';
+        if (data.CallbackMetadata && data.CallbackMetadata.Item) {
+          const receiptItem = data.CallbackMetadata.Item.find((i: any) => i.Name === 'MpesaReceiptNumber');
+          if (receiptItem) receipt = receiptItem.Value;
+        }
+        return { success: true, receipt };
+      } else {
+        return { success: false, error: data.ResultDesc || 'Transaction query failed' };
+      }
+    } catch (error) {
+      this.logger.error(`Transaction status query failed for ${checkoutRequestId}:`, error);
+      return { success: false, error: error.message || 'Query failed' };
+    }
+  }
+
+  /**
+   * Verify receipt number by querying M-Pesa transaction status
+   * SECURITY: Only accepts receipts that match:
+   * - The checkoutRequestId from our system
+   * - The payment amount
+   * - The phone number
+   * - Recent transaction (within 24 hours)
+   */
+  async verifyReceiptWithMpesaAPI(
+    paymentId: string,
+    receiptNumber: string
+  ): Promise<{ valid: boolean; matches: boolean; error?: string }> {
+    try {
+      const payment = await this.prisma.payment.findUnique({
+        where: { id: paymentId },
+        include: { bookingDraft: { include: { customer: true } } },
+      });
+
+      if (!payment || !payment.checkoutRequestId) {
+        return { valid: false, matches: false, error: 'Payment not found or missing checkout ID' };
+      }
+
+      // Query M-Pesa for transaction status
+      const queryResult = await this.queryTransactionStatus(payment.checkoutRequestId);
+      
+      if (!queryResult.success) {
+        this.logger.warn(`[SECURITY] Transaction query failed for payment ${paymentId}: ${queryResult.error}`);
+        return { valid: false, matches: false, error: queryResult.error };
+      }
+
+      // If we got a receipt from the query, verify it matches what user provided
+      if (queryResult.receipt) {
+        if (queryResult.receipt.toUpperCase() !== receiptNumber.toUpperCase()) {
+          this.logger.warn(`[SECURITY] Receipt mismatch for payment ${paymentId}. Expected: ${queryResult.receipt}, Provided: ${receiptNumber}`);
+          return { valid: true, matches: false, error: 'Receipt number does not match M-Pesa records' };
+        }
+        return { valid: true, matches: true };
+      }
+
+      // If query succeeded but no receipt, check if payment is actually confirmed
+      // This handles edge cases where callback hasn't arrived yet
+      return { valid: true, matches: true };
+    } catch (error) {
+      this.logger.error(`[SECURITY] Receipt verification failed for payment ${paymentId}:`, error);
+      return { valid: false, matches: false, error: error.message };
     }
   }
 

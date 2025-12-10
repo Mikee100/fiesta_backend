@@ -5,6 +5,7 @@ import { MessagesService } from '../messages/messages.service';
 import { WebsocketGateway } from '../../websockets/websocket.gateway';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
+import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
 export class MessengerService {
@@ -17,6 +18,7 @@ export class MessengerService {
     @Inject(forwardRef(() => MessagesService)) private readonly messagesService: MessagesService,
     @Inject(forwardRef(() => WebsocketGateway)) private readonly websocketGateway: WebsocketGateway,
     @InjectQueue('message-queue') private readonly messageQueue: Queue,
+    private readonly prisma: PrismaService,
   ) {
     this.fbVerifyToken = this.configService.get<string>('FB_VERIFY_TOKEN');
   }
@@ -85,6 +87,94 @@ export class MessengerService {
         await this.messageQueue.add('ai-process', { messageId: savedMessage.id });
         this.logger.log('Message queued for AI processing.');
       }
+    }
+  }
+
+  // -------------------------------------------
+  // GET MESSAGES FOR UI
+  // -------------------------------------------
+  async getMessages(customerId?: string) {
+    const messages = await this.messagesService.findAll();
+    let filtered = messages.filter(m => m.platform === 'messenger');
+
+    if (customerId) {
+      filtered = filtered.filter(m => m.customerId === customerId);
+    }
+
+    return {
+      messages: filtered.map(m => ({
+        id: m.id,
+        from: m.direction === 'inbound'
+          ? (m.customer as any)?.messengerId || ''
+          : '',
+        to: m.direction === 'outbound'
+          ? (m.customer as any)?.messengerId || ''
+          : '',
+        content: m.content,
+        timestamp: m.createdAt.toISOString(),
+        direction: m.direction,
+        customerId: m.customerId,
+        customerName: (m.customer as any)?.name,
+      })),
+      total: filtered.length,
+    };
+  }
+
+  // -------------------------------------------
+  // GET CONVERSATIONS FOR UI
+  // -------------------------------------------
+  // Query customers directly with messenger messages (more reliable)
+  async getConversations() {
+    try {
+      const conversations = await this.prisma.customer.findMany({
+        where: {
+          messengerId: { not: null },
+          messages: {
+            some: { platform: 'messenger' },
+          },
+        },
+        select: {
+          id: true,
+          name: true,
+          messengerId: true,
+          aiEnabled: true,
+          lastMessengerMessageAt: true,
+          messages: {
+            where: { platform: 'messenger' },
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+            select: {
+              content: true,
+              createdAt: true,
+              direction: true,
+            },
+          },
+        },
+        orderBy: { lastMessengerMessageAt: 'desc' },
+      });
+
+      this.logger.debug(`[getConversations] Found ${conversations.length} messenger customers with messages`);
+
+      const formattedConversations = conversations.map((conv) => ({
+        id: conv.id,
+        customerId: conv.id,
+        customerName: conv.name || 'Unknown',
+        messengerId: conv.messengerId || '',
+        lastMessage: conv.messages[0]?.content || '',
+        lastMessageAt: conv.messages[0]?.createdAt?.toISOString() || conv.lastMessengerMessageAt?.toISOString() || new Date().toISOString(),
+        aiEnabled: conv.aiEnabled ?? true,
+      }));
+
+      return {
+        conversations: formattedConversations,
+        total: formattedConversations.length,
+      };
+    } catch (error) {
+      this.logger.error('[getConversations] Error fetching conversations:', error);
+      return {
+        conversations: [],
+        total: 0,
+      };
     }
   }
 }

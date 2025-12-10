@@ -20,6 +20,16 @@ let PersonalizationService = PersonalizationService_1 = class PersonalizationSer
     }
     adaptResponse(baseResponse, style) {
         if (style === 'brief') {
+            const hasPackageList = /📦|package|KES|Standard|Economy|Executive|Gold|Platinum|VIP/i.test(baseResponse);
+            const hasContactDetails = /contact details|📍|📞|📧|🌐|🕐|phone|email|location|address|hours/i.test(baseResponse);
+            const hasSlotSuggestions = /(here are|available times?|other times?|suggestions?|slots? for|do any of these|which.*work|which.*prefer)/i.test(baseResponse) &&
+                /(\d{1,2}:\d{2}|\d{1,2}[ap]m|morning|afternoon|evening|AM|PM)/i.test(baseResponse);
+            const hasBookingSuggestions = /(slot.*taken|not available|unavailable).*(here are|available|other|suggestions)/i.test(baseResponse);
+            if (hasPackageList || hasContactDetails || hasSlotSuggestions || hasBookingSuggestions) {
+                return baseResponse
+                    .replace(/💕|💖|🌸|✨|🎈|💐|🌟|😊|💁‍♀️|👑/g, '')
+                    .replace(/(💡|📅|📦|📍|📞|📧|🌐|🕐|😔)/g, '$1');
+            }
             return baseResponse
                 .replace(/[\u{1F300}-\u{1F9FF}]/gu, '')
                 .replace(/💕|💖|🌸|✨|🎈|💐|🌟|😊|💁‍♀️|👑/g, '')

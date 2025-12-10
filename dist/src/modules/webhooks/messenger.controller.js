@@ -17,10 +17,12 @@ exports.MessengerController = void 0;
 const common_1 = require("@nestjs/common");
 const messenger_service_1 = require("./messenger.service");
 const messenger_stats_service_1 = require("./messenger-stats.service");
+const messenger_send_service_1 = require("./messenger-send.service");
 let MessengerController = MessengerController_1 = class MessengerController {
-    constructor(messengerService, messengerStatsService) {
+    constructor(messengerService, messengerStatsService, messengerSendService) {
         this.messengerService = messengerService;
         this.messengerStatsService = messengerStatsService;
+        this.messengerSendService = messengerSendService;
         this.logger = new common_1.Logger(MessengerController_1.name);
     }
     async verifyWebhook(mode, token, challenge, res) {
@@ -45,6 +47,18 @@ let MessengerController = MessengerController_1 = class MessengerController {
     }
     async getConversations() {
         return this.messengerStatsService.getConversations();
+    }
+    async getMessages(customerId) {
+        return this.messengerService.getMessages(customerId);
+    }
+    async getConversationsList() {
+        return this.messengerService.getConversations();
+    }
+    async sendMessage(data) {
+        return this.messengerSendService.sendMessage(data.to, data.message);
+    }
+    async testConnection() {
+        return this.messengerSendService.testConnection();
     }
 };
 exports.MessengerController = MessengerController;
@@ -78,9 +92,36 @@ __decorate([
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
 ], MessengerController.prototype, "getConversations", null);
+__decorate([
+    (0, common_1.Get)('messages'),
+    __param(0, (0, common_1.Query)('customerId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], MessengerController.prototype, "getMessages", null);
+__decorate([
+    (0, common_1.Get)('conversations'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], MessengerController.prototype, "getConversationsList", null);
+__decorate([
+    (0, common_1.Post)('send'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], MessengerController.prototype, "sendMessage", null);
+__decorate([
+    (0, common_1.Post)('test-connection'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], MessengerController.prototype, "testConnection", null);
 exports.MessengerController = MessengerController = MessengerController_1 = __decorate([
     (0, common_1.Controller)('webhooks/messenger'),
     __metadata("design:paramtypes", [messenger_service_1.MessengerService,
-        messenger_stats_service_1.MessengerStatsService])
+        messenger_stats_service_1.MessengerStatsService,
+        messenger_send_service_1.MessengerSendService])
 ], MessengerController);
 //# sourceMappingURL=messenger.controller.js.map

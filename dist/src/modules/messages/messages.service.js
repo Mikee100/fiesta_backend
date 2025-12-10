@@ -180,13 +180,6 @@ Respond with only the intent (e.g., booking_details).`;
             direction: 'outbound',
             customerId,
         });
-        if (platform === 'whatsapp') {
-            const customer = await this.prisma.customer.findUnique({
-                where: { id: customerId },
-            });
-            if (customer?.whatsappId) {
-            }
-        }
         return message;
     }
     async getConversationHistory(customerId, limit = 10) {

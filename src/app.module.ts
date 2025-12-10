@@ -14,6 +14,7 @@ import { AiModule } from './modules/ai/ai.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
 import { WhatsappModule } from './modules/whatsapp/whatsapp.module';
 import { InstagramModule } from './modules/instagram/instagram.module';
+import { MessengerModule } from './modules/webhooks/messenger.module';
 import { WorkersModule } from './workers/workers.module';
 import { WebsocketModule } from './websockets/websocket.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
@@ -28,8 +29,6 @@ import { FollowupsModule } from './modules/followups/followups.module';
 import { InvoicesModule } from './modules/invoices/invoices.module';
 import { ConversationsModule } from './modules/conversations/conversations.module';
 import { SeedingModule } from './modules/seeding/seeding.module';
-import { StatisticsModule } from './modules/statistics/statistics.module';
-
 import { StatisticsModule } from './modules/statistics/statistics.module';
 
 @Module({
@@ -52,6 +51,7 @@ import { StatisticsModule } from './modules/statistics/statistics.module';
     CronModule,
     WhatsappModule,
     InstagramModule,
+    MessengerModule,
     WorkersModule,
     WebsocketModule,
     AnalyticsModule,

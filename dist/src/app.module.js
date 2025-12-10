@@ -23,6 +23,7 @@ const ai_module_1 = require("./modules/ai/ai.module");
 const webhooks_module_1 = require("./modules/webhooks/webhooks.module");
 const whatsapp_module_1 = require("./modules/whatsapp/whatsapp.module");
 const instagram_module_1 = require("./modules/instagram/instagram.module");
+const messenger_module_1 = require("./modules/webhooks/messenger.module");
 const workers_module_1 = require("./workers/workers.module");
 const websocket_module_1 = require("./websockets/websocket.module");
 const analytics_module_1 = require("./modules/analytics/analytics.module");
@@ -62,6 +63,7 @@ exports.AppModule = AppModule = __decorate([
             cron_module_1.CronModule,
             whatsapp_module_1.WhatsappModule,
             instagram_module_1.InstagramModule,
+            messenger_module_1.MessengerModule,
             workers_module_1.WorkersModule,
             websocket_module_1.WebsocketModule,
             analytics_module_1.AnalyticsModule,

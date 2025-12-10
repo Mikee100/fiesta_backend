@@ -20,6 +20,25 @@ export class FaqStrategy implements ResponseStrategy {
     canHandle(intent: string, context: any): boolean {
         const { message } = context;
         
+        // EXCLUDE package/service-related queries - let Package Inquiry Strategy handle them
+        const isPackageQuery = /(package|packages|service|services|charges|charge|price|pricing|cost|how much|offer|photoshoot|shoot|what (packages|services) do you (have|offer)|what do you (have|offer)|what are.*(package|service)|show me.*(package|service)|tell me about.*(package|service)|deposit)/i.test(message);
+        if (isPackageQuery) {
+            return false; // Let Package Inquiry Strategy handle it
+        }
+        
+        // EXCLUDE booking initiation requests - let Booking Strategy handle them
+        // User wants to START a booking, not ask about the booking process
+        const wantsToStartBooking = /(how.*(do|can).*(make|book|start|get|schedule).*(booking|appointment)|(i want|i'd like|i need|can i|please).*(to book|booking|appointment|make.*booking|schedule)|let.*book|start.*booking)/i.test(message);
+        if (wantsToStartBooking) {
+            return false; // Let Booking Strategy handle it - user wants to start booking
+        }
+        
+        // EXCLUDE comprehensive contact details queries - let hardcoded handler provide complete response
+        const isContactDetailsQuery = /(contact details|contact information|all contact|complete contact)/i.test(message);
+        if (isContactDetailsQuery) {
+            return false; // Let hardcoded handler in processConversationLogic handle it
+        }
+        
         // FAQ question patterns - comprehensive list
         const faqPatterns = [
             // Policy/permission questions

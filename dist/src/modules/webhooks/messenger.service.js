@@ -20,13 +20,15 @@ const customers_service_1 = require("../customers/customers.service");
 const messages_service_1 = require("../messages/messages.service");
 const websocket_gateway_1 = require("../../websockets/websocket.gateway");
 const bull_1 = require("@nestjs/bull");
+const prisma_service_1 = require("../../prisma/prisma.service");
 let MessengerService = MessengerService_1 = class MessengerService {
-    constructor(configService, customersService, messagesService, websocketGateway, messageQueue) {
+    constructor(configService, customersService, messagesService, websocketGateway, messageQueue, prisma) {
         this.configService = configService;
         this.customersService = customersService;
         this.messagesService = messagesService;
         this.websocketGateway = websocketGateway;
         this.messageQueue = messageQueue;
+        this.prisma = prisma;
         this.logger = new common_1.Logger(MessengerService_1.name);
         this.fbVerifyToken = this.configService.get('FB_VERIFY_TOKEN');
     }
@@ -85,6 +87,81 @@ let MessengerService = MessengerService_1 = class MessengerService {
             }
         }
     }
+    async getMessages(customerId) {
+        const messages = await this.messagesService.findAll();
+        let filtered = messages.filter(m => m.platform === 'messenger');
+        if (customerId) {
+            filtered = filtered.filter(m => m.customerId === customerId);
+        }
+        return {
+            messages: filtered.map(m => ({
+                id: m.id,
+                from: m.direction === 'inbound'
+                    ? m.customer?.messengerId || ''
+                    : '',
+                to: m.direction === 'outbound'
+                    ? m.customer?.messengerId || ''
+                    : '',
+                content: m.content,
+                timestamp: m.createdAt.toISOString(),
+                direction: m.direction,
+                customerId: m.customerId,
+                customerName: m.customer?.name,
+            })),
+            total: filtered.length,
+        };
+    }
+    async getConversations() {
+        try {
+            const conversations = await this.prisma.customer.findMany({
+                where: {
+                    messengerId: { not: null },
+                    messages: {
+                        some: { platform: 'messenger' },
+                    },
+                },
+                select: {
+                    id: true,
+                    name: true,
+                    messengerId: true,
+                    aiEnabled: true,
+                    lastMessengerMessageAt: true,
+                    messages: {
+                        where: { platform: 'messenger' },
+                        orderBy: { createdAt: 'desc' },
+                        take: 1,
+                        select: {
+                            content: true,
+                            createdAt: true,
+                            direction: true,
+                        },
+                    },
+                },
+                orderBy: { lastMessengerMessageAt: 'desc' },
+            });
+            this.logger.debug(`[getConversations] Found ${conversations.length} messenger customers with messages`);
+            const formattedConversations = conversations.map((conv) => ({
+                id: conv.id,
+                customerId: conv.id,
+                customerName: conv.name || 'Unknown',
+                messengerId: conv.messengerId || '',
+                lastMessage: conv.messages[0]?.content || '',
+                lastMessageAt: conv.messages[0]?.createdAt?.toISOString() || conv.lastMessengerMessageAt?.toISOString() || new Date().toISOString(),
+                aiEnabled: conv.aiEnabled ?? true,
+            }));
+            return {
+                conversations: formattedConversations,
+                total: formattedConversations.length,
+            };
+        }
+        catch (error) {
+            this.logger.error('[getConversations] Error fetching conversations:', error);
+            return {
+                conversations: [],
+                total: 0,
+            };
+        }
+    }
 };
 exports.MessengerService = MessengerService;
 exports.MessengerService = MessengerService = MessengerService_1 = __decorate([
@@ -96,6 +173,6 @@ exports.MessengerService = MessengerService = MessengerService_1 = __decorate([
     __metadata("design:paramtypes", [config_1.ConfigService,
         customers_service_1.CustomersService,
         messages_service_1.MessagesService,
-        websocket_gateway_1.WebsocketGateway, Object])
+        websocket_gateway_1.WebsocketGateway, Object, prisma_service_1.PrismaService])
 ], MessengerService);
 //# sourceMappingURL=messenger.service.js.map

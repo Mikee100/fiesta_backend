@@ -25,9 +25,10 @@ const bookings_service_1 = require("../bookings/bookings.service");
 const notifications_service_1 = require("../notifications/notifications.service");
 const packages_service_1 = require("../packages/packages.service");
 const whatsapp_service_1 = require("../whatsapp/whatsapp.service");
+const messenger_send_service_1 = require("../webhooks/messenger-send.service");
 const rxjs_1 = require("rxjs");
 let PaymentsService = PaymentsService_1 = class PaymentsService {
-    constructor(prisma, httpService, messagesService, notificationsService, whatsappService, aiService, bookingsService, aiQueue, paymentsQueue, packagesService) {
+    constructor(prisma, httpService, messagesService, notificationsService, whatsappService, aiService, bookingsService, aiQueue, paymentsQueue, packagesService, messengerSendService) {
         this.prisma = prisma;
         this.httpService = httpService;
         this.messagesService = messagesService;
@@ -38,6 +39,7 @@ let PaymentsService = PaymentsService_1 = class PaymentsService {
         this.aiQueue = aiQueue;
         this.paymentsQueue = paymentsQueue;
         this.packagesService = packagesService;
+        this.messengerSendService = messengerSendService;
         this.logger = new common_1.Logger(PaymentsService_1.name);
         this.mpesaBaseUrl = 'https://sandbox.safaricom.co.ke';
         this.consumerKey = process.env.MPESA_CONSUMER_KEY;
@@ -285,22 +287,149 @@ let PaymentsService = PaymentsService_1 = class PaymentsService {
             let userMessage = "We couldn't process your payment. Please try again.";
             if (resultCode) {
                 if (resultCode === 11 || resultCode === '11') {
-                    userMessage = "It seems your payment failed because of a pending transaction on your phone. Please check your phone for any open M-Pesa prompts, cancel them if needed, and then try again. 📲";
+                    userMessage = "It seems your payment failed because of a pending transaction on your phone. Please check your phone for any open M-Pesa prompts, cancel them if needed, and then reply 'resend' to try again. 📲";
                 }
                 else if (resultCode === 1032 || resultCode === '1032') {
-                    userMessage = "You cancelled the payment request. If this was a mistake, you can try again anytime! 💖";
+                    userMessage = "You cancelled the payment request. No problem! If you'd like to try again, just reply 'resend' or 'yes' and I'll send a fresh payment prompt. 💖";
                 }
                 else if (resultCode === 1 || resultCode === '1') {
-                    userMessage = "The balance was insufficient for the transaction. Please top up and try again. 💰";
+                    userMessage = "The balance was insufficient for the transaction. Please top up your M-PESA account and reply 'resend' to try again. 💰";
+                }
+                else if (resultCode === 1037 || resultCode === '1037') {
+                    userMessage = "The payment request timed out. This can happen due to network issues. Reply 'resend' and I'll send you a fresh payment prompt. 📲";
                 }
                 else {
-                    userMessage = `Payment failed: ${reason}. Please try again.`;
+                    userMessage = `Payment failed: ${reason}. Reply 'resend' to try again, or contact us at 0720 111928 if the issue persists. 💖`;
                 }
             }
             else {
-                userMessage = `Payment failed: ${reason}. Please try again.`;
+                userMessage = `Payment failed: ${reason}. Reply 'resend' to try again, or contact us at 0720 111928 if the issue persists. 💖`;
             }
-            await this.messagesService.sendOutboundMessage(payment.bookingDraft.customerId, userMessage, 'whatsapp');
+            const customer = await this.prisma.customer.findUnique({
+                where: { id: payment.bookingDraft.customerId },
+                select: { instagramId: true, whatsappId: true, messengerId: true }
+            });
+            if (customer?.whatsappId) {
+                try {
+                    await this.whatsappService.sendMessage(customer.whatsappId, userMessage);
+                    await this.messagesService.sendOutboundMessage(payment.bookingDraft.customerId, userMessage, 'whatsapp');
+                }
+                catch (error) {
+                    this.logger.error(`Failed to send payment failure message via WhatsApp: ${error.message}`);
+                    await this.messagesService.sendOutboundMessage(payment.bookingDraft.customerId, userMessage, 'whatsapp');
+                }
+            }
+            else if (customer?.messengerId) {
+                try {
+                    await this.messengerSendService.sendMessage(customer.messengerId, userMessage);
+                    await this.messagesService.sendOutboundMessage(payment.bookingDraft.customerId, userMessage, 'messenger');
+                }
+                catch (error) {
+                    this.logger.error(`Failed to send payment failure message via Messenger: ${error.message}`);
+                    await this.messagesService.sendOutboundMessage(payment.bookingDraft.customerId, userMessage, 'messenger');
+                }
+            }
+            else if (customer?.instagramId) {
+                await this.messagesService.sendOutboundMessage(payment.bookingDraft.customerId, userMessage, 'instagram');
+            }
+            else {
+                await this.messagesService.sendOutboundMessage(payment.bookingDraft.customerId, userMessage, 'whatsapp');
+            }
+        }
+    }
+    async checkStuckPayments() {
+        const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+        const stuckPayments = await this.prisma.payment.findMany({
+            where: {
+                status: 'pending',
+                createdAt: {
+                    lt: tenMinutesAgo
+                }
+            },
+            include: {
+                bookingDraft: {
+                    include: {
+                        customer: true
+                    }
+                }
+            }
+        });
+        for (const payment of stuckPayments) {
+            this.logger.warn(`Found stuck payment ${payment.id}, created ${Math.floor((Date.now() - payment.createdAt.getTime()) / 1000 / 60)} minutes ago`);
+            if (payment.bookingDraft) {
+                const customer = payment.bookingDraft.customer;
+                const platform = customer?.whatsappId ? 'whatsapp'
+                    : customer?.instagramId ? 'instagram'
+                        : customer?.messengerId ? 'messenger'
+                            : 'whatsapp';
+                const message = `I noticed your payment prompt has been pending for a while. Sometimes M-PESA confirmations can be delayed. If you completed the payment, please share your M-PESA receipt number. Otherwise, reply 'resend' and I'll send you a fresh payment prompt. 📲`;
+                await this.messagesService.sendOutboundMessage(payment.bookingDraft.customerId, message, platform);
+            }
+        }
+    }
+    async queryTransactionStatus(checkoutRequestId) {
+        try {
+            const accessToken = await this.getAccessToken();
+            const timestamp = new Date().toISOString().replace(/[^0-9]/g, '').slice(0, -3);
+            const password = Buffer.from(`${this.shortcode}${this.passkey}${timestamp}`).toString('base64');
+            const queryUrl = `${this.mpesaBaseUrl}/mpesa/stkpushquery/v1/query`;
+            const queryBody = {
+                BusinessShortCode: this.shortcode,
+                Password: password,
+                Timestamp: timestamp,
+                CheckoutRequestID: checkoutRequestId,
+            };
+            const response = await (0, rxjs_1.firstValueFrom)(this.httpService.post(queryUrl, queryBody, {
+                headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json',
+                },
+            }));
+            const data = response.data;
+            if (data.ResponseCode === '0' && data.ResultCode === '0') {
+                let receipt = '';
+                if (data.CallbackMetadata && data.CallbackMetadata.Item) {
+                    const receiptItem = data.CallbackMetadata.Item.find((i) => i.Name === 'MpesaReceiptNumber');
+                    if (receiptItem)
+                        receipt = receiptItem.Value;
+                }
+                return { success: true, receipt };
+            }
+            else {
+                return { success: false, error: data.ResultDesc || 'Transaction query failed' };
+            }
+        }
+        catch (error) {
+            this.logger.error(`Transaction status query failed for ${checkoutRequestId}:`, error);
+            return { success: false, error: error.message || 'Query failed' };
+        }
+    }
+    async verifyReceiptWithMpesaAPI(paymentId, receiptNumber) {
+        try {
+            const payment = await this.prisma.payment.findUnique({
+                where: { id: paymentId },
+                include: { bookingDraft: { include: { customer: true } } },
+            });
+            if (!payment || !payment.checkoutRequestId) {
+                return { valid: false, matches: false, error: 'Payment not found or missing checkout ID' };
+            }
+            const queryResult = await this.queryTransactionStatus(payment.checkoutRequestId);
+            if (!queryResult.success) {
+                this.logger.warn(`[SECURITY] Transaction query failed for payment ${paymentId}: ${queryResult.error}`);
+                return { valid: false, matches: false, error: queryResult.error };
+            }
+            if (queryResult.receipt) {
+                if (queryResult.receipt.toUpperCase() !== receiptNumber.toUpperCase()) {
+                    this.logger.warn(`[SECURITY] Receipt mismatch for payment ${paymentId}. Expected: ${queryResult.receipt}, Provided: ${receiptNumber}`);
+                    return { valid: true, matches: false, error: 'Receipt number does not match M-Pesa records' };
+                }
+                return { valid: true, matches: true };
+            }
+            return { valid: true, matches: true };
+        }
+        catch (error) {
+            this.logger.error(`[SECURITY] Receipt verification failed for payment ${paymentId}:`, error);
+            return { valid: false, matches: false, error: error.message };
         }
     }
     async testStkPush(phone, amount) {
@@ -353,6 +482,7 @@ exports.PaymentsService = PaymentsService = PaymentsService_1 = __decorate([
         notifications_service_1.NotificationsService,
         whatsapp_service_1.WhatsappService,
         ai_service_1.AiService,
-        bookings_service_1.BookingsService, Object, Object, packages_service_1.PackagesService])
+        bookings_service_1.BookingsService, Object, Object, packages_service_1.PackagesService,
+        messenger_send_service_1.MessengerSendService])
 ], PaymentsService);
 //# sourceMappingURL=payments.service.js.map

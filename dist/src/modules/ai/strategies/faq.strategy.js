@@ -7,6 +7,18 @@ class FaqStrategy {
     }
     canHandle(intent, context) {
         const { message } = context;
+        const isPackageQuery = /(package|packages|service|services|charges|charge|price|pricing|cost|how much|offer|photoshoot|shoot|what (packages|services) do you (have|offer)|what do you (have|offer)|what are.*(package|service)|show me.*(package|service)|tell me about.*(package|service)|deposit)/i.test(message);
+        if (isPackageQuery) {
+            return false;
+        }
+        const wantsToStartBooking = /(how.*(do|can).*(make|book|start|get|schedule).*(booking|appointment)|(i want|i'd like|i need|can i|please).*(to book|booking|appointment|make.*booking|schedule)|let.*book|start.*booking)/i.test(message);
+        if (wantsToStartBooking) {
+            return false;
+        }
+        const isContactDetailsQuery = /(contact details|contact information|all contact|complete contact)/i.test(message);
+        if (isContactDetailsQuery) {
+            return false;
+        }
         const faqPatterns = [
             /can i (bring|have|include|add|wear|do)/i,
             /is it (okay|ok|allowed|fine|permitted)/i,

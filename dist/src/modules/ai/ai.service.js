@@ -1238,12 +1238,14 @@ IMPORTANT: If you ever mention the delivery time for edited photos, you MUST say
                     const prunedHistory = this.pruneHistory(history);
                     messages.push(...prunedHistory.map(h => ({ role: h.role, content: h.content })));
                     messages.push({ role: 'user', content: question });
+                    const isContactQuery = /(contact|phone|email|address|location|hours|website)/i.test(question);
+                    const maxTokens = isContactQuery ? 500 : 280;
                     try {
                         const rsp = await this.retryOpenAICall(async (model = this.chatModel) => {
                             return await this.openai.chat.completions.create({
                                 model,
                                 messages,
-                                max_tokens: 280,
+                                max_tokens: maxTokens,
                                 temperature: 0.6,
                             });
                         }, 'answerFaq', true);
@@ -1301,10 +1303,24 @@ IMPORTANT: If you ever mention the delivery time for edited photos, you MUST say
             }
         }
     }
-    async extractBookingDetails(message, history = []) {
+    async extractBookingDetails(message, history = [], existingDraft) {
         const currentDate = luxon_1.DateTime.now().setZone(this.studioTz).toFormat('yyyy-MM-dd');
         const currentDayOfMonth = luxon_1.DateTime.now().setZone(this.studioTz).day;
         const currentMonth = luxon_1.DateTime.now().setZone(this.studioTz).toFormat('MMMM');
+        const draftContext = existingDraft ? `
+CURRENT BOOKING DRAFT STATE (DO NOT OVERWRITE UNLESS USER EXPLICITLY CHANGES IT):
+  - Service: ${existingDraft.service || 'not set'}
+  - Date: ${existingDraft.date || 'not set'}
+  - Time: ${existingDraft.time || 'not set'}
+  - Name: ${existingDraft.name || 'not set'}
+  - Phone: ${existingDraft.recipientPhone || 'not set'}
+  - Step: ${existingDraft.step || 'service'}
+  
+CRITICAL: If the user's message only mentions ONE thing (e.g., just a date), only extract THAT ONE thing.
+Do NOT extract other fields that aren't mentioned in the current message. This prevents overwriting valid existing data.
+` : `
+NO EXISTING BOOKING DRAFT - Starting fresh booking.
+`;
         const systemPrompt = `You are a precise JSON extractor for maternity photoshoot bookings.
 Return ONLY valid JSON (no commentary, no explanation). Schema:
 
@@ -1314,19 +1330,25 @@ Return ONLY valid JSON (no commentary, no explanation). Schema:
   "time": string | null,
   "name": string | null,
   "recipientPhone": string | null,
-  "subIntent": "start" | "provide" | "confirm" | "cancel" | "reschedule" | "unknown"
+  "subIntent": "start" | "provide" | "confirm" | "deposit_confirmed" | "cancel" | "reschedule" | "unknown"
 }
 
 CONTEXT:
 Current Date: ${currentDate} (Today is day ${currentDayOfMonth} of ${currentMonth})
 Timezone: Africa/Nairobi (EAT)
+${draftContext}
 
-EXTRACTION RULES:
+EXTRACTION RULES (CRITICAL - FOLLOW STRICTLY):
 1. Extract ONLY what is explicitly present in the CURRENT message
 2. If user mentions a change/correction to a previous value, extract the NEW value
 3. Use null for anything not mentioned or unclear
 4. Do NOT include extra fields or prose
 5. Do NOT invent values
+6. PRESERVE EXISTING DATA: If user only mentions one field (e.g., just a date), only extract that field
+7. CORRECTION DETECTION: Words like "change", "actually", "instead", "correction" indicate user wants to update a specific field
+8. CONTEXT AWARENESS: If existing draft has data and user only provides one new piece, don't extract fields they didn't mention
+9. ALTERNATIVE QUERIES: If message asks for "another slot", "another time", "what's another", etc., return all nulls (these are queries, not data extraction)
+10. DATE/TIME IN MESSAGE: When user provides explicit date/time (e.g., "18th at 7pm", "Dec 18 at 7pm"), extract it even if draft has different values
 
 DATE RESOLUTION (Critical - Get This Right):
 - "tomorrow" → ${luxon_1.DateTime.now().setZone(this.studioTz).plus({ days: 1 }).toFormat('yyyy-MM-dd')}
@@ -1352,7 +1374,8 @@ PHONE EXTRACTION:
 SUB-INTENT DETECTION:
 - start: User initiating a new booking ("I want to book", "Can I schedule")
 - provide: User providing/updating information ("My name is...", "Change time to...")
-- confirm: Short confirmations ("yes", "confirm", "that's right", "sounds good")
+- confirm: Short confirmations ("yes", "confirm", "that's right", "sounds good") - BUT if draft.step is 'confirm' and message is "confirm", use 'deposit_confirmed'
+- deposit_confirmed: User confirming deposit payment ("confirm", "yes" when asked to confirm deposit)
 - cancel: Cancellation request ("cancel", "forget it", "never mind")
 - reschedule: Requesting to change existing booking ("reschedule", "move my booking")
 - unknown: Can't determine intent
@@ -1406,13 +1429,18 @@ User: "yes please"
                 this.logger.warn('extractBookingDetails JSON parse failed, raw model output:', content, parseErr);
                 return { subIntent: 'unknown' };
             }
+            let detectedSubIntent = parsed.subIntent;
+            if (existingDraft && existingDraft.step === 'confirm' &&
+                /^(confirm|yes|ok|okay|sure|proceed|go ahead)$/i.test(message.trim())) {
+                detectedSubIntent = 'deposit_confirmed';
+            }
             const extraction = {
                 service: typeof parsed.service === 'string' ? parsed.service : undefined,
                 date: typeof parsed.date === 'string' ? parsed.date : undefined,
                 time: typeof parsed.time === 'string' ? parsed.time : undefined,
                 name: typeof parsed.name === 'string' ? parsed.name : undefined,
                 recipientPhone: typeof parsed.recipientPhone === 'string' ? parsed.recipientPhone : undefined,
-                subIntent: ['start', 'provide', 'confirm', 'cancel', 'reschedule', 'unknown'].includes(parsed.subIntent) ? parsed.subIntent : 'unknown',
+                subIntent: ['start', 'provide', 'confirm', 'deposit_confirmed', 'cancel', 'reschedule', 'unknown'].includes(detectedSubIntent) ? detectedSubIntent : 'unknown',
             };
             if (extraction.date || extraction.time || extraction.service) {
                 this.logger.debug(`[EXTRACTION] From "${message}" → ${JSON.stringify(extraction)}`);
@@ -1438,9 +1466,14 @@ User: "yes please"
             missing.push('recipientPhone');
         if (!draft.recipientName && draft.name) {
             draft.recipientName = draft.name;
+            await this.mergeIntoDraft(draft.customerId, { recipientName: draft.name }, draft);
         }
-        const nextStep = missing.length === 0 ? 'confirm' : missing[0];
-        const isUpdate = extraction.service || extraction.date || extraction.time || extraction.name || extraction.recipientName || extraction.recipientPhone;
+        const nextStep = this.determineBookingStep(draft);
+        const isUpdate = !!(extraction.service || extraction.date || extraction.time || extraction.name || extraction.recipientName || extraction.recipientPhone);
+        const isCorrection = /(change|actually|instead|correction|wrong|update|modify)/i.test(message) && isUpdate;
+        const updateAcknowledgment = isUpdate && !isCorrection ?
+            `Got it! I've ${extraction.service ? `updated the package to ${extraction.service}` : ''}${extraction.date ? `noted ${extraction.date}` : ''}${extraction.time ? `set the time to ${extraction.time}` : ''}${extraction.name ? `saved your name as ${extraction.name}` : ''}${extraction.recipientPhone ? `saved your phone number` : ''}. ` :
+            (isCorrection ? "No problem! I've updated that for you. " : "");
         const recentAssistantMsgs = history.filter(h => h.role === 'assistant').slice(-3);
         const isStuckOnField = recentAssistantMsgs.length >= 2 && missing.length > 0 &&
             recentAssistantMsgs.every(msg => {
@@ -1505,8 +1538,12 @@ CURRENT BOOKING STATE:
   Name: ${draft.name ?? 'not provided yet'}
   Phone: ${draft.recipientPhone ?? 'not provided yet'}
   
+  Current Step: ${draft.step || 'service'}
   Next info needed: ${nextStep}
-  User just updated something: ${isUpdate}
+  User just updated: ${isUpdate ? 'Yes - ' + Object.keys(extraction).filter(k => extraction[k]).join(', ') : 'No'}
+  User is correcting: ${isCorrection ? 'Yes' : 'No'}
+  
+${updateAcknowledgment ? `IMPORTANT: Acknowledge what user just provided: "${updateAcknowledgment}"` : ''}
 
 USER'S LATEST MESSAGE: "${message}"
 WHAT WE EXTRACTED: ${JSON.stringify(extraction)}
@@ -1587,23 +1624,44 @@ DO NOT repeat your previous question. Instead:
         }
         return draft;
     }
-    async mergeIntoDraft(customerId, extraction) {
-        const existingDraft = await this.prisma.bookingDraft.findUnique({ where: { customerId } });
+    async mergeIntoDraft(customerId, extraction, existingDraft) {
+        if (!existingDraft) {
+            existingDraft = await this.prisma.bookingDraft.findUnique({ where: { customerId } });
+        }
         const updates = {};
-        if (extraction.service)
+        if (extraction.service !== undefined && extraction.service !== null) {
             updates.service = extraction.service;
-        if (extraction.date)
+        }
+        if (extraction.date !== undefined && extraction.date !== null) {
             updates.date = extraction.date;
-        if (extraction.time)
+        }
+        if (extraction.time !== undefined && extraction.time !== null) {
             updates.time = extraction.time;
-        if (extraction.name)
+        }
+        if (extraction.name !== undefined && extraction.name !== null) {
             updates.name = extraction.name;
-        if (extraction.recipientPhone) {
+        }
+        if (extraction.recipientPhone !== undefined && extraction.recipientPhone !== null) {
             if (this.validatePhoneNumber(extraction.recipientPhone)) {
                 updates.recipientPhone = extraction.recipientPhone;
             }
             else {
                 this.logger.warn(`Invalid phone number provided: ${extraction.recipientPhone}`);
+            }
+        }
+        if (Object.keys(updates).length > 0) {
+            if (existingDraft && (existingDraft.step === 'reschedule' || existingDraft.step === 'reschedule_confirm')) {
+                if (existingDraft.bookingId) {
+                }
+            }
+            else {
+                const nextStep = this.determineBookingStep({
+                    ...existingDraft,
+                    ...updates
+                });
+                if (nextStep) {
+                    updates.step = nextStep;
+                }
             }
         }
         if (Object.keys(updates).length === 0) {
@@ -1620,13 +1678,22 @@ DO NOT repeat your previous question. Instead:
                 this.logger.warn('Could not normalize date/time in mergeIntoDraft', { date: updates.date, time: updates.time });
             }
         }
+        const updateData = {
+            ...updates,
+            version: { increment: 1 },
+            updatedAt: new Date(),
+        };
+        if (existingDraft && (existingDraft.step === 'reschedule' || existingDraft.step === 'reschedule_confirm')) {
+            if (existingDraft.bookingId && !updates.bookingId) {
+                updateData.bookingId = existingDraft.bookingId;
+            }
+            if (!updates.step) {
+                updateData.step = existingDraft.step;
+            }
+        }
         const updated = await this.prisma.bookingDraft.upsert({
             where: { customerId },
-            update: {
-                ...updates,
-                version: { increment: 1 },
-                updatedAt: new Date(),
-            },
+            update: updateData,
             create: {
                 customerId,
                 step: 'service',
@@ -1635,6 +1702,22 @@ DO NOT repeat your previous question. Instead:
             },
         });
         return updated;
+    }
+    determineBookingStep(draft) {
+        if (draft.service && draft.date && draft.time && draft.name && draft.recipientPhone) {
+            return 'confirm';
+        }
+        if (!draft.service)
+            return 'service';
+        if (!draft.date)
+            return 'date';
+        if (!draft.time)
+            return 'time';
+        if (!draft.name)
+            return 'name';
+        if (!draft.recipientPhone)
+            return 'phone';
+        return 'confirm';
     }
     async checkAndCompleteIfConfirmed(draft, extraction, customerId, bookingsService) {
         const missing = [];
@@ -1696,7 +1779,17 @@ DO NOT repeat your previous question. Instead:
             }
             const pkg = await bookingsService.packagesService.findPackageByName(draft.service);
             const depositAmount = pkg?.deposit || 2000;
+            const latestPayment = await bookingsService.getLatestPaymentForDraft(customerId);
             if (extraction.subIntent === 'deposit_confirmed' || (typeof extraction.content === 'string' && extraction.content.trim().toLowerCase() === 'confirm')) {
+                if (latestPayment && latestPayment.status === 'failed') {
+                    this.logger.debug(`[SECURITY] Payment failed, treating deposit_confirmed as resend request`);
+                    return {
+                        action: 'ready_for_deposit',
+                        amount: depositAmount,
+                        packageName: pkg?.name || draft.service,
+                        requiresResend: true,
+                    };
+                }
                 try {
                     const result = await this.retryOperation(() => bookingsService.completeBookingDraft(customerId, dateObj), 'completeBookingDraft', 2, 1000);
                     return {
@@ -1900,6 +1993,7 @@ DO NOT repeat your previous question. Instead:
     async attemptRecovery(error, context) {
         if (context.retryCount > 1) {
             this.logger.error('Max retries exceeded in attemptRecovery', error);
+            this.logger.error('Error details:', error instanceof Error ? error.stack : error);
             return {
                 response: "I'm having a little trouble processing that right now. Could you try saying it differently? 🥺",
                 draft: null,
@@ -1911,9 +2005,24 @@ DO NOT repeat your previous question. Instead:
             const shorterHistory = context.history.slice(-2);
             return this.handleConversation(context.message, context.customerId, shorterHistory, context.bookingsService, context.retryCount + 1);
         }
-        throw error;
+        this.logger.error('Error in attemptRecovery, returning fallback', error);
+        this.logger.error('Error details:', error instanceof Error ? error.stack : error);
+        return {
+            response: "I'm having a little trouble processing that right now. Could you try rephrasing your request? If the issue persists, feel free to contact our team directly! 💖",
+            draft: null,
+            updatedHistory: context.history
+        };
     }
     async processConversationLogic(message, customerId, history = [], bookingsService, enrichedContext, intentAnalysis) {
+        const earlyDraft = await this.getOrCreateDraft(customerId);
+        const existingBooking = bookingsService ? await bookingsService.getLatestConfirmedBooking(customerId) : null;
+        const isFaqAboutBookingProcess = /(how.*(does|is|are|work|long|much)|what.*(is|are|the|process|include|cost|amount)|booking.*(process|work|cost|include|policy|hours|refund|cancel)|deposit.*(amount|cost|is)|refund|cancel.*policy|when.*(are|is).*open)/i.test(message);
+        const wantsToStartBooking = /(how.*(do|can).*(make|book|start|get|schedule).*(booking|appointment)|(i want|i'd like|i need|can i|please).*(to book|booking|appointment|make.*booking|schedule)|let.*book|start.*booking)/i.test(message);
+        const hasEarlyDraft = !!(earlyDraft && (earlyDraft.service || earlyDraft.date));
+        const isFaqAboutBooking = isFaqAboutBookingProcess && !wantsToStartBooking && !hasEarlyDraft;
+        if (isFaqAboutBooking && !earlyDraft.service && !earlyDraft.date) {
+            this.logger.debug('[CONTEXT] Detected FAQ about booking, letting FAQ strategy handle');
+        }
         const recentAssistantMsgsForConnection = history
             .filter((msg, idx) => msg.role === 'assistant')
             .slice(-3)
@@ -2013,7 +2122,7 @@ DO NOT repeat your previous question. Instead:
             const escalationMsg = "I sense you might be frustrated, and I'm so sorry! 😔 Let me connect you with a team member who can help you better. Someone will be with you shortly. 💖";
             return { response: escalationMsg, draft: null, updatedHistory: [...history, { role: 'user', content: message }, { role: 'assistant', content: escalationMsg }] };
         }
-        let draft = await this.prisma.bookingDraft.findUnique({ where: { customerId } });
+        let draft = earlyDraft || await this.prisma.bookingDraft.findUnique({ where: { customerId } });
         let hasDraft = !!draft;
         const lower = (message || '').toLowerCase();
         const greetingKeywords = ['hi', 'hello', 'hey', 'greetings', 'hallo', 'habari', 'good morning', 'good afternoon', 'good evening'];
@@ -2036,11 +2145,16 @@ DO NOT repeat your previous question. Instead:
             'when can i come', 'when can i book', 'when is open', 'when are you open', 'when is free',
         ];
         const slotIntent = slotKeywords.some(kw => lower.includes(kw));
+        const anotherSlotPattern = /(another|other|what.*another|what.*other|so what|give me|show me).*(slot|time|hour|free|available)/i;
         const slotIntentRegex = /(available|free|open)\s+(hours|times|slots)(\s+(on|for|tomorrow|today|\d{4}-\d{2}-\d{2}))?/i;
-        const slotIntentDetected = slotIntent || slotIntentRegex.test(message);
+        const slotIntentDetected = slotIntent || slotIntentRegex.test(message) || anotherSlotPattern.test(message);
         if (slotIntentDetected) {
+            const isAnotherSlotQuery = anotherSlotPattern.test(message);
             let dateStr;
-            if (/tomorrow/.test(lower)) {
+            if (isAnotherSlotQuery && draft?.date) {
+                dateStr = draft.date;
+            }
+            else if (/tomorrow/.test(lower)) {
                 dateStr = luxon_1.DateTime.now().setZone(this.studioTz).plus({ days: 1 }).toFormat('yyyy-MM-dd');
             }
             else {
@@ -2048,7 +2162,10 @@ DO NOT repeat your previous question. Instead:
                 if (dateMatch)
                     dateStr = dateMatch[1];
             }
-            let service = draft?.service;
+            let service = isAnotherSlotQuery ? draft?.service : undefined;
+            if (!service) {
+                service = draft?.service;
+            }
             if (!service) {
                 if (this.bookingsService) {
                     const allPackages = await this.getCachedPackages();
@@ -2382,6 +2499,7 @@ DO NOT repeat your previous question. Instead:
             }
         }
         const isRescheduleIntent = /\b(reschedul\w*)\b/i.test(message) ||
+            /(i want to|i'd like to|i need to|can i|can we).*reschedule/i.test(message) ||
             /(change|move|modify).*(booking|appointment|date|time)/i.test(message);
         const recentRescheduleMsgs = history
             .filter((msg) => msg.role === 'assistant')
@@ -2391,8 +2509,22 @@ DO NOT repeat your previous question. Instead:
         const isRespondingToBookingSelection = /Which one would you like to reschedule/i.test(recentRescheduleMsgs) ||
             /upcoming bookings/i.test(recentRescheduleMsgs);
         if (isRescheduleIntent || (draft && draft.step === 'reschedule') || isRespondingToBookingSelection) {
-            this.logger.log(`[RESCHEDULE] Detected intent or active flow for customer ${customerId}`);
-            if (!draft || draft.step !== 'reschedule') {
+            this.logger.log(`[RESCHEDULE] Detected intent or active flow for customer ${customerId}, draft step: ${draft?.step}, bookingId: ${draft?.bookingId}`);
+            let currentDraft = await this.prisma.bookingDraft.findUnique({ where: { customerId } });
+            if (!currentDraft && draft) {
+                currentDraft = draft;
+            }
+            if (isRescheduleIntent && currentDraft && currentDraft.step !== 'reschedule' && currentDraft.step !== 'reschedule_confirm' && !currentDraft.bookingId) {
+                this.logger.log(`[RESCHEDULE] User wants to reschedule, clearing existing booking draft`);
+                await this.prisma.bookingDraft.delete({ where: { customerId } }).catch(() => {
+                });
+                currentDraft = null;
+                draft = null;
+            }
+            const isAlreadyInReschedule = currentDraft && (currentDraft.step === 'reschedule' || currentDraft.step === 'reschedule_confirm' || currentDraft.bookingId);
+            this.logger.log(`[RESCHEDULE] isAlreadyInReschedule: ${isAlreadyInReschedule}, currentDraft step: ${currentDraft?.step}, bookingId: ${currentDraft?.bookingId}`);
+            if (!isAlreadyInReschedule) {
+                this.logger.log(`[RESCHEDULE] Setting up new reschedule request for customer ${customerId}`);
                 const allBookings = await this.prisma.booking.findMany({
                     where: {
                         customerId,
@@ -2694,8 +2826,13 @@ DO NOT repeat your previous question. Instead:
                 }
             }
         }
-        if (draft && draft.step === 'reschedule') {
-            this.logger.log(`[RESCHEDULE] Continuing reschedule flow for customer ${customerId}`);
+        let rescheduleDraft = await this.prisma.bookingDraft.findUnique({ where: { customerId } });
+        if (!rescheduleDraft && draft) {
+            rescheduleDraft = draft;
+        }
+        if (rescheduleDraft && (rescheduleDraft.step === 'reschedule' || rescheduleDraft.step === 'reschedule_confirm')) {
+            this.logger.log(`[RESCHEDULE] Continuing reschedule flow for customer ${customerId}, draft step: ${rescheduleDraft.step}, bookingId: ${rescheduleDraft.bookingId}`);
+            draft = rescheduleDraft;
             const faqPatterns = [
                 /what (is|are|was|were)/i,
                 /(tell|show|explain|describe).*(me|about)/i,

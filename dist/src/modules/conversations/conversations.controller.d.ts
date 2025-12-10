@@ -39,8 +39,8 @@ export declare class ConversationsController {
     getMessages(id: string, platform?: string): Promise<{
         id: string;
         createdAt: Date;
-        platform: string;
         content: string;
+        platform: string;
         direction: string;
     }[]>;
     sendReply(id: string, body: {
@@ -50,10 +50,9 @@ export declare class ConversationsController {
         id: string;
         customerId: string;
         createdAt: Date;
-        platform: string;
         content: string;
+        platform: string;
         direction: string;
-        customerId: string;
         externalId: string | null;
         handledBy: string | null;
         isResolved: boolean | null;

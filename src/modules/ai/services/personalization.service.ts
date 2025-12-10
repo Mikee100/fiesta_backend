@@ -22,7 +22,29 @@ export class PersonalizationService {
      */
     adaptResponse(baseResponse: string, style: 'brief' | 'detailed' | 'friendly'): string {
         if (style === 'brief') {
-            // Remove emojis, keep it concise
+            // For package listings, preserve the full list even in brief mode
+            // Check if this is a package listing response (contains package markers)
+            const hasPackageList = /📦|package|KES|Standard|Economy|Executive|Gold|Platinum|VIP/i.test(baseResponse);
+            
+            // For contact details, preserve the full information
+            const hasContactDetails = /contact details|📍|📞|📧|🌐|🕐|phone|email|location|address|hours/i.test(baseResponse);
+            
+            // For slot suggestions/time listings, preserve the full list
+            const hasSlotSuggestions = /(here are|available times?|other times?|suggestions?|slots? for|do any of these|which.*work|which.*prefer)/i.test(baseResponse) &&
+                                      /(\d{1,2}:\d{2}|\d{1,2}[ap]m|morning|afternoon|evening|AM|PM)/i.test(baseResponse);
+            
+            // For booking-related responses with suggestions, preserve them
+            const hasBookingSuggestions = /(slot.*taken|not available|unavailable).*(here are|available|other|suggestions)/i.test(baseResponse);
+            
+            if (hasPackageList || hasContactDetails || hasSlotSuggestions || hasBookingSuggestions) {
+                // Don't truncate package listings, contact details, or slot suggestions - they need to be complete
+                // Just remove excessive emojis but keep the content
+                return baseResponse
+                    .replace(/💕|💖|🌸|✨|🎈|💐|🌟|😊|💁‍♀️|👑/g, '')
+                    .replace(/(💡|📅|📦|📍|📞|📧|🌐|🕐|😔)/g, '$1'); // Keep essential emojis
+            }
+            
+            // For other brief responses, remove emojis and keep concise
             return baseResponse
                 .replace(/[\u{1F300}-\u{1F9FF}]/gu, '')
                 .replace(/💕|💖|🌸|✨|🎈|💐|🌟|😊|💁‍♀️|👑/g, '')

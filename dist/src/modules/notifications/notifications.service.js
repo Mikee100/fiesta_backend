@@ -55,7 +55,12 @@ let NotificationsService = NotificationsService_1 = class NotificationsService {
             where.read = options.read;
         }
         if (options?.type) {
-            where.type = options.type;
+            if (options.type === 'reschedule_request') {
+                where.type = { in: ['reschedule', 'reschedule_request'] };
+            }
+            else {
+                where.type = options.type;
+            }
         }
         const [notifications, total] = await Promise.all([
             this.prisma.notification.findMany({

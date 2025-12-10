@@ -59,6 +59,9 @@ let BookingsController = class BookingsController {
     getStudioInfo() {
         return this.bookingsService.getStudioInfo();
     }
+    getBookingById(id) {
+        return this.bookingsService.getBookingById(id);
+    }
     findByCustomer(customerId) {
         return this.bookingsService.getBookings(customerId);
     }
@@ -67,6 +70,13 @@ let BookingsController = class BookingsController {
     }
     cancel(id) {
         return this.bookingsService.cancelBooking(id);
+    }
+    update(id, updates) {
+        const dateTime = updates.dateTime ? new Date(updates.dateTime) : undefined;
+        return this.bookingsService.updateBooking(id, {
+            service: updates.service,
+            dateTime,
+        });
     }
     completeDraft(customerId) {
         return this.bookingsService.completeBookingDraft(customerId);
@@ -147,6 +157,13 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], BookingsController.prototype, "getStudioInfo", null);
 __decorate([
+    (0, common_1.Get)('by-id/:id'),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], BookingsController.prototype, "getBookingById", null);
+__decorate([
     (0, common_1.Get)(':customerId'),
     __param(0, (0, common_1.Param)('customerId')),
     __metadata("design:type", Function),
@@ -167,6 +184,14 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], BookingsController.prototype, "cancel", null);
+__decorate([
+    (0, common_1.Put)(':id'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], BookingsController.prototype, "update", null);
 __decorate([
     (0, common_1.Post)('complete-draft/:customerId'),
     __param(0, (0, common_1.Param)('customerId')),

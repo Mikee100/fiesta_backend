@@ -89,9 +89,30 @@ let CustomersService = class CustomersService {
         });
     }
     async getAll() {
-        return this.prisma.customer.findMany({
-            include: { messages: true, bookings: true },
+        const customers = await this.prisma.customer.findMany({
+            include: {
+                messages: {
+                    orderBy: { createdAt: 'desc' },
+                    take: 1,
+                },
+                bookings: {
+                    orderBy: { createdAt: 'desc' },
+                    take: 5,
+                },
+            },
         });
+        const sortedCustomers = customers.sort((a, b) => {
+            const aLatestMessage = a.messages[0]?.createdAt || a.updatedAt;
+            const bLatestMessage = b.messages[0]?.createdAt || b.updatedAt;
+            return new Date(bLatestMessage).getTime() - new Date(aLatestMessage).getTime();
+        });
+        return sortedCustomers.map(customer => ({
+            ...customer,
+            platform: customer.whatsappId ? 'whatsapp'
+                : customer.instagramId ? 'instagram'
+                    : customer.messengerId ? 'messenger'
+                        : 'other',
+        }));
     }
     async findAll() {
         return this.getAll();

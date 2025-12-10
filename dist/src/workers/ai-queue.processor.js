@@ -19,15 +19,17 @@ const whatsapp_service_1 = require("../modules/whatsapp/whatsapp.service");
 const instagram_service_1 = require("../modules/instagram/instagram.service");
 const messages_service_1 = require("../modules/messages/messages.service");
 const customers_service_1 = require("../modules/customers/customers.service");
+const bookings_service_1 = require("../modules/bookings/bookings.service");
 const websocket_gateway_1 = require("../websockets/websocket.gateway");
 let AiQueueProcessor = AiQueueProcessor_1 = class AiQueueProcessor {
-    constructor(aiService, messengerSendService, whatsappService, instagramService, messagesService, customersService, websocketGateway) {
+    constructor(aiService, messengerSendService, whatsappService, instagramService, messagesService, customersService, bookingsService, websocketGateway) {
         this.aiService = aiService;
         this.messengerSendService = messengerSendService;
         this.whatsappService = whatsappService;
         this.instagramService = instagramService;
         this.messagesService = messagesService;
         this.customersService = customersService;
+        this.bookingsService = bookingsService;
         this.websocketGateway = websocketGateway;
         this.logger = new common_1.Logger(AiQueueProcessor_1.name);
     }
@@ -37,7 +39,7 @@ let AiQueueProcessor = AiQueueProcessor_1 = class AiQueueProcessor {
         let aiResponse = "Sorry, I couldn't process your request.";
         try {
             const history = await this.messagesService.getConversationHistory(customerId, 10);
-            const aiPromise = this.aiService.handleConversation(message, customerId, history);
+            const aiPromise = this.aiService.handleConversation(message, customerId, history, this.bookingsService);
             const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('AI processing timeout')), 30000));
             const aiResult = await Promise.race([aiPromise, timeoutPromise]);
             this.logger.debug(`AI result: ${JSON.stringify(aiResult)}`);
@@ -45,19 +47,28 @@ let AiQueueProcessor = AiQueueProcessor_1 = class AiQueueProcessor {
                 if (typeof aiResult.response === 'string') {
                     aiResponse = aiResult.response;
                 }
-                else if (typeof aiResult.response === 'object' && aiResult.response.text) {
-                    aiResponse = aiResult.response.text;
+                else if (typeof aiResult.response === 'object' && aiResult.response !== null) {
+                    if ('text' in aiResult.response) {
+                        aiResponse = aiResult.response.text;
+                    }
+                    else {
+                        this.logger.warn(`AI result has unexpected object format: ${JSON.stringify(aiResult.response)}`);
+                        aiResponse = "Sorry, I couldn't process your request.";
+                    }
                 }
                 else {
+                    this.logger.warn(`AI result response is in unexpected format: ${typeof aiResult.response}`);
                     aiResponse = "Sorry, I couldn't process your request.";
                 }
             }
             else {
-                this.logger.warn('AI result has no response, using fallback');
+                this.logger.warn(`AI result has no response. Full result: ${JSON.stringify(aiResult)}`);
+                aiResponse = "Sorry, I couldn't process your request.";
             }
         }
         catch (error) {
             this.logger.error('AI processing failed, using fallback response', error);
+            this.logger.error('Error details:', error instanceof Error ? error.stack : error);
         }
         await this.sendResponseByPlatform(customerId, aiResponse, platform);
         this.logger.log(`AI response sent to ${platform}.`);
@@ -125,7 +136,7 @@ let AiQueueProcessor = AiQueueProcessor_1 = class AiQueueProcessor {
 };
 exports.AiQueueProcessor = AiQueueProcessor;
 __decorate([
-    (0, bull_1.Process)(),
+    (0, bull_1.Process)('handleAiJob'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", Promise)
@@ -139,6 +150,7 @@ exports.AiQueueProcessor = AiQueueProcessor = AiQueueProcessor_1 = __decorate([
         instagram_service_1.InstagramService,
         messages_service_1.MessagesService,
         customers_service_1.CustomersService,
+        bookings_service_1.BookingsService,
         websocket_gateway_1.WebsocketGateway])
 ], AiQueueProcessor);
 //# sourceMappingURL=ai-queue.processor.js.map

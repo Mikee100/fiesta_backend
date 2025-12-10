@@ -18,11 +18,11 @@ export declare class MessagesController {
     findAll(): Promise<({
         customer: {
             id: string;
-            name: string;
             createdAt: Date;
             updatedAt: Date;
-            phone: string | null;
+            name: string;
             email: string | null;
+            phone: string | null;
             whatsappId: string | null;
             instagramId: string | null;
             messengerId: string | null;
@@ -49,11 +49,11 @@ export declare class MessagesController {
     findByCustomer(customerId: string): Promise<({
         customer: {
             id: string;
-            name: string;
             createdAt: Date;
             updatedAt: Date;
-            phone: string | null;
+            name: string;
             email: string | null;
+            phone: string | null;
             whatsappId: string | null;
             instagramId: string | null;
             messengerId: string | null;

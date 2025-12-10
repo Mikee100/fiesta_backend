@@ -145,7 +145,226 @@ let BookingsService = BookingsService_1 = class BookingsService {
         return `Your booking draft is incomplete. Please ensure you've selected a service, date/time, and provided your name.`;
     }
     async getBookingDraft(customerId) {
-        return this.prisma.bookingDraft.findUnique({ where: { customerId } });
+        return this.prisma.bookingDraft.findUnique({
+            where: { customerId }
+        });
+    }
+    async getLatestPaymentForDraft(customerId) {
+        const draft = await this.getBookingDraft(customerId);
+        if (draft) {
+            return this.prisma.payment.findFirst({
+                where: { bookingDraftId: draft.id },
+                orderBy: { createdAt: 'desc' },
+                include: { bookingDraft: true },
+            });
+        }
+        return this.prisma.payment.findFirst({
+            where: {
+                bookingDraft: {
+                    customerId: customerId,
+                },
+            },
+            orderBy: { createdAt: 'desc' },
+            include: { bookingDraft: true },
+        });
+    }
+    async checkReceiptVerificationRateLimit(customerId) {
+        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+        const recentPayments = await this.prisma.payment.findMany({
+            where: {
+                bookingDraft: { customerId },
+                createdAt: { gte: fiveMinutesAgo },
+            },
+            orderBy: { createdAt: 'desc' },
+        });
+        const maxAttempts = 5;
+        if (recentPayments.length >= maxAttempts) {
+            const oldestAttempt = recentPayments[recentPayments.length - 1];
+            const resetTime = new Date(oldestAttempt.createdAt.getTime() + 5 * 60 * 1000);
+            return { allowed: false, attempts: recentPayments.length, resetTime };
+        }
+        return { allowed: true, attempts: recentPayments.length };
+    }
+    async hasRecentPaymentPrompt(customerId) {
+        const payment = await this.getLatestPaymentForDraft(customerId);
+        if (!payment)
+            return false;
+        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+        return payment.createdAt > fiveMinutesAgo && payment.status === 'pending';
+    }
+    async verifyPaymentByReceipt(customerId, receiptNumber) {
+        const draft = await this.getBookingDraft(customerId);
+        if (!draft) {
+            return { success: false, message: "I don't see a pending booking. Would you like to start a new booking?" };
+        }
+        const rateLimit = await this.checkReceiptVerificationRateLimit(customerId);
+        if (!rateLimit.allowed) {
+            this.logger.warn(`[SECURITY] Rate limit exceeded for customer ${customerId}. Attempts: ${rateLimit.attempts}`);
+            const resetMinutes = Math.ceil((rateLimit.resetTime.getTime() - Date.now()) / 1000 / 60);
+            return {
+                success: false,
+                message: `Too many verification attempts. Please wait ${resetMinutes} minute${resetMinutes > 1 ? 's' : ''} before trying again. If you're having issues, contact us at 0720 111928. 💖`,
+            };
+        }
+        const normalizedReceipt = receiptNumber.trim().toUpperCase();
+        if (!/^[A-Z0-9]{10}$/.test(normalizedReceipt)) {
+            this.logger.warn(`[SECURITY] Invalid receipt format provided by customer ${customerId}: ${receiptNumber}`);
+            return {
+                success: false,
+                message: `The receipt number "${receiptNumber}" doesn't look like a valid M-PESA receipt. M-PESA receipts are 10 characters (letters and numbers). Could you please double-check and share it again? 📲`,
+            };
+        }
+        const existingReceiptPayment = await this.prisma.payment.findFirst({
+            where: {
+                mpesaReceipt: normalizedReceipt,
+                status: 'success',
+                NOT: { bookingDraftId: draft.id },
+            },
+        });
+        if (existingReceiptPayment) {
+            this.logger.warn(`[SECURITY] Receipt ${normalizedReceipt} already used for another payment ${existingReceiptPayment.id} by customer ${customerId}`);
+            return {
+                success: false,
+                message: `This receipt number has already been used for another booking. Each payment receipt can only be used once. Please use the receipt from your current payment, or I can send you a fresh payment prompt. Just say "resend". 📲`,
+            };
+        }
+        const existingPayment = await this.prisma.payment.findFirst({
+            where: {
+                bookingDraftId: draft.id,
+                mpesaReceipt: normalizedReceipt,
+                status: 'success',
+            },
+        });
+        if (existingPayment) {
+            return {
+                success: true,
+                message: `✅ Payment verified! Receipt ${normalizedReceipt} confirmed. Your booking is already confirmed! 💖`,
+                payment: existingPayment,
+            };
+        }
+        const pendingPayment = await this.prisma.payment.findFirst({
+            where: {
+                bookingDraftId: draft.id,
+                status: 'pending',
+            },
+            orderBy: { createdAt: 'desc' },
+        });
+        if (!pendingPayment) {
+            return {
+                success: false,
+                message: `I don't see any pending payment for this booking. Please wait for the payment prompt, or I can send you a fresh one. Just say "resend". 📲`,
+            };
+        }
+        const paymentAge = Date.now() - new Date(pendingPayment.createdAt).getTime();
+        const maxAge = 24 * 60 * 60 * 1000;
+        if (paymentAge > maxAge) {
+            this.logger.warn(`[SECURITY] Attempt to verify receipt for old payment (${Math.floor(paymentAge / 1000 / 60)} minutes old) by customer ${customerId}`);
+            return {
+                success: false,
+                message: `This payment request is too old. Please start a new booking and I'll send you a fresh payment prompt. 💖`,
+            };
+        }
+        try {
+            const verification = await this.paymentsService.verifyReceiptWithMpesaAPI(pendingPayment.id, normalizedReceipt);
+            if (!verification.valid) {
+                this.logger.warn(`[SECURITY] Receipt verification failed for payment ${pendingPayment.id}: ${verification.error}`);
+                return {
+                    success: false,
+                    message: `I couldn't verify the receipt "${normalizedReceipt}" with M-PESA. Please double-check the receipt number and try again. If the issue persists, I can send you a fresh payment prompt. Just say "resend". 📲`,
+                };
+            }
+            if (!verification.matches) {
+                this.logger.warn(`[SECURITY] Receipt mismatch for payment ${pendingPayment.id}. Provided: ${normalizedReceipt}`);
+                return {
+                    success: false,
+                    message: `The receipt number "${normalizedReceipt}" doesn't match our records. Please double-check the receipt number from your M-PESA message. If you're sure it's correct, contact us at 0720 111928 for assistance. 📲`,
+                };
+            }
+            await this.prisma.payment.update({
+                where: { id: pendingPayment.id },
+                data: {
+                    status: 'success',
+                    mpesaReceipt: normalizedReceipt,
+                },
+            });
+            if (draft.dateTimeIso) {
+                const dateObj = new Date(draft.dateTimeIso);
+                await this.completeBookingDraft(customerId, dateObj);
+            }
+            else if (draft.date && draft.time) {
+                const dateStr = draft.date;
+                const timeStr = draft.time;
+                const combined = `${dateStr}T${timeStr}:00`;
+                try {
+                    const dateObj = new Date(combined);
+                    if (!isNaN(dateObj.getTime())) {
+                        await this.completeBookingDraft(customerId, dateObj);
+                    }
+                }
+                catch (error) {
+                    this.logger.error('Error parsing date/time for receipt verification:', error);
+                }
+            }
+            this.logger.log(`[SECURITY] Receipt ${normalizedReceipt} successfully verified for payment ${pendingPayment.id}`);
+            return {
+                success: true,
+                message: `✅ Payment verified! Receipt ${normalizedReceipt} confirmed through M-PESA. Your booking is now confirmed! You'll receive a confirmation message shortly. 🎉`,
+                payment: pendingPayment,
+            };
+        }
+        catch (error) {
+            this.logger.error(`[SECURITY] Error during receipt verification for payment ${pendingPayment.id}:`, error);
+            return {
+                success: false,
+                message: `I encountered an issue verifying your receipt. Please try again, or contact us at 0720 111928 for assistance. 💖`,
+            };
+        }
+    }
+    async resendPaymentPrompt(customerId, newPhone) {
+        let draft = await this.getBookingDraft(customerId);
+        if (!draft) {
+            const latestPayment = await this.getLatestPaymentForDraft(customerId);
+            if (latestPayment?.bookingDraft) {
+                draft = latestPayment.bookingDraft;
+            }
+        }
+        if (!draft) {
+            return { success: false, message: "I don't see a pending booking. Would you like to start a new booking? 💖" };
+        }
+        if (draft.step !== 'confirm') {
+            return { success: false, message: "Your booking isn't ready for payment yet. Let's complete the booking details first! 📋" };
+        }
+        const phone = newPhone || draft.recipientPhone;
+        if (!phone) {
+            return { success: false, message: "I need your phone number to send the payment prompt. Could you please provide it? 📱" };
+        }
+        const amount = await this.getDepositForDraft(customerId) || 2000;
+        try {
+            await this.prisma.payment.deleteMany({
+                where: {
+                    bookingDraftId: draft.id,
+                    status: 'pending'
+                }
+            });
+            if (newPhone && newPhone !== draft.recipientPhone) {
+                await this.prisma.bookingDraft.update({
+                    where: { id: draft.id },
+                    data: { recipientPhone: newPhone }
+                });
+            }
+            const result = await this.paymentsService.initiateSTKPush(draft.id, phone, amount);
+            return {
+                success: true,
+                message: `✅ Payment prompt sent! Please check your phone (${phone}) and enter your M-PESA PIN. The prompt should arrive within 10 seconds. 📲💳`
+            };
+        }
+        catch (error) {
+            this.logger.error('Failed to resend payment prompt:', error);
+            return {
+                success: false,
+                message: `Sorry, I encountered an issue sending the payment prompt. Please try again in a moment or contact us at 0720 111928. 💖`
+            };
+        }
     }
     async getDepositForDraft(customerId) {
         const draft = await this.prisma.bookingDraft.findUnique({ where: { customerId } });
@@ -287,17 +506,47 @@ let BookingsService = BookingsService_1 = class BookingsService {
             return { available: true };
         }
         const suggestions = [];
+        const allSlots = [];
         let cursor = dayStart;
-        while (cursor < dayEnd && suggestions.length < 5) {
+        while (cursor < dayEnd) {
             const slotStartUTC = cursor.toUTC();
             const slotEndUTC = slotStartUTC.plus({ minutes: duration });
             const isConflict = occupied.some(o => this.intervalsOverlap(slotStartUTC.toJSDate(), slotEndUTC.toJSDate(), o.start, o.end));
             if (!isConflict) {
-                suggestions.push(slotStartUTC.toISO());
+                const distance = Math.abs(cursor.diff(requestedDtInMaternity, 'minutes').minutes);
+                allSlots.push({ time: cursor, distance });
             }
             cursor = cursor.plus({ minutes: 30 });
         }
-        return { available: false, suggestions };
+        allSlots.sort((a, b) => a.distance - b.distance);
+        suggestions.push(...allSlots.slice(0, 10).map(s => s.time.toUTC().toISO()));
+        const sameDayFull = suggestions.length === 0;
+        return { available: false, suggestions, sameDayFull };
+    }
+    async findAvailableSlotsAcrossDays(requestedDate, service, daysToCheck = 7) {
+        let duration = 60;
+        if (service) {
+            const pkg = await this.packagesService.findPackageByName(service);
+            if (pkg)
+                duration = BookingsService_1.parseDurationToMinutes(pkg.duration) || 60;
+        }
+        const requestedDt = luxon_1.DateTime.fromJSDate(requestedDate).setZone(this.STUDIO_TZ);
+        const results = [];
+        for (let dayOffset = 0; dayOffset <= daysToCheck; dayOffset++) {
+            const checkDate = requestedDt.plus({ days: dayOffset });
+            const dateStr = checkDate.toFormat('yyyy-MM-dd');
+            const dayOfWeek = checkDate.weekday;
+            const slots = await this.getAvailableSlotsForDate(dateStr, service);
+            if (slots.length > 0) {
+                results.push({
+                    date: dateStr,
+                    slots: slots.slice(0, 5),
+                });
+                if (results.length >= 3)
+                    break;
+            }
+        }
+        return results;
     }
     async getAvailableSlotsForDate(date, service) {
         const dateInMaternity = luxon_1.DateTime.fromISO(date, { zone: this.STUDIO_TZ }).startOf('day');
@@ -460,6 +709,18 @@ let BookingsService = BookingsService_1 = class BookingsService {
             include: { customer: true },
         });
         return { bookings, total: bookings.length };
+    }
+    async getBookingById(id) {
+        return this.prisma.booking.findUnique({
+            where: { id },
+            include: {
+                customer: true,
+                invoice: true,
+                payments: true,
+                reminders: true,
+                followups: true,
+            },
+        });
     }
     async createPackage(data) {
         return this.prisma.package.create({ data });

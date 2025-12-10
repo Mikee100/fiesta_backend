@@ -200,17 +200,10 @@ Respond with only the intent (e.g., booking_details).`;
       customerId,
     });
 
-    // If WhatsApp, send via WhatsApp API
-    if (platform === 'whatsapp') {
-      const customer = await this.prisma.customer.findUnique({
-        where: { id: customerId },
-      });
-      if ((customer as any)?.whatsappId) {
-        // Inject WhatsappService here or use event
-        // For now, we'll handle in processor
-      }
-    }
-
+    // Note: Actual sending is handled by the calling service (e.g., PaymentsService)
+    // which has direct access to platform services (WhatsappService, etc.)
+    // This method primarily saves the message to the database for record-keeping
+    
     return message;
   }
 

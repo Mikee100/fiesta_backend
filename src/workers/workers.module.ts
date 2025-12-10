@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bull';
 import { MessageQueueProcessor } from '../../workers/message-queue.processor';
-import { AiQueueProcessor } from '../../workers/ai-queue.processor';
+import { AiQueueProcessor } from './ai-queue.processor';
 import { BookingQueueProcessor } from '../../workers/booking-queue.processor';
 import { MessagesModule } from '../modules/messages/messages.module';
 import { AiModule } from '../modules/ai/ai.module';

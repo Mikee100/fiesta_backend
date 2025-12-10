@@ -111,7 +111,7 @@ export declare class AiService {
         text: string;
         mediaUrls: string[];
     }>;
-    extractBookingDetails(message: string, history?: HistoryMsg[]): Promise<{
+    extractBookingDetails(message: string, history?: HistoryMsg[], existingDraft?: any): Promise<{
         service?: string;
         date?: string;
         time?: string;
@@ -126,38 +126,22 @@ export declare class AiService {
         id: string;
         customerId: string;
         service: string | null;
+        recipientName: string | null;
+        recipientPhone: string | null;
+        createdAt: Date;
+        updatedAt: Date;
+        name: string | null;
         date: string | null;
         time: string | null;
         dateTimeIso: string | null;
-        name: string | null;
-        recipientName: string | null;
-        recipientPhone: string | null;
         isForSomeoneElse: boolean | null;
         step: string;
         conflictResolution: string | null;
         bookingId: string | null;
         version: number;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
-    mergeIntoDraft(customerId: string, extraction: any): Promise<{
-        id: string;
-        customerId: string;
-        service: string | null;
-        date: string | null;
-        time: string | null;
-        dateTimeIso: string | null;
-        name: string | null;
-        recipientName: string | null;
-        recipientPhone: string | null;
-        isForSomeoneElse: boolean | null;
-        step: string;
-        conflictResolution: string | null;
-        bookingId: string | null;
-        version: number;
-        createdAt: Date;
-        updatedAt: Date;
-    }>;
+    mergeIntoDraft(customerId: string, extraction: any, existingDraft?: any): Promise<any>;
+    private determineBookingStep;
     checkAndCompleteIfConfirmed(draft: any, extraction: any, customerId: string, bookingsService: any): Promise<{
         action: string;
         error: string;
@@ -165,6 +149,7 @@ export declare class AiService {
         suggestions?: undefined;
         amount?: undefined;
         packageName?: undefined;
+        requiresResend?: undefined;
         checkoutRequestId?: undefined;
         paymentId?: undefined;
         missing?: undefined;
@@ -175,6 +160,7 @@ export declare class AiService {
         error?: undefined;
         amount?: undefined;
         packageName?: undefined;
+        requiresResend?: undefined;
         checkoutRequestId?: undefined;
         paymentId?: undefined;
         missing?: undefined;
@@ -185,6 +171,18 @@ export declare class AiService {
         message?: undefined;
         amount?: undefined;
         packageName?: undefined;
+        requiresResend?: undefined;
+        checkoutRequestId?: undefined;
+        paymentId?: undefined;
+        missing?: undefined;
+    } | {
+        action: string;
+        amount: any;
+        packageName: any;
+        requiresResend: boolean;
+        error?: undefined;
+        message?: undefined;
+        suggestions?: undefined;
         checkoutRequestId?: undefined;
         paymentId?: undefined;
         missing?: undefined;
@@ -197,6 +195,7 @@ export declare class AiService {
         paymentId: any;
         error?: undefined;
         suggestions?: undefined;
+        requiresResend?: undefined;
         missing?: undefined;
     } | {
         action: string;
@@ -205,6 +204,7 @@ export declare class AiService {
         suggestions?: undefined;
         amount?: undefined;
         packageName?: undefined;
+        requiresResend?: undefined;
         checkoutRequestId?: undefined;
         paymentId?: undefined;
         missing?: undefined;
@@ -215,6 +215,7 @@ export declare class AiService {
         error?: undefined;
         message?: undefined;
         suggestions?: undefined;
+        requiresResend?: undefined;
         checkoutRequestId?: undefined;
         paymentId?: undefined;
         missing?: undefined;
@@ -226,6 +227,7 @@ export declare class AiService {
         suggestions?: undefined;
         amount?: undefined;
         packageName?: undefined;
+        requiresResend?: undefined;
         checkoutRequestId?: undefined;
         paymentId?: undefined;
     }>;

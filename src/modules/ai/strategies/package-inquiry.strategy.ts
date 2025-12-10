@@ -7,7 +7,7 @@ export class PackageInquiryStrategy implements ResponseStrategy {
         const { message, hasDraft } = context;
         // Exclude backdrop/image requests which should go to FAQ flow
         const isBackdropImageRequest = /(backdrop|background|studio set|flower wall|portfolio|show.*(image|photo|picture|portfolio)|see.*(image|photo|picture|example))/i.test(message);
-        const isPackageQuery = !isBackdropImageRequest && /(package|price|pricing|cost|how much|offer|photoshoot|shoot|what do you have|what are|show me|tell me about|how about|what about|deposit)/i.test(message);
+        const isPackageQuery = !isBackdropImageRequest && /(package|packages|service|services|price|pricing|cost|how much|offer|photoshoot|shoot|what (packages|services) do you (have|offer)|what do you (have|offer)|what are|show me|tell me about|how about|what about|deposit)/i.test(message);
 
         // Allow package inquiries even if there's a draft - user might be comparing packages
         // Only block if the message is clearly a booking continuation (date/time related)
@@ -130,10 +130,29 @@ export class PackageInquiryStrategy implements ResponseStrategy {
                         return { response, draft: null, updatedHistory: [...history.slice(-historyLimit), { role: 'user', content: message }, { role: 'assistant', content: response }] };
                     }
 
+                    // Check for "i want that one" or similar - look at recent conversation history
+                    const wantsThatOne = /(i want (that|this) (one|package)|i'll take (that|this) (one|package)|i choose (that|this) (one|package)|i'll go with (that|this) (one|package)|(that|this) one|i want it|i'll take it)/i.test(message);
+                    let specificPackage = packages.find((p: any) => matchPackage(message, p.name));
+                    
+                    // If user says "i want that one" but no package in message, check recent history
+                    if (wantsThatOne && !specificPackage) {
+                        // Look at recent assistant messages to find the package that was just mentioned
+                        const recentMessages = history.slice(-5).filter((h: any) => h.role === 'assistant');
+                        for (const msg of recentMessages.reverse()) {
+                            const mentionedPackage = packages.find((p: any) => {
+                                return msg.content && matchPackage(msg.content, p.name);
+                            });
+                            if (mentionedPackage) {
+                                specificPackage = mentionedPackage;
+                                logger.log(`[PACKAGE QUERY] Found package "${specificPackage.name}" from conversation history`);
+                                break;
+                            }
+                        }
+                    }
+                    
                     // Check if asking about a SPECIFIC package with detail keywords
                     // Include conversational patterns like "how about", "what about" as detail inquiries
                     const isAskingForDetails = /(tell me about|what is|what's|details|include|come with|feature|what does.*include|how about|what about)/i.test(message);
-                    const specificPackage = packages.find((p: any) => matchPackage(message, p.name));
 
                     if (specificPackage && isAskingForDetails) {
                         // User wants DETAILS about a specific package - show details
@@ -157,7 +176,7 @@ export class PackageInquiryStrategy implements ResponseStrategy {
 
                     if (specificPackage && !isAskingForDetails) {
                         // User mentioned a package but without detail keywords - they might want to book it
-                        // Set the selected package in the booking draft and move to next step
+                        // OR user said "i want that one" - set the selected package in the booking draft and move to next step
                         let draft = await prisma.bookingDraft.findUnique({ where: { customerId } });
                         if (!draft) {
                             draft = await aiService.getOrCreateDraft(customerId);
@@ -165,11 +184,13 @@ export class PackageInquiryStrategy implements ResponseStrategy {
 
                         draft = await prisma.bookingDraft.update({
                             where: { customerId },
-                            data: { service: specificPackage.name },
+                            data: { 
+                                service: specificPackage.name,
+                                step: 'date' // Move to next step
+                            },
                         });
 
-                        const detailedInfo = aiService.formatPackageDetails(specificPackage, true);
-                        const response = `${detailedInfo}\n\nI've noted you're interested in the ${specificPackage.name}. When would you like to come in for the shoot? (e.g., "next Tuesday at 10am") 🗓️`;
+                        const response = `Perfect! I've noted you'd like the ${specificPackage.name}. When would you like to come in for the shoot? (e.g., "next Tuesday at 10am") 🗓️`;
 
                         return {
                             response,
@@ -180,7 +201,9 @@ export class PackageInquiryStrategy implements ResponseStrategy {
 
                     // List all packages (summary view)
                     const packagesList = packages.map((p: any) => aiService.formatPackageDetails(p, false)).join('\n\n');
-                    const response = `Oh, my dear, I'm so delighted to share our ${packageType}packages with you! Each one is thoughtfully crafted to beautifully capture this precious time in your life. Here they are:\n\n${packagesList}\n\nIf you'd like to know more about any specific package, just ask! 💖`;
+                    // When showing all packages (no type filter), make it clear
+                    const packageTypeLabel = packageType ? `${packageType}packages` : 'packages (both studio and outdoor)';
+                    const response = `Oh, my dear, I'm so delighted to share our ${packageTypeLabel} with you! Each one is thoughtfully crafted to beautifully capture this precious time in your life. Here they are:\n\n${packagesList}\n\nIf you'd like to know more about any specific package, just ask! 💖`;
 
                     return { response, draft: null, updatedHistory: [...history.slice(-historyLimit), { role: 'user', content: message }, { role: 'assistant', content: response }] };
                 }

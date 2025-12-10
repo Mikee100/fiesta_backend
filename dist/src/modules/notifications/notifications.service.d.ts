@@ -12,12 +12,12 @@ export declare class NotificationsService {
         metadata?: any;
     }): Promise<{
         id: string;
-        createdAt: Date;
-        message: string;
         type: string;
-        metadata: import("@prisma/client/runtime/library").JsonValue | null;
         title: string;
+        message: string;
+        metadata: import("@prisma/client/runtime/library").JsonValue | null;
         read: boolean;
+        createdAt: Date;
     }>;
     getNotifications(options?: {
         read?: boolean;
@@ -27,12 +27,12 @@ export declare class NotificationsService {
     }): Promise<{
         notifications: {
             id: string;
-            createdAt: Date;
-            message: string;
             type: string;
-            metadata: import("@prisma/client/runtime/library").JsonValue | null;
             title: string;
+            message: string;
+            metadata: import("@prisma/client/runtime/library").JsonValue | null;
             read: boolean;
+            createdAt: Date;
         }[];
         total: number;
         unreadCount: number;
@@ -40,12 +40,12 @@ export declare class NotificationsService {
     getUnreadCount(): Promise<number>;
     markAsRead(id: string): Promise<{
         id: string;
-        createdAt: Date;
-        message: string;
         type: string;
-        metadata: import("@prisma/client/runtime/library").JsonValue | null;
         title: string;
+        message: string;
+        metadata: import("@prisma/client/runtime/library").JsonValue | null;
         read: boolean;
+        createdAt: Date;
     }>;
     markAllAsRead(): Promise<import(".prisma/client").Prisma.BatchPayload>;
     deleteOldReadNotifications(daysOld?: number): Promise<import(".prisma/client").Prisma.BatchPayload>;
