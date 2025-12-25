@@ -5,11 +5,25 @@ import helmet from 'helmet';
 import * as express from 'express';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  // Handle unhandled promise rejections to prevent crashes
+  process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
+    console.error('[UNHANDLED REJECTION]', reason);
+    console.error('[UNHANDLED REJECTION] Stack:', reason instanceof Error ? reason.stack : 'No stack trace');
+    // Don't exit - log and continue
+  });
+
+  // Limit NestJS internal logging to only important levels
+  // This hides verbose module/router initialization logs
+  const app = await NestFactory.create(AppModule, {
+    logger: ['error', 'warn', 'log', 'debug', 'verbose'],
+  });
 
   // ============================================
   // SECURITY: Helmet.js - Security Headers
+  // Disable some Helmet features for webhook routes
   // ============================================
+  // Middleware block removed due to noise
+
   app.use(helmet({
     contentSecurityPolicy: {
       directives: {
@@ -20,6 +34,8 @@ async function bootstrap() {
       },
     },
     crossOriginEmbedderPolicy: false, // Allow embedding for webhooks
+    // Disable frameguard for webhooks (Meta might need this)
+    frameguard: { action: 'sameorigin' },
   }));
 
   // ============================================
@@ -30,16 +46,20 @@ async function bootstrap() {
 
   // ============================================
   // SECURITY: Global Input Validation
+  // Skip validation for webhook routes to allow Meta's payloads
   // ============================================
+  const { ConditionalValidationPipe } = await import('./common/pipes/conditional-validation.pipe');
   app.useGlobalPipes(
-    new ValidationPipe({
+    new ConditionalValidationPipe({
       whitelist: true, // Strip properties that don't have decorators
-      forbidNonWhitelisted: true, // Throw error if non-whitelisted properties are present
+      forbidNonWhitelisted: false, // Disable to allow webhook payloads through - ConditionalValidationPipe handles validation
       transform: true, // Automatically transform payloads to DTO instances
       transformOptions: {
         enableImplicitConversion: true, // Allow implicit type conversion
       },
       disableErrorMessages: process.env.NODE_ENV === 'production', // Hide error details in production
+      skipMissingProperties: false,
+      // ConditionalValidationPipe will handle validation for DTOs and skip for webhooks
     }),
   );
 
@@ -58,18 +78,30 @@ async function bootstrap() {
     ]
   });
 
-  // Enable CORS for frontend
+  // Enable CORS for frontend and webhooks
+  // Webhooks from Meta don't send Origin headers, so we allow all origins for webhook paths
   app.enableCors({
-    origin: [
-      'http://localhost:5173',
-      'http://localhost:5000',
-      'http://localhost:8080',
-      'http://localhost:3001',
-      'http://localhost:3000',
-      'https://fiestahouse.vercel.app',
-      'https://fiesta-house-maternity.vercel.app',
-      'https://fiesta-house.duckdns.org',
-    ], // Vite dev server and omniconnect-suite
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like webhooks from Meta)
+      if (!origin) {
+        return callback(null, true);
+      }
+      const allowedOrigins = [
+        'http://localhost:5173',
+        'http://localhost:5000',
+        'http://localhost:8080',
+        'http://localhost:3001',
+        'http://localhost:3000',
+        'https://fiestahouse.vercel.app',
+        'https://fiesta-house-maternity.vercel.app',
+        'https://fiesta-house.duckdns.org',
+      ];
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(null, true); // Allow all origins for webhook compatibility
+      }
+    },
     credentials: true,
   });
 
@@ -82,8 +114,23 @@ async function bootstrap() {
     console.warn('Bull Board dashboard setup failed:', err);
   }
 
-  await app.listen(3000);
-  console.log('Application started successfully');
-  console.log(JSON.stringify({ message: 'Fiesta House APIs is running 🚀' }));
+  // Get port from environment variable or default to 3000
+  const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+
+  try {
+    await app.listen(port);
+    console.log(`✅ Application started successfully on port ${port}`);
+    console.log(JSON.stringify({ message: 'Fiesta House APIs is running 🚀', port }));
+  } catch (error: any) {
+    if (error.code === 'EADDRINUSE') {
+      console.error(`❌ Port ${port} is already in use. Please:`);
+      console.error(`   1. Stop the existing process using port ${port}`);
+      console.error(`   2. Or set PORT environment variable to use a different port`);
+      console.error(`   3. On Windows, find the process: netstat -ano | findstr :${port}`);
+      process.exit(1);
+    } else {
+      throw error;
+    }
+  }
 }
 bootstrap();

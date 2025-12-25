@@ -23,6 +23,7 @@ exports.MessengerModule = MessengerModule = __decorate([
     (0, common_1.Module)({
         imports: [
             bull_1.BullModule.registerQueue({ name: 'message-queue' }),
+            bull_1.BullModule.registerQueue({ name: 'aiQueue' }),
             (0, common_1.forwardRef)(() => customers_module_1.CustomersModule),
             (0, common_1.forwardRef)(() => messages_module_1.MessagesModule),
             (0, common_1.forwardRef)(() => websocket_module_1.WebsocketModule),

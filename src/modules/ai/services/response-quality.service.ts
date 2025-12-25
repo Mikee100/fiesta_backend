@@ -283,19 +283,22 @@ User message: "${context.userMessage}"
 Intent: ${context.intent || 'unknown'}
 Emotional tone: ${context.emotionalTone || 'neutral'}
 
-Provide an improved version that addresses the issues while maintaining the same intent and information.`;
+IMPORTANT: Return ONLY the improved response text. Do not include any prefixes like "Improved Response:" or labels. Just return the improved message text directly.`;
 
         try {
             const completion = await this.openai.chat.completions.create({
                 model: 'gpt-4o-mini',
                 messages: [
-                    { role: 'system', content: 'You are an expert at improving customer service responses. Make them more helpful, accurate, empathetic, and clear.' },
+                    { role: 'system', content: 'You are an expert at improving customer service responses. Return ONLY the improved response text without any labels or prefixes. Make responses more helpful, accurate, empathetic, and clear.' },
                     { role: 'user', content: improvementPrompt },
                 ],
                 temperature: 0.7,
             });
 
-            const improved = completion.choices[0].message.content?.trim() || originalResponse;
+            let improved = completion.choices[0].message.content?.trim() || originalResponse;
+            
+            // Clean up any unwanted prefixes that might still appear
+            improved = this.cleanImprovedResponse(improved);
             
             // Validate improved response isn't worse
             const improvedScore = await this.scoreResponse(improved, context);
@@ -310,6 +313,27 @@ Provide an improved version that addresses the issues while maintaining the same
             this.logger.error('Error improving response', error);
             return originalResponse; // Return original on error
         }
+    }
+
+    /**
+     * Clean up improved response by removing unwanted prefixes
+     */
+    private cleanImprovedResponse(response: string): string {
+        // Remove common prefixes that AI might add
+        const prefixesToRemove = [
+            /^Improved Response:\s*/i,
+            /^Improved:\s*/i,
+            /^Here's the improved response:\s*/i,
+            /^Improved version:\s*/i,
+            /^Better response:\s*/i,
+        ];
+
+        let cleaned = response;
+        for (const prefix of prefixesToRemove) {
+            cleaned = cleaned.replace(prefix, '');
+        }
+
+        return cleaned.trim();
     }
 
     /**

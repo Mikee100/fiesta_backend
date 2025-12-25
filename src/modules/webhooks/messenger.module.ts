@@ -11,7 +11,10 @@ import { WebsocketModule } from '../../websockets/websocket.module';
 
 @Module({
   imports: [
+    // Legacy message queue registration (kept for compatibility)
     BullModule.registerQueue({ name: 'message-queue' }),
+    // Centralized AI queue used by AiQueueProcessor / WebhooksService
+    BullModule.registerQueue({ name: 'aiQueue' }),
     forwardRef(() => CustomersModule),
     forwardRef(() => MessagesModule),
     forwardRef(() => WebsocketModule),

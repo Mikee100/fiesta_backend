@@ -17,7 +17,8 @@ export class MessengerService {
     @Inject(forwardRef(() => CustomersService)) private readonly customersService: CustomersService,
     @Inject(forwardRef(() => MessagesService)) private readonly messagesService: MessagesService,
     @Inject(forwardRef(() => WebsocketGateway)) private readonly websocketGateway: WebsocketGateway,
-    @InjectQueue('message-queue') private readonly messageQueue: Queue,
+    // Use centralized AI queue so Messenger messages go through AiQueueProcessor
+    @InjectQueue('aiQueue') private readonly aiQueue: Queue,
     private readonly prisma: PrismaService,
   ) {
     this.fbVerifyToken = this.configService.get<string>('FB_VERIFY_TOKEN');
@@ -83,9 +84,14 @@ export class MessengerService {
         // Emit WebSocket event
         this.websocketGateway.emitNewMessage('messenger', savedMessage);
         this.logger.log('WebSocket event emitted for new message.');
-        // Queue for AI processing
-        await this.messageQueue.add('ai-process', { messageId: savedMessage.id });
-        this.logger.log('Message queued for AI processing.');
+
+        // Queue for centralized AI processing (same path as WebhooksService)
+        await this.aiQueue.add('handleAiJob', {
+          customerId: customer.id,
+          message: message.text || '',
+          platform: 'messenger',
+        });
+        this.logger.log('Messenger message queued on aiQueue for AI processing.');
       }
     }
   }

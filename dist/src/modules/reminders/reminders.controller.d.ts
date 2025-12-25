@@ -26,27 +26,27 @@ export declare class RemindersController {
                 };
             } & {
                 id: string;
+                status: string;
+                createdAt: Date;
+                updatedAt: Date;
                 customerId: string;
                 service: string;
                 dateTime: Date;
-                status: string;
                 durationMinutes: number | null;
                 recipientName: string | null;
                 recipientPhone: string | null;
                 googleEventId: string | null;
-                createdAt: Date;
-                updatedAt: Date;
             };
         } & {
             id: string;
+            type: string;
+            scheduledFor: Date;
             status: string;
+            messageContent: string | null;
+            sentAt: Date | null;
             createdAt: Date;
             updatedAt: Date;
-            type: string;
             bookingId: string;
-            sentAt: Date | null;
-            scheduledFor: Date;
-            messageContent: string | null;
         })[];
         total: number;
     }>;
@@ -73,27 +73,27 @@ export declare class RemindersController {
                 };
             } & {
                 id: string;
+                status: string;
+                createdAt: Date;
+                updatedAt: Date;
                 customerId: string;
                 service: string;
                 dateTime: Date;
-                status: string;
                 durationMinutes: number | null;
                 recipientName: string | null;
                 recipientPhone: string | null;
                 googleEventId: string | null;
-                createdAt: Date;
-                updatedAt: Date;
             };
         } & {
             id: string;
+            type: string;
+            scheduledFor: Date;
             status: string;
+            messageContent: string | null;
+            sentAt: Date | null;
             createdAt: Date;
             updatedAt: Date;
-            type: string;
             bookingId: string;
-            sentAt: Date | null;
-            scheduledFor: Date;
-            messageContent: string | null;
         })[];
         total: number;
     }>;
@@ -119,27 +119,27 @@ export declare class RemindersController {
             };
         } & {
             id: string;
+            status: string;
+            createdAt: Date;
+            updatedAt: Date;
             customerId: string;
             service: string;
             dateTime: Date;
-            status: string;
             durationMinutes: number | null;
             recipientName: string | null;
             recipientPhone: string | null;
             googleEventId: string | null;
-            createdAt: Date;
-            updatedAt: Date;
         };
     } & {
         id: string;
+        type: string;
+        scheduledFor: Date;
         status: string;
+        messageContent: string | null;
+        sentAt: Date | null;
         createdAt: Date;
         updatedAt: Date;
-        type: string;
         bookingId: string;
-        sentAt: Date | null;
-        scheduledFor: Date;
-        messageContent: string | null;
     })[]>;
     getReminder(id: string): Promise<{
         booking: {
@@ -163,27 +163,27 @@ export declare class RemindersController {
             };
         } & {
             id: string;
+            status: string;
+            createdAt: Date;
+            updatedAt: Date;
             customerId: string;
             service: string;
             dateTime: Date;
-            status: string;
             durationMinutes: number | null;
             recipientName: string | null;
             recipientPhone: string | null;
             googleEventId: string | null;
-            createdAt: Date;
-            updatedAt: Date;
         };
     } & {
         id: string;
+        type: string;
+        scheduledFor: Date;
         status: string;
+        messageContent: string | null;
+        sentAt: Date | null;
         createdAt: Date;
         updatedAt: Date;
-        type: string;
         bookingId: string;
-        sentAt: Date | null;
-        scheduledFor: Date;
-        messageContent: string | null;
     }>;
     sendReminder(id: string): Promise<{
         booking: {
@@ -207,48 +207,48 @@ export declare class RemindersController {
             };
         } & {
             id: string;
+            status: string;
+            createdAt: Date;
+            updatedAt: Date;
             customerId: string;
             service: string;
             dateTime: Date;
-            status: string;
             durationMinutes: number | null;
             recipientName: string | null;
             recipientPhone: string | null;
             googleEventId: string | null;
-            createdAt: Date;
-            updatedAt: Date;
         };
     } & {
         id: string;
+        type: string;
+        scheduledFor: Date;
         status: string;
+        messageContent: string | null;
+        sentAt: Date | null;
         createdAt: Date;
         updatedAt: Date;
-        type: string;
         bookingId: string;
-        sentAt: Date | null;
-        scheduledFor: Date;
-        messageContent: string | null;
     }>;
     updateReminder(id: string, data: UpdateReminderDto): Promise<{
         id: string;
+        type: string;
+        scheduledFor: Date;
         status: string;
+        messageContent: string | null;
+        sentAt: Date | null;
         createdAt: Date;
         updatedAt: Date;
-        type: string;
         bookingId: string;
-        sentAt: Date | null;
-        scheduledFor: Date;
-        messageContent: string | null;
     }>;
     cancelReminder(id: string): Promise<{
         id: string;
+        type: string;
+        scheduledFor: Date;
         status: string;
+        messageContent: string | null;
+        sentAt: Date | null;
         createdAt: Date;
         updatedAt: Date;
-        type: string;
         bookingId: string;
-        sentAt: Date | null;
-        scheduledFor: Date;
-        messageContent: string | null;
     }>;
 }

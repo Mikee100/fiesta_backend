@@ -14,7 +14,9 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.WebhooksController = void 0;
 const common_1 = require("@nestjs/common");
+const throttler_1 = require("@nestjs/throttler");
 const webhooks_service_1 = require("./webhooks.service");
+const webhook_validation_pipe_1 = require("../../common/pipes/webhook-validation.pipe");
 let WebhooksController = class WebhooksController {
     constructor(webhooksService) {
         this.webhooksService = webhooksService;
@@ -28,8 +30,14 @@ let WebhooksController = class WebhooksController {
         console.log('[Webhook] Verification failed!');
         return 'ERROR';
     }
-    handleWhatsApp(body) {
-        return this.webhooksService.handleWhatsAppWebhook(body);
+    async handleWhatsApp(body) {
+        try {
+            return await this.webhooksService.handleWhatsAppWebhook(body);
+        }
+        catch (error) {
+            console.error('[WEBHOOK CONTROLLER] Error handling webhook:', error);
+            throw error;
+        }
     }
     verifyInstagram(mode, challenge, token) {
         if (mode === 'subscribe' && token === process.env.INSTAGRAM_VERIFY_TOKEN) {
@@ -37,20 +45,34 @@ let WebhooksController = class WebhooksController {
         }
         return 'ERROR';
     }
-    handleInstagram(body) {
-        return this.webhooksService.handleInstagramWebhook(body);
+    async handleInstagram(body) {
+        console.log('[WEBHOOK] Instagram webhook received');
+        try {
+            const result = await this.webhooksService.handleInstagramWebhook(body);
+            console.log('[WEBHOOK] Instagram webhook processed successfully');
+            return result;
+        }
+        catch (error) {
+            console.error('[WEBHOOK CONTROLLER] Error handling Instagram webhook:', error);
+            console.error('[WEBHOOK CONTROLLER] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+            throw error;
+        }
     }
-    handleMessenger(body) {
-        return this.webhooksService.handleMessengerWebhook(body);
+    async handleMessenger(body) {
+        return await this.webhooksService.handleMessengerWebhook(body);
     }
-    handleTelegram(body) {
-        return this.webhooksService.handleTelegramWebhook(body);
+    async handleTelegram(body) {
+        return await this.webhooksService.handleTelegramWebhook(body);
     }
     verifyFacebook(mode, challenge, token) {
         if (mode === 'subscribe' && token === process.env.FB_VERIFY_TOKEN) {
             return challenge;
         }
         throw new common_1.HttpException('Forbidden', common_1.HttpStatus.FORBIDDEN);
+    }
+    async testQueue(body) {
+        console.log('[TEST] Testing queue with data:', body);
+        return await this.webhooksService.testQueueConnection(body);
     }
 };
 exports.WebhooksController = WebhooksController;
@@ -68,7 +90,7 @@ __decorate([
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),
-    __metadata("design:returntype", void 0)
+    __metadata("design:returntype", Promise)
 ], WebhooksController.prototype, "handleWhatsApp", null);
 __decorate([
     (0, common_1.Get)('instagram'),
@@ -84,21 +106,21 @@ __decorate([
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),
-    __metadata("design:returntype", void 0)
+    __metadata("design:returntype", Promise)
 ], WebhooksController.prototype, "handleInstagram", null);
 __decorate([
     (0, common_1.Post)('messenger'),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),
-    __metadata("design:returntype", void 0)
+    __metadata("design:returntype", Promise)
 ], WebhooksController.prototype, "handleMessenger", null);
 __decorate([
     (0, common_1.Post)('telegram'),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),
-    __metadata("design:returntype", void 0)
+    __metadata("design:returntype", Promise)
 ], WebhooksController.prototype, "handleTelegram", null);
 __decorate([
     (0, common_1.Get)('facebook'),
@@ -109,8 +131,17 @@ __decorate([
     __metadata("design:paramtypes", [String, String, String]),
     __metadata("design:returntype", void 0)
 ], WebhooksController.prototype, "verifyFacebook", null);
+__decorate([
+    (0, common_1.Post)('test-queue'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], WebhooksController.prototype, "testQueue", null);
 exports.WebhooksController = WebhooksController = __decorate([
     (0, common_1.Controller)('webhooks'),
+    (0, throttler_1.SkipThrottle)(),
+    (0, common_1.UsePipes)(webhook_validation_pipe_1.WebhookValidationPipe),
     __metadata("design:paramtypes", [webhooks_service_1.WebhooksService])
 ], WebhooksController);
 //# sourceMappingURL=webhooks.controller.js.map

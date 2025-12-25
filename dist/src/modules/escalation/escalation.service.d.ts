@@ -9,26 +9,26 @@ export declare class EscalationService {
     constructor(prisma: PrismaService, websocketGateway?: WebsocketGateway, notificationsService?: NotificationsService);
     createEscalation(customerId: string, reason?: string, escalationType?: string, metadata?: any, sentimentScore?: number): Promise<{
         id: string;
-        customerId: string;
-        status: string;
+        description: string | null;
         createdAt: Date;
         updatedAt: Date;
+        customerId: string;
+        status: string;
         sentimentScore: number | null;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
         reason: string | null;
-        description: string | null;
         escalationType: string;
     }>;
     resolveEscalation(escalationId: string): Promise<{
         id: string;
-        customerId: string;
-        status: string;
+        description: string | null;
         createdAt: Date;
         updatedAt: Date;
+        customerId: string;
+        status: string;
         sentimentScore: number | null;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
         reason: string | null;
-        description: string | null;
         escalationType: string;
     }>;
     isCustomerEscalated(customerId: string): Promise<boolean>;
@@ -53,14 +53,14 @@ export declare class EscalationService {
         };
     } & {
         id: string;
-        customerId: string;
-        status: string;
+        description: string | null;
         createdAt: Date;
         updatedAt: Date;
+        customerId: string;
+        status: string;
         sentimentScore: number | null;
         metadata: import("@prisma/client/runtime/library").JsonValue | null;
         reason: string | null;
-        description: string | null;
         escalationType: string;
     })[]>;
 }

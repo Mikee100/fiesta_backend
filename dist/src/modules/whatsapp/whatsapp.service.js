@@ -41,6 +41,16 @@ let WhatsappService = class WhatsappService {
         if (error.response) {
             const status = error.response.status;
             const data = error.response.data;
+            const errorCode = data?.error?.code;
+            const errorMessage = data?.error?.message || data?.error?.error_subcode;
+            if (status === 400 && (errorCode === 131030 || errorMessage?.includes('not in allowed list'))) {
+                const testModeError = new Error(`WhatsApp API error: ${errorMessage || 'Recipient phone number not in allowed list'}`);
+                testModeError.isTestModeRestriction = true;
+                testModeError.code = 131030;
+                console.warn(`⚠️ WhatsApp ${operation} - Test Mode Restriction:`, errorMessage);
+                console.warn(`   This is expected in development/test mode. Add phone numbers to your WhatsApp Business API test list.`);
+                throw testModeError;
+            }
             if (status === 429) {
                 const retryAfter = error.response.headers['retry-after'] || 60;
                 console.error(`❌ WhatsApp ${operation} - Rate limit exceeded. Retry after ${retryAfter}s`);
@@ -50,15 +60,15 @@ let WhatsappService = class WhatsappService {
                 console.error(`❌ WhatsApp ${operation} - Unauthorized. Token may be expired or invalid.`);
                 throw new Error('WhatsApp access token expired or invalid. Please update your token.');
             }
-            if (status === 400 && data?.error?.message) {
-                console.error(`❌ WhatsApp ${operation} - Bad Request:`, data.error.message);
-                throw new Error(`WhatsApp API error: ${data.error.message}`);
+            if (status === 400 && errorMessage) {
+                console.error(`❌ WhatsApp ${operation} - Bad Request:`, errorMessage);
+                throw new Error(`WhatsApp API error: ${errorMessage}`);
             }
             console.error(`❌ WhatsApp ${operation} - API Error:`, {
                 status,
                 error: data?.error || data,
             });
-            throw new Error(`WhatsApp API error (${status}): ${data?.error?.message || 'Unknown error'}`);
+            throw new Error(`WhatsApp API error (${status}): ${errorMessage || 'Unknown error'}`);
         }
         console.error(`❌ WhatsApp ${operation} - Network/Unknown Error:`, error.message);
         throw new Error(`Failed to ${operation}: ${error.message}`);
@@ -104,9 +114,9 @@ let WhatsappService = class WhatsappService {
         if (!message || typeof message !== 'string' || !message.trim()) {
             throw new Error("Message body ('message') is required.");
         }
-        const normalizedTo = to.trim().replace(/[^0-9+]/g, '');
+        let normalizedTo = to.trim().replace(/[^0-9+]/g, '');
         if (!normalizedTo.startsWith('+')) {
-            console.warn(`⚠️ Phone number ${to} doesn't start with '+'. WhatsApp recommends E.164 format.`);
+            normalizedTo = `+${normalizedTo}`;
         }
         try {
             if (!this.phoneNumberId) {

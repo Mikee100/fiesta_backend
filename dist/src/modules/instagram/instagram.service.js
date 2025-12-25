@@ -90,20 +90,24 @@ let InstagramService = class InstagramService {
         };
     }
     async sendMessage(to, message) {
-        console.log('📤 Sending Instagram message to:', to);
-        console.log('Message:', message);
+        console.log('[INSTAGRAM] 📤 Sending Instagram message to:', to);
+        console.log('[INSTAGRAM] Message:', message);
         const canSend = await this.canSendMessage(to);
         if (!canSend.allowed) {
-            console.error('❌ Cannot send message:', canSend.reason);
+            console.error('[INSTAGRAM] ❌ Cannot send message:', canSend.reason);
             throw new Error(canSend.reason);
         }
-        console.log(`✅ Within 24-hour window (${canSend.hoursRemaining?.toFixed(1)} hours remaining)`);
+        console.log(`[INSTAGRAM] ✅ Within 24-hour window (${canSend.hoursRemaining?.toFixed(1)} hours remaining)`);
         try {
             if (!this.pageId) {
-                throw new Error('pageId is undefined - check INSTAGRAM_PAGE_ID in .env');
+                const error = 'pageId is undefined - check INSTAGRAM_PAGE_ID in .env';
+                console.error(`[INSTAGRAM] ❌ ${error}`);
+                throw new Error(error);
             }
             if (!this.pageAccessToken) {
-                throw new Error('pageAccessToken is undefined - check INSTAGRAM_PAGE_ACCESS_TOKEN in .env');
+                const error = 'pageAccessToken is undefined - check INSTAGRAM_PAGE_ACCESS_TOKEN in .env';
+                console.error(`[INSTAGRAM] ❌ ${error}`);
+                throw new Error(error);
             }
             const url = `https://graph.facebook.com/v21.0/${this.pageId}/messages`;
             const payload = {
@@ -111,13 +115,15 @@ let InstagramService = class InstagramService {
                 message: { text: message },
                 messaging_type: "RESPONSE",
             };
+            console.log(`[INSTAGRAM] Sending to URL: ${url}`);
+            console.log(`[INSTAGRAM] Payload:`, JSON.stringify(payload, null, 2));
             const response = await axios_1.default.post(url, payload, {
                 headers: {
                     Authorization: `Bearer ${this.pageAccessToken}`,
                     'Content-Type': 'application/json',
                 },
             });
-            console.log('✔️ Instagram API response:', response.data);
+            console.log('[INSTAGRAM] ✔️ Instagram API response:', JSON.stringify(response.data, null, 2));
             const customer = await this.customersService.findByInstagramId(to);
             if (customer) {
                 await this.messagesService.create({
@@ -130,7 +136,14 @@ let InstagramService = class InstagramService {
             return response.data;
         }
         catch (error) {
-            console.error('❌ Instagram send error:', error.response?.data || error.message);
+            console.error('[INSTAGRAM] ❌ Instagram send error:', error.response?.data || error.message);
+            console.error('[INSTAGRAM] Error details:', {
+                status: error.response?.status,
+                statusText: error.response?.statusText,
+                data: error.response?.data,
+                message: error.message,
+                stack: error.stack
+            });
             throw error;
         }
     }

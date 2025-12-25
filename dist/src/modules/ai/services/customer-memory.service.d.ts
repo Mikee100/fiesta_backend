@@ -19,9 +19,9 @@ export declare class CustomerMemoryService {
     constructor(prisma: PrismaService);
     getOrCreateMemory(customerId: string): Promise<{
         id: string;
-        customerId: string;
         createdAt: Date;
         updatedAt: Date;
+        customerId: string;
         preferredPackages: string[];
         budgetMin: number | null;
         budgetMax: number | null;
@@ -39,9 +39,9 @@ export declare class CustomerMemoryService {
     }>;
     updatePreferences(customerId: string, preferences: CustomerPreferences): Promise<{
         id: string;
-        customerId: string;
         createdAt: Date;
         updatedAt: Date;
+        customerId: string;
         preferredPackages: string[];
         budgetMin: number | null;
         budgetMax: number | null;
@@ -78,6 +78,8 @@ export declare class CustomerMemoryService {
         lastInteraction: string;
         recentBookings: {
             id: string;
+            createdAt: Date;
+            updatedAt: Date;
             customerId: string;
             service: string;
             dateTime: Date;
@@ -86,8 +88,6 @@ export declare class CustomerMemoryService {
             recipientName: string | null;
             recipientPhone: string | null;
             googleEventId: string | null;
-            createdAt: Date;
-            updatedAt: Date;
         }[];
         isVIP: boolean;
         isReturning: boolean;

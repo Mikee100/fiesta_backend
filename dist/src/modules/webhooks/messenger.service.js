@@ -22,12 +22,12 @@ const websocket_gateway_1 = require("../../websockets/websocket.gateway");
 const bull_1 = require("@nestjs/bull");
 const prisma_service_1 = require("../../prisma/prisma.service");
 let MessengerService = MessengerService_1 = class MessengerService {
-    constructor(configService, customersService, messagesService, websocketGateway, messageQueue, prisma) {
+    constructor(configService, customersService, messagesService, websocketGateway, aiQueue, prisma) {
         this.configService = configService;
         this.customersService = customersService;
         this.messagesService = messagesService;
         this.websocketGateway = websocketGateway;
-        this.messageQueue = messageQueue;
+        this.aiQueue = aiQueue;
         this.prisma = prisma;
         this.logger = new common_1.Logger(MessengerService_1.name);
         this.fbVerifyToken = this.configService.get('FB_VERIFY_TOKEN');
@@ -82,8 +82,12 @@ let MessengerService = MessengerService_1 = class MessengerService {
                 this.logger.log(`Message saved: id=${savedMessage.id}`);
                 this.websocketGateway.emitNewMessage('messenger', savedMessage);
                 this.logger.log('WebSocket event emitted for new message.');
-                await this.messageQueue.add('ai-process', { messageId: savedMessage.id });
-                this.logger.log('Message queued for AI processing.');
+                await this.aiQueue.add('handleAiJob', {
+                    customerId: customer.id,
+                    message: message.text || '',
+                    platform: 'messenger',
+                });
+                this.logger.log('Messenger message queued on aiQueue for AI processing.');
             }
         }
     }
@@ -169,7 +173,7 @@ exports.MessengerService = MessengerService = MessengerService_1 = __decorate([
     __param(1, (0, common_1.Inject)((0, common_1.forwardRef)(() => customers_service_1.CustomersService))),
     __param(2, (0, common_1.Inject)((0, common_1.forwardRef)(() => messages_service_1.MessagesService))),
     __param(3, (0, common_1.Inject)((0, common_1.forwardRef)(() => websocket_gateway_1.WebsocketGateway))),
-    __param(4, (0, bull_1.InjectQueue)('message-queue')),
+    __param(4, (0, bull_1.InjectQueue)('aiQueue')),
     __metadata("design:paramtypes", [config_1.ConfigService,
         customers_service_1.CustomersService,
         messages_service_1.MessagesService,

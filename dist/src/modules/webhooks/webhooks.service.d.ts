@@ -34,5 +34,31 @@ export declare class WebhooksService {
     handleMessengerWebhook(data: any): Promise<{
         status: string;
     }>;
+    testQueueConnection(body: {
+        customerId: string;
+        message: string;
+        platform: string;
+    }): Promise<{
+        success: boolean;
+        error: string;
+        jobId?: undefined;
+        redisStatus?: undefined;
+        message?: undefined;
+        stack?: undefined;
+    } | {
+        success: boolean;
+        jobId: import("bull").JobId;
+        redisStatus: string;
+        message: string;
+        error?: undefined;
+        stack?: undefined;
+    } | {
+        success: boolean;
+        error: string;
+        stack: string;
+        jobId?: undefined;
+        redisStatus?: undefined;
+        message?: undefined;
+    }>;
     handleTelegramWebhook(data: any): Promise<void>;
 }

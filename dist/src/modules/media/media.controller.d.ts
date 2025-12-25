@@ -5,38 +5,38 @@ export declare class MediaController {
     getCategories(): Promise<string[]>;
     getByCategory(category: string, limit?: string): Promise<{
         id: string;
-        createdAt: Date;
-        updatedAt: Date;
+        url: string;
         title: string | null;
         description: string | null;
         category: string;
         subcategory: string | null;
-        url: string;
         mediaType: string;
         source: string;
+        createdAt: Date;
+        updatedAt: Date;
     }[]>;
     getBackdrops(limit?: string): Promise<{
         id: string;
-        createdAt: Date;
-        updatedAt: Date;
+        url: string;
         title: string | null;
         description: string | null;
         category: string;
         subcategory: string | null;
-        url: string;
         mediaType: string;
         source: string;
+        createdAt: Date;
+        updatedAt: Date;
     }[]>;
     getPortfolio(limit?: string): Promise<{
         id: string;
-        createdAt: Date;
-        updatedAt: Date;
+        url: string;
         title: string | null;
         description: string | null;
         category: string;
         subcategory: string | null;
-        url: string;
         mediaType: string;
         source: string;
+        createdAt: Date;
+        updatedAt: Date;
     }[]>;
 }

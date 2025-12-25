@@ -4,7 +4,7 @@ import { CustomersService } from '../customers/customers.service';
 import { AiService } from '../ai/ai.service';
 import { AiSettingsService } from '../ai/ai-settings.service';
 import { InjectQueue } from '@nestjs/bull';
-import { Queue } from 'bull';
+import { Queue, Job } from 'bull';
 import { WebsocketGateway } from '../../websockets/websocket.gateway';
 import { BookingsService } from '../bookings/bookings.service';
 import { PaymentsService } from '../payments/payments.service';
@@ -36,7 +36,9 @@ export class WebhooksService {
    * No phone number restrictions - all incoming messages are processed
    */
   async handleWhatsAppWebhook(body: any) {
+
     if (body.object !== 'whatsapp_business_account') {
+      console.log('[WEBHOOK] Ignoring webhook - wrong object type:', body.object);
       return { status: 'ignored' };
     }
 
@@ -48,7 +50,10 @@ export class WebhooksService {
         // PROCESS ONLY IF THERE ARE MESSAGE OBJECTS INSIDE
         // PRODUCTION: All phone numbers are allowed - no filtering
         if (value?.messages && value.messages.length > 0) {
+          console.log('[WEBHOOK] Processing WhatsApp message from webhook');
           await this.processWhatsAppMessage(value);
+        } else {
+          console.log('[WEBHOOK] No messages found in webhook payload');
         }
       }
     }
@@ -61,7 +66,7 @@ export class WebhooksService {
    * No phone number whitelist or restrictions - all valid messages are processed
    */
   async processWhatsAppMessage(value: any) {
-    console.log('[AI DEBUG] processWhatsAppMessage called', JSON.stringify(value));
+
     const messages = value?.messages;
     if (!messages || messages.length === 0) {
       console.log('No messages in webhook payload - ignoring');
@@ -90,9 +95,9 @@ export class WebhooksService {
     // Find or create customer (and debug log)
     let customer = await this.customersService.findByWhatsappId(from);
     if (customer) {
-      console.log(`[AI DEBUG] WhatsApp: customerId=${customer.id}, aiEnabled=${customer.aiEnabled}`);
+      // console.log(`[AI DEBUG] WhatsApp: customerId=${customer.id}, aiEnabled=${customer.aiEnabled}`);
     } else {
-      console.log(`[AI DEBUG] WhatsApp: customer not found for from=${from}`);
+      // console.log(`[AI DEBUG] WhatsApp: customer not found for from=${from}`);
       console.log("Creating customer:", from);
       customer = await this.customersService.create({
         name: `WhatsApp User ${from}`,
@@ -102,7 +107,7 @@ export class WebhooksService {
       });
     }
 
-    console.log('Received text message from', from, ':', text);
+    // console.log('Received text message from', from, ':', text);
 
     // Check duplicates
     const existing = await this.messagesService.findByExternalId(messageId);
@@ -120,7 +125,7 @@ export class WebhooksService {
       externalId: messageId,
     });
 
-    console.log("Message saved:", created.id);
+    // console.log("Message saved:", created.id);
 
     // WebSocket
     this.websocketGateway.emitNewMessage('whatsapp', {
@@ -131,7 +136,7 @@ export class WebhooksService {
       timestamp: created.createdAt.toISOString(),
       direction: 'inbound',
       customerId: customer.id,
-            // Removed check for booking.awaitingRescheduleTime (property does not exist)
+      // Removed check for booking.awaitingRescheduleTime (property does not exist)
     });
 
     // Automated reschedule flow for WhatsApp
@@ -311,30 +316,70 @@ Just let me know! 💖`
       const customerAiEnabled = customer.aiEnabled ?? true; // Default to true if not set
 
       if (globalAiEnabled && customerAiEnabled) {
-        console.log("Queueing message for centralized AI...");
-        await this.aiQueue.add("handleAiJob", {
-          customerId: customer.id,
-          message: text,
-          platform: 'whatsapp'
-        });
+        try {
+          // Check if queue is ready
+          const queueClient = (this.aiQueue as any).client;
+          if (queueClient) {
+            // const isReady = queueClient.status === 'ready' || queueClient.connected;
+          }
+
+          // Add timeout to prevent hanging
+          // Add timeout to prevent hanging
+          const queuePromise = this.aiQueue.add("handleAiJob", {
+            customerId: customer.id,
+            message: text,
+            platform: 'whatsapp'
+          });
+
+          // Add catch handler to prevent unhandled rejections if timeout fires first
+          queuePromise.catch((err) => {
+            console.log(`[WEBHOOK] Queue promise rejected (may be after timeout): ${err.message}`);
+          });
+
+          let timeoutId: NodeJS.Timeout;
+          const timeoutPromise = new Promise<never>((_, reject) => {
+            timeoutId = setTimeout(() => reject(new Error('Queue add timeout after 5 seconds')), 5000);
+          });
+
+          try {
+            const job = await Promise.race([queuePromise, timeoutPromise]) as Job;
+            clearTimeout(timeoutId!); // Clear timeout if queuePromise wins
+          } catch (raceError) {
+            clearTimeout(timeoutId!); // Clear timeout on error
+            throw raceError; // Re-throw to be caught by outer catch
+          }
+        } catch (error) {
+          console.error('[WEBHOOK] ❌ Failed to queue message for AI processing:', error);
+          console.error('[WEBHOOK] Error details:', error instanceof Error ? error.message : String(error));
+          console.error('[WEBHOOK] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+          // Fallback: try to process directly or send error message
+          try {
+            await this.whatsappService.sendMessage(
+              from,
+              "I'm having trouble processing your message right now. Please try again in a moment."
+            );
+          } catch (sendError) {
+            console.error('[WEBHOOK] Failed to send error message:', sendError);
+          }
+        }
       } else {
-        console.log('AI disabled (global or customer-specific) - message not queued');
+        console.log(`[WEBHOOK] AI disabled - globalAiEnabled: ${globalAiEnabled}, customerAiEnabled: ${customerAiEnabled} - message not queued`);
       }
     }
   }
 
 
   async handleInstagramWebhook(data: any) {
-    console.log('Processing Instagram webhook:', JSON.stringify(data, null, 2));
+    console.log('[WEBHOOK] Processing Instagram webhook:', JSON.stringify(data, null, 2));
 
     if (!data.entry || data.entry.length === 0) {
-      console.log('No entry in Instagram webhook payload');
+      console.log('[WEBHOOK] No entry in Instagram webhook payload');
       return; // No entries to process
     }
 
     const entry = data.entry[0];
     if (!entry.messaging || entry.messaging.length === 0) {
-      console.log('No messaging in Instagram webhook entry');
+      console.log('[WEBHOOK] No messaging in Instagram webhook entry');
       return; // No messages to process
     }
 
@@ -350,34 +395,35 @@ Just let me know! 💖`
     if (message.message?.text) {
       const from = message.sender.id;
       const text = message.message.text;
-      console.log('Received Instagram text message from', from, ':', text);
+      console.log('[WEBHOOK] Received Instagram text message from', from, ':', text);
 
-      // Find or create customer
-      let customer = await this.customersService.findByInstagramId(from);
-      if (!customer) {
-        console.log('Creating new customer for Instagram ID:', from);
-        customer = await this.customersService.create({
-          name: `Instagram User ${from}`,
-          email: `${from}@instagram.local`,
-          instagramId: from,
+      try {
+        // Find or create customer
+        let customer = await this.customersService.findByInstagramId(from);
+        if (!customer) {
+          console.log('[WEBHOOK] Creating new customer for Instagram ID:', from);
+          customer = await this.customersService.create({
+            name: `Instagram User ${from}`,
+            email: `${from}@instagram.local`,
+            instagramId: from,
+          });
+        }
+
+        console.log('[WEBHOOK] Customer found/created:', customer.id);
+
+        // Update lastInstagramMessageAt for 24hr window tracking
+        await this.customersService.updateLastInstagramMessageAt(from, new Date());
+        console.log('[WEBHOOK] ✅ Updated lastInstagramMessageAt for 24-hour window tracking');
+
+        // Create inbound message
+        const createdMessage = await this.messagesService.create({
+          content: text,
+          platform: 'instagram',
+          direction: 'inbound',
+          customerId: customer.id,
         });
-      }
 
-      console.log('Customer found/created:', customer.id);
-
-      // Update lastInstagramMessageAt for 24hr window tracking
-      await this.customersService.updateLastInstagramMessageAt(from, new Date());
-      console.log('✅ Updated lastInstagramMessageAt for 24-hour window tracking');
-
-      // Create inbound message
-      const createdMessage = await this.messagesService.create({
-        content: text,
-        platform: 'instagram',
-        direction: 'inbound',
-        customerId: customer.id,
-      });
-
-      console.log('Instagram message created in database:', createdMessage.id);
+        console.log('[WEBHOOK] Instagram message created in database:', createdMessage.id);
 
       // Emit real-time update via WebSocket for inbound message
       this.websocketGateway.emitNewMessage('instagram', {
@@ -391,98 +437,105 @@ Just let me know! 💖`
         customerName: customer.name,
       });
 
-        // Automated reschedule flow
-          const intent = await this.messagesService.classifyIntent(text);
-          if (intent === 'reschedule') {
-            // Step 2: Find active booking(s)
-            const bookings = await this.bookingsService.getActiveBookings(customer.id);
-            if (!bookings || bookings.length === 0) {
-              await this.instagramService.sendMessage(from, `I couldn’t find an active booking for you. Would you like to start a new booking?`);
-              return;
-            }
-            // If multiple, ask which one
-            let booking = bookings[0];
-            if (bookings.length > 1) {
-              await this.instagramService.sendMessage(from, `You have multiple active bookings. Please reply with the date or service of the booking you want to reschedule.`);
-              await this.bookingsService.setAwaitingRescheduleSelection(customer.id, true);
-              return;
-            }
-            // Step 3: Check eligibility
-            const now = new Date();
-            const bookingTime = new Date(booking.dateTime);
-            const hoursDiff = (bookingTime.getTime() - now.getTime()) / (1000 * 60 * 60);
-            if (booking.status === 'completed' || booking.status === 'cancelled') {
-              await this.instagramService.sendMessage(from, `Your booking cannot be rescheduled as it is already completed or cancelled.`);
-              return;
-            }
-                if (hoursDiff < 72) {
-                    // Create admin alert for reschedule request within 72 hours
-                    const bookingDt = DateTime.fromJSDate(booking.dateTime).setZone('Africa/Nairobi');
-                    if (this.notificationsService) {
-                        await this.notificationsService.createNotification({
-                            type: 'reschedule_request',
-                            title: 'Reschedule Request - Within 72 Hours',
-                            message: `Customer ${customer.name || customer.phone || from} requested to reschedule booking "${booking.service}" scheduled for ${bookingDt.toFormat('MMMM dd, yyyy')} at ${bookingDt.toFormat('h:mm a')}. Only ${Math.round(hoursDiff)} hours until booking.`,
-                            metadata: {
-                                customerId: customer.id,
-                                customerName: customer.name,
-                                customerPhone: customer.phone || from,
-                                bookingId: booking.id,
-                                hoursUntilBooking: Math.round(hoursDiff),
-                                originalDateTime: booking.dateTime,
-                                platform: 'instagram',
-                            },
-                        });
-                    }
-                    await this.instagramService.sendMessage(from, `Rescheduling is only allowed at least 72 hours before your booking. Please contact support for urgent changes.`);
-                    return;
-                }
-            // Step 4: Prompt for new date/time or handle reschedule flow
-            const isAwaitingRescheduleTime = await this.bookingsService.isAwaitingRescheduleTime(booking.id);
-            if (!isAwaitingRescheduleTime) {
-              await this.instagramService.sendMessage(from, `Sure! Please reply with your new preferred date and time for your booking (e.g. '12th Dec, 3pm').`);
-              await this.bookingsService.setAwaitingRescheduleTime(booking.id, true);
-              return;
-            } else {
-              // Step 5: Validate new date/time
-              const newTime = await this.aiService.extractDateTime(text);
-              if (!newTime) {
-                await this.instagramService.sendMessage(from, `Sorry, I couldn’t understand the new date/time. Please reply with your preferred date and time (e.g. '12th Dec, 3pm').`);
-                return;
-              }
-              // Step 6: Check for conflicts
-              const conflict = await this.bookingsService.checkTimeConflict(newTime);
-              if (conflict) {
-                await this.instagramService.sendMessage(from, `That time is not available. Please choose another date and time.`);
-                return;
-              }
-              // Step 7: Update booking
-              await this.bookingsService.updateBookingTime(booking.id, newTime);
-              await this.bookingsService.setAwaitingRescheduleTime(booking.id, false);
-              await this.instagramService.sendMessage(from, `Your booking has been rescheduled to ${newTime}. If you need further changes, let us know!`);
-              // Step 8: End flow
-              return;
-            }
+      // Automated reschedule flow
+      const intent = await this.messagesService.classifyIntent(text);
+      if (intent === 'reschedule') {
+        // Step 2: Find active booking(s)
+        const bookings = await this.bookingsService.getActiveBookings(customer.id);
+        if (!bookings || bookings.length === 0) {
+          await this.instagramService.sendMessage(from, `I couldn’t find an active booking for you. Would you like to start a new booking?`);
+          return;
+        }
+        // If multiple, ask which one
+        let booking = bookings[0];
+        if (bookings.length > 1) {
+          await this.instagramService.sendMessage(from, `You have multiple active bookings. Please reply with the date or service of the booking you want to reschedule.`);
+          await this.bookingsService.setAwaitingRescheduleSelection(customer.id, true);
+          return;
+        }
+        // Step 3: Check eligibility
+        const now = new Date();
+        const bookingTime = new Date(booking.dateTime);
+        const hoursDiff = (bookingTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+        if (booking.status === 'completed' || booking.status === 'cancelled') {
+          await this.instagramService.sendMessage(from, `Your booking cannot be rescheduled as it is already completed or cancelled.`);
+          return;
+        }
+        if (hoursDiff < 72) {
+          // Create admin alert for reschedule request within 72 hours
+          const bookingDt = DateTime.fromJSDate(booking.dateTime).setZone('Africa/Nairobi');
+          if (this.notificationsService) {
+            await this.notificationsService.createNotification({
+              type: 'reschedule_request',
+              title: 'Reschedule Request - Within 72 Hours',
+              message: `Customer ${customer.name || customer.phone || from} requested to reschedule booking "${booking.service}" scheduled for ${bookingDt.toFormat('MMMM dd, yyyy')} at ${bookingDt.toFormat('h:mm a')}. Only ${Math.round(hoursDiff)} hours until booking.`,
+              metadata: {
+                customerId: customer.id,
+                customerName: customer.name,
+                customerPhone: customer.phone || from,
+                bookingId: booking.id,
+                hoursUntilBooking: Math.round(hoursDiff),
+                originalDateTime: booking.dateTime,
+                platform: 'instagram',
+              },
+            });
           }
-      // Check both global AI and customer-specific AI before queuing
-      const globalAiEnabled = await this.aiSettingsService.isAiEnabled();
-      const customerAiEnabled = customer.aiEnabled;
-
-      // Debug: Log customerId and aiEnabled before AI queueing
-      console.log(`[AI DEBUG] Instagram: customerId=${customer.id}, aiEnabled=${customer.aiEnabled}`);
-
-      if (globalAiEnabled && customerAiEnabled) {
-        // Queue the message for centralized AI processing
-        console.log('Adding Instagram message to centralized AI queue...');
-        await this.aiQueue.add('handleAiJob', {
-          customerId: customer.id,
-          message: text,
-          platform: 'instagram'
-        });
-        console.log('Instagram message added to centralized AI queue successfully');
-      } else {
-        console.log('AI disabled (global or customer-specific) - Instagram message not queued');
+          await this.instagramService.sendMessage(from, `Rescheduling is only allowed at least 72 hours before your booking. Please contact support for urgent changes.`);
+          return;
+        }
+        // Step 4: Prompt for new date/time or handle reschedule flow
+        const isAwaitingRescheduleTime = await this.bookingsService.isAwaitingRescheduleTime(booking.id);
+        if (!isAwaitingRescheduleTime) {
+          await this.instagramService.sendMessage(from, `Sure! Please reply with your new preferred date and time for your booking (e.g. '12th Dec, 3pm').`);
+          await this.bookingsService.setAwaitingRescheduleTime(booking.id, true);
+          return;
+        } else {
+          // Step 5: Validate new date/time
+          const newTime = await this.aiService.extractDateTime(text);
+          if (!newTime) {
+            await this.instagramService.sendMessage(from, `Sorry, I couldn’t understand the new date/time. Please reply with your preferred date and time (e.g. '12th Dec, 3pm').`);
+            return;
+          }
+          // Step 6: Check for conflicts
+          const conflict = await this.bookingsService.checkTimeConflict(newTime);
+          if (conflict) {
+            await this.instagramService.sendMessage(from, `That time is not available. Please choose another date and time.`);
+            return;
+          }
+          // Step 7: Update booking
+          await this.bookingsService.updateBookingTime(booking.id, newTime);
+          await this.bookingsService.setAwaitingRescheduleTime(booking.id, false);
+          await this.instagramService.sendMessage(from, `Your booking has been rescheduled to ${newTime}. If you need further changes, let us know!`);
+          // Step 8: End flow
+          return;
+        }
       }
+        // Check both global AI and customer-specific AI before queuing
+        const globalAiEnabled = await this.aiSettingsService.isAiEnabled();
+        const customerAiEnabled = customer.aiEnabled;
+
+        // Debug: Log customerId and aiEnabled before AI queueing
+        console.log(`[WEBHOOK] [AI DEBUG] Instagram: customerId=${customer.id}, aiEnabled=${customer.aiEnabled}, globalAiEnabled=${globalAiEnabled}`);
+
+        if (globalAiEnabled && customerAiEnabled) {
+          // Queue the message for centralized AI processing
+          console.log('[WEBHOOK] Adding Instagram message to centralized AI queue...');
+          await this.aiQueue.add('handleAiJob', {
+            customerId: customer.id,
+            message: text,
+            platform: 'instagram'
+          });
+          console.log('[WEBHOOK] Instagram message added to centralized AI queue successfully');
+        } else {
+          console.log(`[WEBHOOK] AI disabled - globalAiEnabled=${globalAiEnabled}, customerAiEnabled=${customerAiEnabled} - Instagram message not queued`);
+        }
+      } catch (error) {
+        console.error('[WEBHOOK] Error processing Instagram message:', error);
+        console.error('[WEBHOOK] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+        throw error; // Re-throw to be caught by controller
+      }
+    } else {
+      console.log('[WEBHOOK] Instagram message is not a text message or missing text field');
     }
   }
 
@@ -597,20 +650,20 @@ Just let me know! 💖`
             // Create admin alert for reschedule request within 72 hours
             const bookingDt = DateTime.fromJSDate(booking.dateTime).setZone('Africa/Nairobi');
             if (this.notificationsService) {
-                await this.notificationsService.createNotification({
-                    type: 'reschedule_request',
-                    title: 'Reschedule Request - Within 72 Hours',
-                    message: `Customer ${customer.name || customer.phone || senderId} requested to reschedule booking "${booking.service}" scheduled for ${bookingDt.toFormat('MMMM dd, yyyy')} at ${bookingDt.toFormat('h:mm a')}. Only ${Math.round(hoursDiff)} hours until booking.`,
-                    metadata: {
-                        customerId: customer.id,
-                        customerName: customer.name,
-                        customerPhone: customer.phone || senderId,
-                        bookingId: booking.id,
-                        hoursUntilBooking: Math.round(hoursDiff),
-                        originalDateTime: booking.dateTime,
-                        platform: 'messenger',
-                    },
-                });
+              await this.notificationsService.createNotification({
+                type: 'reschedule_request',
+                title: 'Reschedule Request - Within 72 Hours',
+                message: `Customer ${customer.name || customer.phone || senderId} requested to reschedule booking "${booking.service}" scheduled for ${bookingDt.toFormat('MMMM dd, yyyy')} at ${bookingDt.toFormat('h:mm a')}. Only ${Math.round(hoursDiff)} hours until booking.`,
+                metadata: {
+                  customerId: customer.id,
+                  customerName: customer.name,
+                  customerPhone: customer.phone || senderId,
+                  bookingId: booking.id,
+                  hoursUntilBooking: Math.round(hoursDiff),
+                  originalDateTime: booking.dateTime,
+                  platform: 'messenger',
+                },
+              });
             }
             await this.messengerSendService.sendMessage(senderId, `Rescheduling is only allowed at least 72 hours before your booking. Please contact support for urgent changes.`);
             return;
@@ -760,6 +813,53 @@ Just let me know! 💖`
     }
 
     return { status: 'ok' };
+  }
+
+  /**
+   * Test method to verify queue connection and processing
+   */
+  async testQueueConnection(body: { customerId: string; message: string; platform: string }) {
+    const { customerId, message, platform } = body;
+    console.log('[TEST] Testing queue connection...');
+
+    try {
+      // Check if queue exists
+      if (!this.aiQueue) {
+        return { success: false, error: 'aiQueue is not initialized' };
+      }
+
+      // Check Redis connection status
+      const queueClient = (this.aiQueue as any).client;
+      let redisStatus = 'unknown';
+      if (queueClient) {
+        redisStatus = queueClient.status || 'unknown';
+        console.log(`[TEST] Redis client status: ${redisStatus}`);
+      }
+
+      // Try to add a job
+      console.log(`[TEST] Adding test job to queue...`);
+      const job = await this.aiQueue.add("handleAiJob", {
+        customerId,
+        message,
+        platform: platform || 'whatsapp'
+      });
+
+      console.log(`[TEST] ✅ Job added successfully! Job ID: ${job.id}`);
+
+      return {
+        success: true,
+        jobId: job.id,
+        redisStatus,
+        message: 'Job queued successfully. Check logs for processing status.'
+      };
+    } catch (error) {
+      console.error('[TEST] ❌ Queue test failed:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      };
+    }
   }
 
   async handleTelegramWebhook(data: any) {

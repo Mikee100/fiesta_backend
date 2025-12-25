@@ -64,6 +64,19 @@ export class WhatsappService {
     if (error.response) {
       const status = error.response.status;
       const data = error.response.data;
+      const errorCode = data?.error?.code;
+      const errorMessage = data?.error?.message || data?.error?.error_subcode;
+
+      // Test mode restriction - phone number not in allowed list
+      // This is expected in development/test mode and should be handled gracefully
+      if (status === 400 && (errorCode === 131030 || errorMessage?.includes('not in allowed list'))) {
+        const testModeError = new Error(`WhatsApp API error: ${errorMessage || 'Recipient phone number not in allowed list'}`);
+        (testModeError as any).isTestModeRestriction = true;
+        (testModeError as any).code = 131030;
+        console.warn(`⚠️ WhatsApp ${operation} - Test Mode Restriction:`, errorMessage);
+        console.warn(`   This is expected in development/test mode. Add phone numbers to your WhatsApp Business API test list.`);
+        throw testModeError;
+      }
 
       // Rate limiting (429)
       if (status === 429) {
@@ -79,9 +92,9 @@ export class WhatsappService {
       }
 
       // Invalid phone number (400)
-      if (status === 400 && data?.error?.message) {
-        console.error(`❌ WhatsApp ${operation} - Bad Request:`, data.error.message);
-        throw new Error(`WhatsApp API error: ${data.error.message}`);
+      if (status === 400 && errorMessage) {
+        console.error(`❌ WhatsApp ${operation} - Bad Request:`, errorMessage);
+        throw new Error(`WhatsApp API error: ${errorMessage}`);
       }
 
       // Generic API error
@@ -89,7 +102,7 @@ export class WhatsappService {
         status,
         error: data?.error || data,
       });
-      throw new Error(`WhatsApp API error (${status}): ${data?.error?.message || 'Unknown error'}`);
+      throw new Error(`WhatsApp API error (${status}): ${errorMessage || 'Unknown error'}`);
     }
 
     // Network or other errors
@@ -167,9 +180,10 @@ export class WhatsappService {
     }
 
     // Validate phone number format (E.164 format recommended)
-    const normalizedTo = to.trim().replace(/[^0-9+]/g, '');
+    let normalizedTo = to.trim().replace(/[^0-9+]/g, '');
     if (!normalizedTo.startsWith('+')) {
-      console.warn(`⚠️ Phone number ${to} doesn't start with '+'. WhatsApp recommends E.164 format.`);
+      // Automatically add '+' prefix for E.164 format
+      normalizedTo = `+${normalizedTo}`;
     }
 
     try {

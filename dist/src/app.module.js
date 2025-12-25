@@ -11,7 +11,6 @@ const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
 const bull_1 = require("@nestjs/bull");
 const throttler_1 = require("@nestjs/throttler");
-const core_1 = require("@nestjs/core");
 const event_emitter_1 = require("@nestjs/event-emitter");
 const app_controller_1 = require("./app.controller");
 const prisma_module_1 = require("./prisma/prisma.module");
@@ -70,7 +69,38 @@ exports.AppModule = AppModule = __decorate([
                 },
             ]),
             bull_1.BullModule.forRoot({
-                redis: process.env.REDIS_URL || 'redis://localhost:6379',
+                redis: (() => {
+                    if (process.env.REDIS_URL) {
+                        try {
+                            const url = new URL(process.env.REDIS_URL);
+                            return {
+                                host: url.hostname,
+                                port: parseInt(url.port || '6379', 10),
+                                password: url.password || process.env.REDIS_PASSWORD,
+                                connectTimeout: 5000,
+                                retryStrategy: (times) => {
+                                    return Math.min(times * 500, 3000);
+                                },
+                                maxRetriesPerRequest: null,
+                                enableReadyCheck: false,
+                            };
+                        }
+                        catch (error) {
+                            console.warn('Invalid REDIS_URL format, falling back to default configuration');
+                        }
+                    }
+                    return {
+                        host: process.env.REDIS_HOST || 'localhost',
+                        port: parseInt(process.env.REDIS_PORT || '6379', 10),
+                        password: process.env.REDIS_PASSWORD,
+                        connectTimeout: 5000,
+                        retryStrategy: (times) => {
+                            return Math.min(times * 500, 3000);
+                        },
+                        maxRetriesPerRequest: null,
+                        enableReadyCheck: false,
+                    };
+                })(),
             }),
             event_emitter_1.EventEmitterModule.forRoot(),
             prisma_module_1.PrismaModule,
@@ -104,12 +134,7 @@ exports.AppModule = AppModule = __decorate([
             health_module_1.HealthModule,
         ],
         controllers: [app_controller_1.AppController],
-        providers: [
-            {
-                provide: core_1.APP_GUARD,
-                useClass: throttler_1.ThrottlerGuard,
-            },
-        ],
+        providers: [],
     })
 ], AppModule);
 //# sourceMappingURL=app.module.js.map

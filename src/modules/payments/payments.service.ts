@@ -89,6 +89,7 @@ export class PaymentsService {
   }
 
   async initiateSTKPush(bookingDraftId: string, phone: string, amount: number): Promise<{ checkoutRequestId: string; paymentId: string }> {
+    this.logger.error(`[DEBUG-TRACE] initiateSTKPush called: bookingDraftId=${bookingDraftId}, phone=${phone}, amount=${amount}`);
     const draft = await this.prisma.bookingDraft.findUnique({
       where: { id: bookingDraftId },
       include: { customer: true },
@@ -153,7 +154,7 @@ export class PaymentsService {
       this.logger.log(`[STK] Amount: ${amount} KSH`);
       this.logger.log(`[STK] Callback URL: ${this.callbackUrl}`);
       this.logger.debug(`[STK] Request body: ${JSON.stringify(stkRequestBody)}`);
-      
+
       // WARNING: In sandbox mode, the phone number MUST be registered in M-PESA Developer Portal
       if (this.mpesaBaseUrl.includes('sandbox')) {
         this.logger.warn(`[STK] ⚠️ SANDBOX MODE: Phone number ${formattedPhone} must be registered in M-PESA Developer Portal to receive STK push!`);
@@ -167,7 +168,7 @@ export class PaymentsService {
         this.logger.warn(`[STK]    5. Wait 2-3 minutes for registration to take effect`);
         this.logger.warn(`[STK]    6. Try the STK push again`);
       }
-      
+
       const stkResponse = await firstValueFrom(
         this.httpService.post(stkUrl, stkRequestBody, {
           headers: {
@@ -177,9 +178,9 @@ export class PaymentsService {
         }),
       );
       const data = (stkResponse as { data: any }).data;
-      
+
       this.logger.log(`[STK] M-PESA API Response: ${JSON.stringify(data)}`);
-      
+
       if (data.ResponseCode !== '0') {
         this.logger.error(`[STK] M-PESA API returned error: ResponseCode=${data.ResponseCode}, errorMessage=${data.errorMessage || data.CustomerMessage || 'Unknown error'}`);
         await this.prisma.payment.update({
@@ -199,7 +200,7 @@ export class PaymentsService {
       this.logger.log(`[STK] MerchantRequestID: ${data.MerchantRequestID}`);
       this.logger.log(`[STK] ⏳ Waiting for user to complete payment on phone ${formattedPhone}...`);
       this.logger.log(`[STK] 📞 Callback will be sent to: ${this.callbackUrl}`);
-      
+
       // In sandbox mode, provide additional diagnostic information
       if (this.mpesaBaseUrl.includes('sandbox')) {
         this.logger.warn(`[STK] ⚠️ CRITICAL SANDBOX REQUIREMENT:`);
@@ -253,16 +254,16 @@ export class PaymentsService {
   async handleCallback(body: any) {
     this.logger.log(`[CALLBACK] 📥 M-PESA callback received`);
     this.logger.debug(`[CALLBACK] Full callback body: ${JSON.stringify(body, null, 2)}`);
-    
+
     // M-Pesa sends validation and confirmation callbacks
     const { Body } = body;
-    
+
     if (!Body || !Body.stkCallback) {
       this.logger.error(`[CALLBACK] ❌ Invalid callback structure. Expected Body.stkCallback`);
       this.logger.error(`[CALLBACK] Received structure: ${JSON.stringify(Object.keys(body))}`);
       return;
     }
-    
+
     const { stkCallback } = Body;
     const { CheckoutRequestID, MerchantRequestID, ResultCode, ResultDesc, CallbackMetadata } = stkCallback;
 
@@ -491,7 +492,7 @@ export class PaymentsService {
         where: { id: payment.bookingDraft.customerId },
         select: { instagramId: true, whatsappId: true, messengerId: true }
       });
-      
+
       // Send message directly via appropriate platform service
       // This ensures the message is actually delivered, not just saved to DB
       if (customer?.whatsappId) {
@@ -554,7 +555,7 @@ export class PaymentsService {
    */
   async checkStuckPayments(): Promise<void> {
     const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
-    
+
     const stuckPayments = await this.prisma.payment.findMany({
       where: {
         status: 'pending',
@@ -573,17 +574,17 @@ export class PaymentsService {
 
     for (const payment of stuckPayments) {
       this.logger.warn(`Found stuck payment ${payment.id}, created ${Math.floor((Date.now() - payment.createdAt.getTime()) / 1000 / 60)} minutes ago`);
-      
+
       // Notify user
       if (payment.bookingDraft) {
         const customer = payment.bookingDraft.customer;
-        const platform = customer?.whatsappId ? 'whatsapp' 
-                       : customer?.instagramId ? 'instagram'
-                       : customer?.messengerId ? 'messenger'
-                       : 'whatsapp';
-        
+        const platform = customer?.whatsappId ? 'whatsapp'
+          : customer?.instagramId ? 'instagram'
+            : customer?.messengerId ? 'messenger'
+              : 'whatsapp';
+
         const message = `I noticed your payment prompt has been pending for a while. Sometimes M-PESA confirmations can be delayed. If you completed the payment, please share your M-PESA receipt number. Otherwise, reply 'resend' and I'll send you a fresh payment prompt. 📲`;
-        
+
         await this.messagesService.sendOutboundMessage(
           payment.bookingDraft.customerId,
           message,
@@ -621,7 +622,7 @@ export class PaymentsService {
       );
 
       const data = response.data;
-      
+
       if (data.ResponseCode === '0' && data.ResultCode === '0') {
         // Transaction successful - extract receipt if available
         let receipt = '';
@@ -663,7 +664,7 @@ export class PaymentsService {
 
       // Query M-Pesa for transaction status
       const queryResult = await this.queryTransactionStatus(payment.checkoutRequestId);
-      
+
       if (!queryResult.success) {
         this.logger.warn(`[SECURITY] Transaction query failed for payment ${paymentId}: ${queryResult.error}`);
         return { valid: false, matches: false, error: queryResult.error };

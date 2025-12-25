@@ -17,7 +17,13 @@ export class RemindersQueueProcessor {
         try {
             await this.remindersService.sendReminder(reminderId);
             this.logger.log(`Successfully sent reminder ${reminderId}`);
-        } catch (error) {
+        } catch (error: any) {
+            // Check if this is a test mode restriction (expected in dev/test)
+            if (error?.isTestModeRestriction) {
+                this.logger.warn(`Reminder ${reminderId} processed with test mode restriction - message marked as sent but may not be delivered`);
+                // Don't throw - the service already handled it gracefully
+                return;
+            }
             this.logger.error(`Failed to send reminder ${reminderId}`, error);
             throw error;
         }

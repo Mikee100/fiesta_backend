@@ -778,8 +778,20 @@ ${conversationText.substring(0, 2000)}...`;
         throw lastError;
     }
     validatePhoneNumber(phone) {
-        const kenyanPattern = /^(\+254|0)[17]\d{8}$/;
-        return kenyanPattern.test(phone.replace(/\s/g, ''));
+        if (!phone || typeof phone !== 'string')
+            return false;
+        const cleaned = phone.replace(/\s/g, '').trim();
+        if (!cleaned)
+            return false;
+        if (/^0\d{9}$/.test(cleaned))
+            return true;
+        if (/^\+254\d{9}$/.test(cleaned))
+            return true;
+        if (/^254\d{9}$/.test(cleaned))
+            return true;
+        if (/^\d{9}$/.test(cleaned))
+            return true;
+        return false;
     }
     async checkBookingConflicts(customerId, dateTime, excludeBookingId, service) {
         let durationMinutes = 60;
@@ -1706,8 +1718,13 @@ DO NOT repeat your previous question. Instead:
             if (this.validatePhoneNumber(extraction.recipientPhone)) {
                 const { formatPhoneNumber } = require('../../utils/booking');
                 const formattedPhone = formatPhoneNumber(extraction.recipientPhone);
-                this.logger.debug(`[PHONE] Formatting phone: "${extraction.recipientPhone}" -> "${formattedPhone}"`);
-                updates.recipientPhone = formattedPhone;
+                if (this.validatePhoneNumber(formattedPhone)) {
+                    this.logger.debug(`[PHONE] Formatting phone: "${extraction.recipientPhone}" -> "${formattedPhone}"`);
+                    updates.recipientPhone = formattedPhone;
+                }
+                else {
+                    this.logger.warn(`Formatted phone number is invalid: "${formattedPhone}" (from "${extraction.recipientPhone}")`);
+                }
             }
             else {
                 this.logger.warn(`Invalid phone number provided: ${extraction.recipientPhone}`);
@@ -1909,6 +1926,7 @@ DO NOT repeat your previous question. Instead:
         return false;
     }
     async handleConversation(message, customerId, history = [], bookingsService, retryCount = 0, enrichedContext) {
+        this.logger.log(`[AI SERVICE] handleConversation called for customer ${customerId}. Message: "${message.substring(0, 50)}..."`);
         const conversationStartTime = Date.now();
         let personalizationContext = null;
         let intentAnalysis = null;
@@ -2120,6 +2138,7 @@ DO NOT repeat your previous question. Instead:
         };
     }
     async processConversationLogic(message, customerId, history = [], bookingsService, enrichedContext, intentAnalysis) {
+        this.logger.log(`[AI SERVICE] processConversationLogic starting for customer ${customerId}`);
         if (bookingsService) {
             await bookingsService.cleanupStaleDraft(customerId);
         }

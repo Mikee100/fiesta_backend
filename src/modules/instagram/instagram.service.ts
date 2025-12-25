@@ -131,25 +131,29 @@ export class InstagramService {
   }
 
   async sendMessage(to: string, message: string) {
-    console.log('📤 Sending Instagram message to:', to);
-    console.log('Message:', message);
+    console.log('[INSTAGRAM] 📤 Sending Instagram message to:', to);
+    console.log('[INSTAGRAM] Message:', message);
 
     // Check 24-hour window first
     const canSend = await this.canSendMessage(to);
     if (!canSend.allowed) {
-      console.error('❌ Cannot send message:', canSend.reason);
+      console.error('[INSTAGRAM] ❌ Cannot send message:', canSend.reason);
       throw new Error(canSend.reason);
     }
 
-    console.log(`✅ Within 24-hour window (${canSend.hoursRemaining?.toFixed(1)} hours remaining)`);
+    console.log(`[INSTAGRAM] ✅ Within 24-hour window (${canSend.hoursRemaining?.toFixed(1)} hours remaining)`);
 
     try {
       if (!this.pageId) {
-        throw new Error('pageId is undefined - check INSTAGRAM_PAGE_ID in .env');
+        const error = 'pageId is undefined - check INSTAGRAM_PAGE_ID in .env';
+        console.error(`[INSTAGRAM] ❌ ${error}`);
+        throw new Error(error);
       }
 
       if (!this.pageAccessToken) {
-        throw new Error('pageAccessToken is undefined - check INSTAGRAM_PAGE_ACCESS_TOKEN in .env');
+        const error = 'pageAccessToken is undefined - check INSTAGRAM_PAGE_ACCESS_TOKEN in .env';
+        console.error(`[INSTAGRAM] ❌ ${error}`);
+        throw new Error(error);
       }
 
       // IMPORTANT: Use Page ID, not Instagram Business Account ID
@@ -161,6 +165,9 @@ export class InstagramService {
         messaging_type: "RESPONSE",
       };
 
+      console.log(`[INSTAGRAM] Sending to URL: ${url}`);
+      console.log(`[INSTAGRAM] Payload:`, JSON.stringify(payload, null, 2));
+
       // IMPORTANT: Use Page Access Token, not User Access Token
       const response = await axios.post(url, payload, {
         headers: {
@@ -169,7 +176,7 @@ export class InstagramService {
         },
       });
 
-      console.log('✔️ Instagram API response:', response.data);
+      console.log('[INSTAGRAM] ✔️ Instagram API response:', JSON.stringify(response.data, null, 2));
 
       // Save outbound message
       const customer = await this.customersService.findByInstagramId(to);
@@ -184,8 +191,15 @@ export class InstagramService {
 
       return response.data;
 
-    } catch (error) {
-      console.error('❌ Instagram send error:', error.response?.data || error.message);
+    } catch (error: any) {
+      console.error('[INSTAGRAM] ❌ Instagram send error:', error.response?.data || error.message);
+      console.error('[INSTAGRAM] Error details:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        message: error.message,
+        stack: error.stack
+      });
       throw error;
     }
   }

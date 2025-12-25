@@ -27,6 +27,10 @@ let RemindersQueueProcessor = RemindersQueueProcessor_1 = class RemindersQueuePr
             this.logger.log(`Successfully sent reminder ${reminderId}`);
         }
         catch (error) {
+            if (error?.isTestModeRestriction) {
+                this.logger.warn(`Reminder ${reminderId} processed with test mode restriction - message marked as sent but may not be delivered`);
+                return;
+            }
             this.logger.error(`Failed to send reminder ${reminderId}`, error);
             throw error;
         }

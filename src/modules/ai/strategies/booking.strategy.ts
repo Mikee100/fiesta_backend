@@ -5,32 +5,32 @@ export class BookingStrategy implements ResponseStrategy {
 
     canHandle(intent: string, context: any): boolean {
         const { hasDraft, message } = context;
-        
+
         // CRITICAL: Check for payment resend FIRST, even if intent is reschedule
         // "resend" alone should always trigger payment resend, not reschedule
         const wantsToRetryPayment = /^(resend|retry|try.*again|send.*again)$/i.test(message.trim()) ||
-                                    /(resend|retry|try.*again|try.*payment|retry.*payment|lets.*retry|let.*retry|want.*retry|need.*retry|can.*retry).*(payment|prompt|mpesa)/i.test(message) ||
-                                    /(payment|prompt|mpesa).*(resend|retry|try.*again)/i.test(message);
-        
+            /(resend|retry|try.*again|try.*payment|retry.*payment|lets.*retry|let.*retry|want.*retry|need.*retry|can.*retry).*(payment|prompt|mpesa)/i.test(message) ||
+            /(payment|prompt|mpesa).*(resend|retry|try.*again)/i.test(message);
+
         // If user wants to resend payment, always handle it (even if intent is reschedule)
         if (wantsToRetryPayment) {
             return true;
         }
-        
+
         // CRITICAL: Don't handle if user explicitly wants to reschedule
         // This prevents booking strategy from interfering with reschedule flow
         const isRescheduleIntent =
             /\b(reschedul\w*)\b/i.test(message) ||
             /(i want to|i'd like to|i need to|can i|can we).*reschedule/i.test(message) ||
             /(change|move|modify).*(booking|appointment|date|time)/i.test(message);
-        
+
         if (isRescheduleIntent) {
             return false; // Let processConversationLogic handle reschedule
         }
-        
+
         // Check if user wants to START a booking (even if no draft exists)
         const wantsToStartBooking = /(how.*(do|can).*(make|book|start|get|schedule).*(booking|appointment)|(i want|i'd like|i need|can i|please).*(to book|booking|appointment|make.*booking|schedule)|let.*book|start.*booking)/i.test(message);
-        
+
         // Handle if:
         // 1. There's an active draft (continue existing booking)
         // 2. Intent is booking (from intent classifier)
@@ -46,13 +46,13 @@ export class BookingStrategy implements ResponseStrategy {
 
         // Get existing draft first to check if we're in reschedule mode
         let draft = await aiService.getOrCreateDraft(customerId);
-        
+
         // Check if user wants to resend payment BEFORE cleaning up draft
         // This prevents losing booking details when user wants to resend
         const wantsToRetryPayment = /^(resend|retry|try.*again|send.*again)$/i.test(message.trim()) ||
-                                    /(resend|retry|try.*again|try.*payment|retry.*payment|lets.*retry|let.*retry|want.*retry|need.*retry|can.*retry).*(payment|prompt|mpesa)/i.test(message) ||
-                                    /(payment|prompt|mpesa).*(resend|retry|try.*again)/i.test(message);
-        
+            /(resend|retry|try.*again|try.*payment|retry.*payment|lets.*retry|let.*retry|want.*retry|need.*retry|can.*retry).*(payment|prompt|mpesa)/i.test(message) ||
+            /(payment|prompt|mpesa).*(resend|retry|try.*again)/i.test(message);
+
         // CRITICAL: Check if draft is stale and clean it up before proceeding
         // BUT: Don't clean up if user wants to resend payment (we need the draft data)
         if (draft && !wantsToRetryPayment) {
@@ -62,7 +62,7 @@ export class BookingStrategy implements ResponseStrategy {
                 draft = null; // Draft was deleted, set to null
             }
         }
-        
+
         // CRITICAL: If draft has a failed payment and user is asking unrelated questions,
         // don't show booking details - return null to let other strategies handle it
         if (draft && bookingsService) {
@@ -70,18 +70,18 @@ export class BookingStrategy implements ResponseStrategy {
             if (hasFailed) {
                 // Check if message is clearly booking/payment related
                 const lower = message.toLowerCase();
-                const isBookingRelated = 
+                const isBookingRelated =
                     /(how.*(do|can).*(make|book|start|get|schedule).*(booking|appointment)|(i want|i'd like|i need|can i|please).*(to book|booking|appointment|make.*booking|schedule)|let.*book|start.*booking)/i.test(message) ||
                     /(resend|retry|try.*again|try.*payment|retry.*payment|lets.*retry|let.*retry|want.*retry|need.*retry|can.*retry).*(payment|prompt|mpesa)/i.test(message) ||
                     /(payment|prompt|mpesa|deposit|confirm|booking|appointment|book|schedule|date|time|package)/i.test(lower);
-                
+
                 if (!isBookingRelated) {
                     logger.debug(`[STRATEGY] Draft has failed payment and message is not booking-related, skipping booking strategy`);
                     return null; // Let other strategies handle non-booking queries
                 }
             }
         }
-        
+
         // CRITICAL: If draft is in reschedule mode, skip booking strategy
         // Reschedule flow is handled in processConversationLogic, not here
         if (draft && (draft.step === 'reschedule' || draft.step === 'reschedule_confirm')) {
@@ -97,9 +97,9 @@ export class BookingStrategy implements ResponseStrategy {
         // PRIORITY: Handle "resend" immediately, even if intent was misclassified
         // This ensures payment resend works regardless of intent classification
         const isResendRequest = /^(resend|retry|try.*again|send.*again)$/i.test(message.trim()) ||
-                                /(resend|retry|try.*again|try.*payment|retry.*payment|lets.*retry|let.*retry|want.*retry|need.*retry|can.*retry).*(payment|prompt|mpesa)/i.test(message) ||
-                                /(payment|prompt|mpesa).*(resend|retry|try.*again)/i.test(message);
-        
+            /(resend|retry|try.*again|try.*payment|retry.*payment|lets.*retry|let.*retry|want.*retry|need.*retry|can.*retry).*(payment|prompt|mpesa)/i.test(message) ||
+            /(payment|prompt|mpesa).*(resend|retry|try.*again)/i.test(message);
+
         if (isResendRequest) {
             logger.debug(`[PAYMENT] User requesting to resend payment prompt - handling immediately`);
             // Check if there's a payment to retry (even if no active draft)
@@ -126,17 +126,17 @@ export class BookingStrategy implements ResponseStrategy {
                 }
             }
         }
-        
+
         const isPaymentQuery = /(payment|pay|mpesa|prompt|sent|received|money|paid|transaction|deposit|checkout|check.*payment|payment.*status|didn.*receive|not.*receive|haven.*receive|wrong.*number|change.*number|resend|send.*again|retry|try.*again|try.*payment|retry.*payment|cancel.*payment|payment.*cancel|stuck|frozen|not.*working|payment.*issue|problem.*payment|help.*payment|payment.*help)/i.test(message);
-        
+
         if (isPaymentQuery && draft) {
             // Scenario 1: User says they haven't received the payment prompt
             if (/(didn.*receive|not.*receive|haven.*receive|no.*prompt|didn.*get|not.*get|haven.*get|where.*prompt|when.*prompt|prompt.*not|still.*waiting)/i.test(message)) {
                 logger.debug(`[PAYMENT] User reports not receiving prompt`);
-                
+
                 const latestPayment = await bookingsService.getLatestPaymentForDraft(customerId);
                 const hasRecentPrompt = await bookingsService.hasRecentPaymentPrompt(customerId);
-                
+
                 if (!latestPayment) {
                     // No payment initiated yet
                     if (draft.step === 'confirm') {
@@ -145,7 +145,7 @@ export class BookingStrategy implements ResponseStrategy {
                             const pkg = await bookingsService.packagesService.findPackageByName(draft.service);
                             const depositAmount = pkg?.deposit || 2000;
                             const phone = draft.recipientPhone;
-                            
+
                             if (!phone) {
                                 return {
                                     response: "I need your phone number to send the payment prompt. What's your M-PESA registered phone number? 📱",
@@ -153,12 +153,12 @@ export class BookingStrategy implements ResponseStrategy {
                                     updatedHistory: [...history.slice(-historyLimit), { role: 'user', content: message }, { role: 'assistant', content: "I need your phone number to send the payment prompt. What's your M-PESA registered phone number? 📱" }]
                                 };
                             }
-                            
+
                             const normalized = aiService.normalizeDateTime(draft.date, draft.time);
                             if (normalized) {
                                 const dateObj = new Date(normalized.isoUtc);
                                 await bookingsService.completeBookingDraft(customerId, dateObj);
-                                
+
                                 return {
                                     response: `I'm sending the payment prompt now! 📲\n\nYou should receive it on ${phone} within the next 10 seconds. Please have your M-PESA PIN ready! 💳\n\nIf you don't receive it, let me know and I can resend it.`,
                                     draft: null,
@@ -179,7 +179,7 @@ export class BookingStrategy implements ResponseStrategy {
                     // Payment is pending - offer to resend
                     const phone = latestPayment.phone || draft.recipientPhone;
                     const timeSinceSent = Math.floor((Date.now() - new Date(latestPayment.createdAt).getTime()) / 1000 / 60);
-                    
+
                     if (timeSinceSent < 2) {
                         return {
                             response: `The payment prompt was just sent ${timeSinceSent === 0 ? 'a moment ago' : `${timeSinceSent} minute${timeSinceSent > 1 ? 's' : ''} ago`} to ${phone}. It may take up to 30 seconds to arrive. Please check your phone! 📲\n\nIf you still don't see it after 30 seconds, just say "resend" and I'll send it again.`,
@@ -211,12 +211,12 @@ export class BookingStrategy implements ResponseStrategy {
                     };
                 }
             }
-            
+
             // Scenario 2: User wants to resend payment prompt
             // Match: "resend", "retry", "try again", "retry payment", "lets retry", "try the payment again", etc.
             if (/(resend|send.*again|send.*another|retry|try.*again|try.*payment|retry.*payment|lets.*retry|let.*retry|want.*retry|need.*retry|can.*retry|send.*prompt|resend.*payment)/i.test(message)) {
                 logger.debug(`[PAYMENT] User requesting to resend payment prompt`);
-                
+
                 const result = await bookingsService.resendPaymentPrompt(customerId);
                 return {
                     response: result.message,
@@ -224,11 +224,11 @@ export class BookingStrategy implements ResponseStrategy {
                     updatedHistory: [...history.slice(-historyLimit), { role: 'user', content: message }, { role: 'assistant', content: result.message }]
                 };
             }
-            
+
             // Scenario 3: User says they entered wrong phone number
             if (/(wrong.*number|incorrect.*number|wrong.*phone|change.*number|update.*number|different.*number|new.*number|correct.*number)/i.test(message)) {
                 logger.debug(`[PAYMENT] User wants to change phone number`);
-                
+
                 // Try to extract phone number from message
                 const phoneMatch = message.match(/(?:0|254)?[17]\d{8}/);
                 if (phoneMatch) {
@@ -247,13 +247,13 @@ export class BookingStrategy implements ResponseStrategy {
                     };
                 }
             }
-            
+
             // Scenario 4: User says money has been sent / paid
             if (/(paid|sent|money.*sent|already.*paid|i.*paid|payment.*done|transaction.*complete|money.*sent|sent.*money|completed.*payment)/i.test(message)) {
                 logger.debug(`[PAYMENT] User claims payment was made`);
-                
+
                 const latestPayment = await bookingsService.getLatestPaymentForDraft(customerId);
-                
+
                 if (!latestPayment) {
                     return {
                         response: "I don't see a payment record. Let me send you the payment prompt now. Please complete it on your phone. 📲",
@@ -261,7 +261,7 @@ export class BookingStrategy implements ResponseStrategy {
                         updatedHistory: [...history.slice(-historyLimit), { role: 'user', content: message }, { role: 'assistant', content: "I don't see a payment record. Let me send you the payment prompt now. Please complete it on your phone. 📲" }]
                     };
                 }
-                
+
                 if (latestPayment.status === 'success') {
                     return {
                         response: "Perfect! I can confirm your payment was received successfully! ✅ Your booking is confirmed. You should have received a confirmation with all the details. If you need anything else, just let me know! 💖",
@@ -271,7 +271,7 @@ export class BookingStrategy implements ResponseStrategy {
                 } else if (latestPayment.status === 'pending') {
                     // Check if it's been more than 5 minutes - might be stuck
                     const timeSinceSent = Math.floor((Date.now() - new Date(latestPayment.createdAt).getTime()) / 1000 / 60);
-                    
+
                     if (timeSinceSent > 5) {
                         return {
                             response: `I see the payment has been pending for ${timeSinceSent} minutes. Sometimes M-PESA confirmations can be delayed. Do you have the M-PESA receipt number? If so, please share it and I'll verify your payment immediately! Otherwise, I can resend a fresh payment prompt. 📲`,
@@ -296,20 +296,20 @@ export class BookingStrategy implements ResponseStrategy {
                     };
                 }
             }
-            
+
             // Scenario 5: User cancelled M-PESA prompt
             if (/(cancel.*payment|payment.*cancel|cancelled.*prompt|prompt.*cancel|declined|rejected|didn.*accept|didn.*complete)/i.test(message)) {
                 logger.debug(`[PAYMENT] User cancelled payment`);
-                
+
                 const latestPayment = await bookingsService.getLatestPaymentForDraft(customerId);
-                
+
                 if (latestPayment && latestPayment.status === 'pending') {
                     // Mark as cancelled and offer to resend
                     await prisma.payment.update({
                         where: { id: latestPayment.id },
                         data: { status: 'failed' }
                     });
-                    
+
                     return {
                         response: "No problem! I've cancelled that payment request. Would you like me to send it again? Just reply 'yes' or 'resend' and I'll send a fresh payment prompt. 💖",
                         draft,
@@ -323,11 +323,11 @@ export class BookingStrategy implements ResponseStrategy {
                     };
                 }
             }
-            
+
             // Scenario 6: User provides M-PESA receipt number
             if (/(receipt|confirmation.*code|mpesa.*receipt|transaction.*code|code.*is|receipt.*number|receipt.*is)/i.test(message)) {
                 logger.debug(`[PAYMENT] User provided receipt number`);
-                
+
                 // Extract receipt number (M-PESA receipts are typically 10 alphanumeric characters)
                 const receiptMatch = message.match(/\b([A-Z0-9]{8,12})\b/);
                 if (receiptMatch) {
@@ -346,13 +346,13 @@ export class BookingStrategy implements ResponseStrategy {
                     };
                 }
             }
-            
+
             // Scenario 7: User wants to check payment status
             if (/(check.*payment|payment.*status|status.*payment|did.*payment|payment.*received|payment.*go|where.*payment)/i.test(message)) {
                 logger.debug(`[PAYMENT] User checking payment status`);
-                
+
                 const latestPayment = await bookingsService.getLatestPaymentForDraft(customerId);
-                
+
                 if (!latestPayment) {
                     return {
                         response: "I don't see any payment record yet. Would you like me to send the payment prompt now? Just reply 'yes' or 'send payment'. 📲",
@@ -360,10 +360,10 @@ export class BookingStrategy implements ResponseStrategy {
                         updatedHistory: [...history.slice(-historyLimit), { role: 'user', content: message }, { role: 'assistant', content: "I don't see any payment record yet. Would you like me to send the payment prompt now? Just reply 'yes' or 'send payment'. 📲" }]
                     };
                 }
-                
+
                 const pkg = await bookingsService.packagesService.findPackageByName(draft.service);
                 const depositAmount = pkg?.deposit || 2000;
-                
+
                 if (latestPayment.status === 'success') {
                     return {
                         response: `✅ Payment Status: SUCCESSFUL\n\nAmount: KSH ${depositAmount.toLocaleString()}\nReceipt: ${latestPayment.mpesaReceipt || 'N/A'}\n\nYour booking is confirmed! You should have received a confirmation message with all the details. 💖`,
@@ -385,13 +385,13 @@ export class BookingStrategy implements ResponseStrategy {
                     };
                 }
             }
-            
+
             // Scenario 8: User says payment is stuck/frozen/not working
             if (/(stuck|frozen|not.*working|payment.*issue|problem.*payment|help.*payment|payment.*help|payment.*error|something.*wrong.*payment)/i.test(message)) {
                 logger.debug(`[PAYMENT] User reports payment issue`);
-                
+
                 const latestPayment = await bookingsService.getLatestPaymentForDraft(customerId);
-                
+
                 if (!latestPayment) {
                     return {
                         response: "I don't see any payment record. Let me send you a fresh payment prompt. If you continue to have issues, please contact us at 0720 111928. 📲",
@@ -399,10 +399,10 @@ export class BookingStrategy implements ResponseStrategy {
                         updatedHistory: [...history.slice(-historyLimit), { role: 'user', content: message }, { role: 'assistant', content: "I don't see any payment record. Let me send you a fresh payment prompt. If you continue to have issues, please contact us at 0720 111928. 📲" }]
                     };
                 }
-                
+
                 if (latestPayment.status === 'pending') {
                     const timeSinceSent = Math.floor((Date.now() - new Date(latestPayment.createdAt).getTime()) / 1000 / 60);
-                    
+
                     if (timeSinceSent > 10) {
                         // Been stuck for a while - offer to resend
                         return {
@@ -436,8 +436,9 @@ export class BookingStrategy implements ResponseStrategy {
         // CRITICAL: Handle "Confirm" message when draft is in confirm step - do this BEFORE extraction
         // This prevents misclassification and circuit breaker issues
         if (draft && draft.step === 'confirm' && /^(confirm|yes|ok|okay|sure|proceed|go ahead)$/i.test(message.trim())) {
+            context.logger.error(`[DEBUG-TRACE] [STRATEGY] Detected confirmation for deposit payment. CustomerId: ${customerId}`);
             logger.debug(`[STRATEGY] Detected confirmation for deposit payment`);
-            
+
             // FIRST: Check if payment has already been initiated to prevent getting stuck in loops
             const existingPayment = await bookingsService.getLatestPaymentForDraft(customerId);
             if (existingPayment) {
@@ -461,7 +462,7 @@ export class BookingStrategy implements ResponseStrategy {
                 } else if (existingPayment.status === 'pending') {
                     const phone = existingPayment.phone || draft.recipientPhone;
                     const timeSinceSent = Math.floor((Date.now() - new Date(existingPayment.createdAt).getTime()) / 1000 / 60);
-                    
+
                     if (timeSinceSent < 1) {
                         return {
                             response: `⏳ I've already sent the payment prompt to your phone (${phone}) just a moment ago! Please check your phone and enter your M-PESA PIN to complete the payment. 📲\n\nIf you don't see it, wait about 30 seconds as M-PESA prompts can sometimes be delayed. If you still don't receive it, just say "resend" and I'll send it again.`,
@@ -487,7 +488,7 @@ export class BookingStrategy implements ResponseStrategy {
                     };
                 }
             }
-            
+
             // Check if all required fields are present
             if (draft.service && draft.date && draft.time && draft.name && draft.recipientPhone) {
                 try {
@@ -502,14 +503,14 @@ export class BookingStrategy implements ResponseStrategy {
                     }
 
                     const dateObj = new Date(normalized.isoUtc);
-                    
+
                     // Check availability one more time
                     const avail = await bookingsService.checkAvailability(dateObj, draft.service);
                     if (!avail.available) {
                         // Slot became unavailable - handle with suggestions
                         const studioTz = 'Africa/Nairobi';
                         let response = "I'm sorry, but that slot is no longer available. 😔\n\n";
-                        
+
                         if (avail.suggestions && avail.suggestions.length > 0) {
                             const suggestions = avail.suggestions
                                 .slice(0, 5)
@@ -522,18 +523,18 @@ export class BookingStrategy implements ResponseStrategy {
                         } else {
                             response += `Would you like to try a different date and time?`;
                         }
-                        
+
                         return { response, draft, updatedHistory: [...history.slice(-historyLimit), { role: 'user', content: message }, { role: 'assistant', content: response }] };
                     }
 
                     // All good - initiate payment
                     const pkg = await bookingsService.packagesService.findPackageByName(draft.service);
                     const depositAmount = pkg?.deposit || 2000;
-                    
+
                     // Get customer phone
                     const customer = await prisma.customer.findUnique({ where: { id: customerId } });
                     const phone = draft.recipientPhone || customer?.phone;
-                    
+
                     if (!phone) {
                         return {
                             response: "I need your phone number to send the payment request. Could you please provide it? 📱",
@@ -544,7 +545,7 @@ export class BookingStrategy implements ResponseStrategy {
 
                     // Complete the booking draft and initiate payment
                     const result = await bookingsService.completeBookingDraft(customerId, dateObj);
-                    
+
                     return {
                         response: `Awesome, we're almost done! 🎉\n\nTo lock in your booking for the ${draft.service} package, a deposit of KSH ${depositAmount} is required—this helps us secure your spot and prepare everything just for you.\n\nI am now sending the payment prompt to your phone.`,
                         draft: null, // Draft is completed
@@ -566,7 +567,7 @@ export class BookingStrategy implements ResponseStrategy {
                 if (!draft.time) missing.push('time');
                 if (!draft.name) missing.push('name');
                 if (!draft.recipientPhone) missing.push('phone number');
-                
+
                 return {
                     response: `I'm missing some information: ${missing.join(', ')}. Could you please provide ${missing.length === 1 ? 'it' : 'them'}?`,
                     draft,
@@ -584,7 +585,7 @@ export class BookingStrategy implements ResponseStrategy {
                 .slice(-3)
                 .map(msg => msg.content.toLowerCase())
                 .join(' ');
-            
+
             const acknowledgmentPatterns = [
                 /^(ok|okay|sure|yes|yeah|yep|alright|sounds good|got it|understood|perfect|great|thanks|thank you)/i,
                 /^(ok|okay|sure|yes|yeah|yep|alright|sounds good|got it|understood|perfect|great|thanks|thank you).*(then|i will|i'll)/i,
@@ -592,13 +593,13 @@ export class BookingStrategy implements ResponseStrategy {
                 /i will (come|bring|do)/i,
                 /i'll (come|bring|do)/i,
             ];
-            
+
             const isAcknowledgment = acknowledgmentPatterns.some(pattern => pattern.test(message)) &&
                 !/(book|appointment|schedule|reserve|available|slot|date|time|when|what time|make a booking|new booking)/i.test(message);
-            
+
             const recentWasFaq = /(welcome|fine|allowed|bring|include|can i|is it|are.*allowed|photographer|family|partner|guests|questions|feel free|anything else)/i.test(recentAssistantMsgs) &&
                 !/(book|appointment|schedule|reserve|available|slot|date|time|when|what time|make a booking|new booking)/i.test(recentAssistantMsgs);
-            
+
             if (isAcknowledgment && recentWasFaq) {
                 // This is just an acknowledgment, not a booking request
                 logger.debug(`[STRATEGY] Detected acknowledgment, skipping booking flow`);
@@ -611,26 +612,26 @@ export class BookingStrategy implements ResponseStrategy {
         // 1. User explicitly wants to cancel/start fresh (extraction will indicate this)
         // 2. Draft is in a terminal state (already completed/payment initiated)
         // 3. User is explicitly starting a NEW booking (not just continuing)
-        
+
         // Check if this is a request for alternative slots (e.g., "what's another free slot", "give me another time")
         const isSlotQuery = /(another|other|what.*another|what.*other|so what|give me|show me).*(slot|time|hour)/i.test(message) &&
-                           !/(book|appointment|schedule|reserve|confirm)/i.test(message);
-        
+            !/(book|appointment|schedule|reserve|confirm)/i.test(message);
+
         // If it's a slot query, use draft service/date to show alternatives
         if (isSlotQuery && draft?.service && draft?.date) {
             const studioTz = 'Africa/Nairobi';
             const slots = await bookingsService.getAvailableSlotsForDate(draft.date, draft.service);
-            
+
             if (slots.length > 0) {
                 // Show available slots on the same day
                 const prettySlots = slots.slice(0, 8).map((s: string) => {
                     const dt = DateTime.fromISO(s).setZone(studioTz);
                     return `- ${dt.toFormat('h:mm a')}`;
                 }).join('\n');
-                
+
                 const dateDt = DateTime.fromISO(draft.date).setZone(studioTz);
                 const formattedDate = dateDt.toFormat('EEE, MMM d');
-                
+
                 const response = `Here are the available times for ${draft.service} on ${formattedDate}:\n\n${prettySlots}\n\nWhich time would you like to book?`;
                 return {
                     response,
@@ -642,7 +643,7 @@ export class BookingStrategy implements ResponseStrategy {
                 try {
                     const dateObj = DateTime.fromISO(draft.date).setZone(studioTz).toJSDate();
                     const alternativeDays = await bookingsService.findAvailableSlotsAcrossDays(dateObj, draft.service, 7);
-                    
+
                     if (alternativeDays.length > 0) {
                         const dayOptions: string[] = [];
                         alternativeDays.forEach((dayData) => {
@@ -655,10 +656,10 @@ export class BookingStrategy implements ResponseStrategy {
                                 })
                                 .slice(0, 3)
                                 .join(', ');
-                            
+
                             dayOptions.push(`${dateStr}: ${slots}`);
                         });
-                        
+
                         const response = `Unfortunately, ${draft.date} is fully booked. Here are some other available dates:\n\n${dayOptions.join('\n')}\n\nWhich date works best for you?`;
                         return {
                             response,
@@ -700,11 +701,11 @@ export class BookingStrategy implements ResponseStrategy {
         }
 
         // Only delete draft if user explicitly wants to start fresh AND there's no active important state
-        const shouldStartFresh = extraction.subIntent === 'start' && 
-                                 !draft.dateTimeIso && 
-                                 !draft.service && 
-                                 draft.step === 'service';
-        
+        const shouldStartFresh = extraction.subIntent === 'start' &&
+            !draft.dateTimeIso &&
+            !draft.service &&
+            draft.step === 'service';
+
         if (shouldStartFresh) {
             await bookingsService.deleteBookingDraft(customerId);
             draft = await aiService.getOrCreateDraft(customerId);
@@ -734,7 +735,7 @@ export class BookingStrategy implements ResponseStrategy {
                 }
             }
         }
-        
+
         // Also handle simple "yes" when package was just shown (check recent history)
         const isSimpleYes = /^(yes|yeah|yep|sure|ok|okay|alright|sounds good|i do|i would|let's do it)$/i.test(message.trim());
         if (isSimpleYes && draft.service && !draft.dateTimeIso) {
@@ -749,7 +750,7 @@ export class BookingStrategy implements ResponseStrategy {
 
         // STEP 1: Validate and progress through booking steps systematically
         // This ensures we don't skip steps or mix things up
-        
+
         // Validate service first (if provided)
         if (draft.service) {
             const packages = await bookingsService.packagesService.findPackageByName(draft.service);
@@ -757,10 +758,10 @@ export class BookingStrategy implements ResponseStrategy {
                 const allPackages = await bookingsService.packagesService.findAll();
                 const packageNames = allPackages.map((p: any) => p.name).join(', ');
                 const response = `I don't recognize "${draft.service}". Here are our available packages:\n${packageNames}\n\nWhich one would you like?`;
-                return { 
-                    response, 
-                    draft, 
-                    updatedHistory: [...history.slice(-historyLimit), { role: 'user', content: message }, { role: 'assistant', content: response }] 
+                return {
+                    response,
+                    draft,
+                    updatedHistory: [...history.slice(-historyLimit), { role: 'user', content: message }, { role: 'assistant', content: response }]
                 };
             }
         }
@@ -770,29 +771,29 @@ export class BookingStrategy implements ResponseStrategy {
             const normalized = aiService.normalizeDateTime(draft.date, draft.time);
             if (normalized) {
                 const dateObj = new Date(normalized.isoUtc);
-                
+
                 // Validate date is not in the past
                 const now = new Date();
                 if (dateObj < now) {
                     const response = "I notice that date is in the past. Could you please provide a future date for your booking? 😊";
-                    return { 
-                        response, 
-                        draft, 
-                        updatedHistory: [...history.slice(-historyLimit), { role: 'user', content: message }, { role: 'assistant', content: response }] 
+                    return {
+                        response,
+                        draft,
+                        updatedHistory: [...history.slice(-historyLimit), { role: 'user', content: message }, { role: 'assistant', content: response }]
                     };
                 }
-                
+
                 const avail = await bookingsService.checkAvailability(dateObj, draft.service);
-                logger.debug('Availability check result:', { 
-                    available: avail.available, 
+                logger.debug('Availability check result:', {
+                    available: avail.available,
                     suggestions: avail.suggestions?.length || 0,
-                    sameDayFull: avail.sameDayFull 
+                    sameDayFull: avail.sameDayFull
                 });
 
                 if (!avail.available) {
                     const studioTz = 'Africa/Nairobi';
                     let response = "I'm so sorry, but that slot is already taken. 😔\n\n";
-                    
+
                     // Scenario 1: Same day has available slots
                     if (avail.suggestions && avail.suggestions.length > 0) {
                         const sameDaySuggestions = avail.suggestions
@@ -801,16 +802,16 @@ export class BookingStrategy implements ResponseStrategy {
                                 return `- ${dt.toFormat('h:mm a')}`;
                             })
                             .join('\n');
-                        
+
                         response += `Here are some other times I have available on ${draft.date}:\n${sameDaySuggestions}\n\nDo any of these work for you?`;
-                    } 
+                    }
                     // Scenario 2: Same day is full, check other days
                     else if (avail.sameDayFull) {
                         response += `Unfortunately, ${draft.date} is fully booked. Let me check other available dates for you...\n\n`;
-                        
+
                         try {
                             const alternativeDays = await bookingsService.findAvailableSlotsAcrossDays(dateObj, draft.service, 7);
-                            
+
                             if (alternativeDays.length > 0) {
                                 const dayOptions: string[] = [];
                                 alternativeDays.forEach((dayData, index) => {
@@ -823,10 +824,10 @@ export class BookingStrategy implements ResponseStrategy {
                                         })
                                         .slice(0, 3) // Show max 3 slots per day
                                         .join(', ');
-                                    
+
                                     dayOptions.push(`${dateStr}: ${slots}`);
                                 });
-                                
+
                                 response += `Here are some available dates:\n\n${dayOptions.join('\n')}\n\nWhich date works best for you?`;
                             } else {
                                 // Scenario 3: No slots available in the next week
@@ -836,16 +837,16 @@ export class BookingStrategy implements ResponseStrategy {
                             logger.error('Error finding alternative days:', error);
                             response += `Would you like to try a different date? You can suggest another day, or I can help you find available slots.`;
                         }
-                    } 
+                    }
                     // Scenario 4: Fallback (shouldn't happen, but handle gracefully)
                     else {
                         response += `Would you like to try a different date and time?`;
                     }
-                    
-                    return { 
-                        response, 
-                        draft, 
-                        updatedHistory: [...history.slice(-historyLimit), { role: 'user', content: message }, { role: 'assistant', content: response }] 
+
+                    return {
+                        response,
+                        draft,
+                        updatedHistory: [...history.slice(-historyLimit), { role: 'user', content: message }, { role: 'assistant', content: response }]
                     };
                 }
             }
@@ -876,20 +877,20 @@ export class BookingStrategy implements ResponseStrategy {
         if (completion.action === 'unavailable') {
             const studioTz = 'Africa/Nairobi';
             let response = "I'm so sorry, but that slot is already taken. 😔\n\n";
-            
+
             // Use suggestions from completion if available
             if (completion.suggestions && completion.suggestions.length > 0) {
                 const sameDaySuggestions = completion.suggestions
                     .slice(0, 8)
                     .map((s: string) => {
                         // Handle both ISO strings and formatted strings
-                        const dt = typeof s === 'string' && s.includes('T') 
+                        const dt = typeof s === 'string' && s.includes('T')
                             ? DateTime.fromISO(s).setZone(studioTz)
                             : DateTime.fromJSDate(new Date(s)).setZone(studioTz);
                         return `- ${dt.toFormat('h:mm a')}`;
                     })
                     .join('\n');
-                
+
                 response += `Here are some other times I have available on ${draft.date}:\n${sameDaySuggestions}\n\nDo any of these work for you?`;
             } else {
                 // No suggestions from completion, try to find alternatives
@@ -897,7 +898,7 @@ export class BookingStrategy implements ResponseStrategy {
                     if (draft.date && draft.service) {
                         const dateObj = DateTime.fromISO(draft.date).setZone(studioTz).toJSDate();
                         const alternativeDays = await bookingsService.findAvailableSlotsAcrossDays(dateObj, draft.service, 7);
-                        
+
                         if (alternativeDays.length > 0) {
                             const dayOptions: string[] = [];
                             alternativeDays.forEach((dayData) => {
@@ -910,10 +911,10 @@ export class BookingStrategy implements ResponseStrategy {
                                     })
                                     .slice(0, 3)
                                     .join(', ');
-                                
+
                                 dayOptions.push(`${dateStr}: ${slots}`);
                             });
-                            
+
                             response += `Unfortunately, ${draft.date} is fully booked. Here are some other available dates:\n\n${dayOptions.join('\n')}\n\nWhich date works best for you?`;
                         } else {
                             response += `Unfortunately, ${draft.date} is fully booked, and I couldn't find available slots in the next week. Would you like to try a date further in the future, or contact us at 0720 111928?`;
@@ -926,7 +927,7 @@ export class BookingStrategy implements ResponseStrategy {
                     response += `Would you like to try a different date and time?`;
                 }
             }
-            
+
             return { response, draft, updatedHistory: [...history.slice(-historyLimit), { role: 'user', content: message }, { role: 'assistant', content: response }] };
         }
 
@@ -946,7 +947,7 @@ export class BookingStrategy implements ResponseStrategy {
                     };
                 }
             }
-            
+
             // Check if this requires resending payment (previous payment failed)
             if (completion.requiresResend) {
                 // User said "Yes" after payment failed - resend payment
@@ -954,7 +955,7 @@ export class BookingStrategy implements ResponseStrategy {
                 const result = await bookingsService.resendPaymentPrompt(customerId);
                 return { response: result.message, draft, updatedHistory: [...history.slice(-historyLimit), { role: 'user', content: message }, { role: 'assistant', content: result.message }] };
             }
-            
+
             const response = `Great! Here are your booking details:\n\n• Package: ${completion.packageName || 'selected'}\n• Date: ${draft.date}\n• Time: ${draft.time}\n• Name: ${draft.name}\n• Phone: ${draft.recipientPhone}\n\nTo confirm your booking, a deposit of KSH ${completion.amount} is required.\n\nReply with *CONFIRM* to accept and receive the payment prompt. If you need to make changes, just let me know!`;
             return { response, draft, updatedHistory: [...history.slice(-historyLimit), { role: 'user', content: message }, { role: 'assistant', content: response }] };
         }
@@ -975,17 +976,17 @@ export class BookingStrategy implements ResponseStrategy {
         if (extraction.subIntent === 'deposit_confirmed' || extraction.subIntent === 'confirm') {
             const latestPayment = await bookingsService.getLatestPaymentForDraft(customerId);
             const confirmedBooking = await bookingsService.getLatestConfirmedBooking(customerId);
-            
+
             // If no confirmed booking exists and payment is failed/missing, don't generate false confirmation
             if (!confirmedBooking && (!latestPayment || latestPayment.status !== 'success')) {
                 if (latestPayment && latestPayment.status === 'failed') {
                     // Payment failed - resend payment prompt
                     logger.debug(`[SECURITY] Payment failed, resending payment prompt instead of false confirmation`);
                     const result = await bookingsService.resendPaymentPrompt(customerId);
-                    return { 
-                        response: result.message, 
-                        draft, 
-                        updatedHistory: [...history.slice(-historyLimit), { role: 'user', content: message }, { role: 'assistant', content: result.message }] 
+                    return {
+                        response: result.message,
+                        draft,
+                        updatedHistory: [...history.slice(-historyLimit), { role: 'user', content: message }, { role: 'assistant', content: result.message }]
                     };
                 } else if (!latestPayment) {
                     // CRITICAL: Validate draft is not stale before showing booking details
@@ -1001,15 +1002,15 @@ export class BookingStrategy implements ResponseStrategy {
                             };
                         }
                     }
-                    
+
                     // No payment initiated yet - prompt for confirmation
                     const pkg = await bookingsService.packagesService.findPackageByName(draft.service);
                     const depositAmount = pkg?.deposit || 2000;
                     const response = `Great! Here are your booking details:\n\n• Package: ${draft.service}\n• Date: ${draft.date}\n• Time: ${draft.time}\n• Name: ${draft.name}\n• Phone: ${draft.recipientPhone || 'Not provided'}\n\nTo confirm your booking, a deposit of KSH ${depositAmount} is required.\n\nReply with *CONFIRM* to accept and receive the payment prompt. If you need to make changes, just let me know!`;
-                    return { 
-                        response, 
-                        draft, 
-                        updatedHistory: [...history.slice(-historyLimit), { role: 'user', content: message }, { role: 'assistant', content: response }] 
+                    return {
+                        response,
+                        draft,
+                        updatedHistory: [...history.slice(-historyLimit), { role: 'user', content: message }, { role: 'assistant', content: response }]
                     };
                 }
             }
@@ -1017,11 +1018,11 @@ export class BookingStrategy implements ResponseStrategy {
 
         // If not complete, generate reply
         const response = await aiService.generateBookingReply(message, draft, extraction, history, bookingsService);
-        
+
         // SECURITY: Check if AI response claims to send payment but draft is incomplete
         const claimsToSendPayment = /(send.*payment|payment.*prompt|sending.*payment|i.*send|i'll.*send|i will.*send|payment.*request|mpesa.*prompt|finalize.*booking.*deposit|send.*you.*payment|payment.*will.*be|i'm.*sending|sending.*you|let's.*finalize|let.*finalize)/i.test(response);
         const isDraftIncomplete = !draft.service || !draft.date || !draft.time || !draft.name || !draft.recipientPhone;
-        
+
         if (claimsToSendPayment && isDraftIncomplete) {
             logger.warn(`[SECURITY] AI claimed to send payment but draft is incomplete for customer ${customerId}`);
             // Determine what's missing and ask for it
@@ -1031,10 +1032,10 @@ export class BookingStrategy implements ResponseStrategy {
             if (!draft.time) missing.push('time');
             if (!draft.name) missing.push('name');
             if (!draft.recipientPhone) missing.push('phone number');
-            
+
             const nextMissing = missing[0];
             let accurateResponse = '';
-            
+
             if (nextMissing === 'package') {
                 accurateResponse = "I'd love to help you complete your booking! Which package would you like to book? 📸";
             } else if (nextMissing === 'date') {
@@ -1048,18 +1049,18 @@ export class BookingStrategy implements ResponseStrategy {
             } else {
                 accurateResponse = `I need a few more details to complete your booking: ${missing.join(', ')}. Let's start with ${nextMissing} - could you provide that? 💖`;
             }
-            
-            return { 
-                response: accurateResponse, 
-                draft, 
-                updatedHistory: [...history.slice(-historyLimit), { role: 'user', content: message }, { role: 'assistant', content: accurateResponse }] 
+
+            return {
+                response: accurateResponse,
+                draft,
+                updatedHistory: [...history.slice(-historyLimit), { role: 'user', content: message }, { role: 'assistant', content: accurateResponse }]
             };
         }
-        
+
         // SECURITY: Verify response doesn't claim booking is confirmed when it's not
-        const isFalseConfirmation = /(confirmed booking|Everything is set|booking is confirmed|your booking.*confirmed)/i.test(response) && 
-                                   !(await bookingsService.getLatestConfirmedBooking(customerId));
-        
+        const isFalseConfirmation = /(confirmed booking|Everything is set|booking is confirmed|your booking.*confirmed)/i.test(response) &&
+            !(await bookingsService.getLatestConfirmedBooking(customerId));
+
         if (isFalseConfirmation) {
             logger.warn(`[SECURITY] Prevented false booking confirmation for customer ${customerId}`);
             // Check payment status and provide accurate response
@@ -1075,7 +1076,7 @@ export class BookingStrategy implements ResponseStrategy {
                 return { response: accurateResponse, draft, updatedHistory: [...history.slice(-historyLimit), { role: 'user', content: message }, { role: 'assistant', content: accurateResponse }] };
             }
         }
-        
+
         return { response, draft, updatedHistory: [...history.slice(-historyLimit), { role: 'user', content: message }, { role: 'assistant', content: response }] };
     }
 }

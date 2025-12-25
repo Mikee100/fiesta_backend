@@ -38,6 +38,7 @@ export declare class ResponseQualityService {
     private quickValidation;
     private scoreResponse;
     private improveResponse;
+    private cleanImprovedResponse;
     private generateFailureReason;
     private logQualityCheck;
     getQualityStats(days?: number): Promise<{

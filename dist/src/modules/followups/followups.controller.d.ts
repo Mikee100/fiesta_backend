@@ -8,11 +8,11 @@ export declare class FollowupsController {
             booking: {
                 customer: {
                     id: string;
+                    name: string;
                     createdAt: Date;
                     updatedAt: Date;
-                    name: string;
-                    email: string | null;
                     phone: string | null;
+                    email: string | null;
                     whatsappId: string | null;
                     instagramId: string | null;
                     messengerId: string | null;
@@ -28,22 +28,22 @@ export declare class FollowupsController {
                 id: string;
                 customerId: string;
                 service: string;
-                dateTime: Date;
-                status: string;
-                durationMinutes: number | null;
                 recipientName: string | null;
                 recipientPhone: string | null;
-                googleEventId: string | null;
                 createdAt: Date;
                 updatedAt: Date;
+                status: string;
+                dateTime: Date;
+                durationMinutes: number | null;
+                googleEventId: string | null;
             };
         } & {
             id: string;
-            status: string;
+            bookingId: string;
             createdAt: Date;
             updatedAt: Date;
+            status: string;
             type: string;
-            bookingId: string;
             sentAt: Date | null;
             scheduledFor: Date;
             messageContent: string | null;
@@ -65,11 +65,11 @@ export declare class FollowupsController {
             booking: {
                 customer: {
                     id: string;
+                    name: string;
                     createdAt: Date;
                     updatedAt: Date;
-                    name: string;
-                    email: string | null;
                     phone: string | null;
+                    email: string | null;
                     whatsappId: string | null;
                     instagramId: string | null;
                     messengerId: string | null;
@@ -85,22 +85,22 @@ export declare class FollowupsController {
                 id: string;
                 customerId: string;
                 service: string;
-                dateTime: Date;
-                status: string;
-                durationMinutes: number | null;
                 recipientName: string | null;
                 recipientPhone: string | null;
-                googleEventId: string | null;
                 createdAt: Date;
                 updatedAt: Date;
+                status: string;
+                dateTime: Date;
+                durationMinutes: number | null;
+                googleEventId: string | null;
             };
         } & {
             id: string;
-            status: string;
+            bookingId: string;
             createdAt: Date;
             updatedAt: Date;
+            status: string;
             type: string;
-            bookingId: string;
             sentAt: Date | null;
             scheduledFor: Date;
             messageContent: string | null;
@@ -112,11 +112,11 @@ export declare class FollowupsController {
         booking: {
             customer: {
                 id: string;
+                name: string;
                 createdAt: Date;
                 updatedAt: Date;
-                name: string;
-                email: string | null;
                 phone: string | null;
+                email: string | null;
                 whatsappId: string | null;
                 instagramId: string | null;
                 messengerId: string | null;
@@ -132,22 +132,22 @@ export declare class FollowupsController {
             id: string;
             customerId: string;
             service: string;
-            dateTime: Date;
-            status: string;
-            durationMinutes: number | null;
             recipientName: string | null;
             recipientPhone: string | null;
-            googleEventId: string | null;
             createdAt: Date;
             updatedAt: Date;
+            status: string;
+            dateTime: Date;
+            durationMinutes: number | null;
+            googleEventId: string | null;
         };
     } & {
         id: string;
-        status: string;
+        bookingId: string;
         createdAt: Date;
         updatedAt: Date;
+        status: string;
         type: string;
-        bookingId: string;
         sentAt: Date | null;
         scheduledFor: Date;
         messageContent: string | null;
@@ -157,11 +157,11 @@ export declare class FollowupsController {
         booking: {
             customer: {
                 id: string;
+                name: string;
                 createdAt: Date;
                 updatedAt: Date;
-                name: string;
-                email: string | null;
                 phone: string | null;
+                email: string | null;
                 whatsappId: string | null;
                 instagramId: string | null;
                 messengerId: string | null;
@@ -177,22 +177,22 @@ export declare class FollowupsController {
             id: string;
             customerId: string;
             service: string;
-            dateTime: Date;
-            status: string;
-            durationMinutes: number | null;
             recipientName: string | null;
             recipientPhone: string | null;
-            googleEventId: string | null;
             createdAt: Date;
             updatedAt: Date;
+            status: string;
+            dateTime: Date;
+            durationMinutes: number | null;
+            googleEventId: string | null;
         };
     } & {
         id: string;
-        status: string;
+        bookingId: string;
         createdAt: Date;
         updatedAt: Date;
+        status: string;
         type: string;
-        bookingId: string;
         sentAt: Date | null;
         scheduledFor: Date;
         messageContent: string | null;
@@ -202,11 +202,11 @@ export declare class FollowupsController {
         booking: {
             customer: {
                 id: string;
+                name: string;
                 createdAt: Date;
                 updatedAt: Date;
-                name: string;
-                email: string | null;
                 phone: string | null;
+                email: string | null;
                 whatsappId: string | null;
                 instagramId: string | null;
                 messengerId: string | null;
@@ -222,22 +222,22 @@ export declare class FollowupsController {
             id: string;
             customerId: string;
             service: string;
-            dateTime: Date;
-            status: string;
-            durationMinutes: number | null;
             recipientName: string | null;
             recipientPhone: string | null;
-            googleEventId: string | null;
             createdAt: Date;
             updatedAt: Date;
+            status: string;
+            dateTime: Date;
+            durationMinutes: number | null;
+            googleEventId: string | null;
         };
     } & {
         id: string;
-        status: string;
+        bookingId: string;
         createdAt: Date;
         updatedAt: Date;
+        status: string;
         type: string;
-        bookingId: string;
         sentAt: Date | null;
         scheduledFor: Date;
         messageContent: string | null;
@@ -245,11 +245,11 @@ export declare class FollowupsController {
     }>;
     recordResponse(id: string, response: RecordFollowupResponseDto): Promise<{
         id: string;
-        status: string;
+        bookingId: string;
         createdAt: Date;
         updatedAt: Date;
+        status: string;
         type: string;
-        bookingId: string;
         sentAt: Date | null;
         scheduledFor: Date;
         messageContent: string | null;
@@ -257,11 +257,11 @@ export declare class FollowupsController {
     }>;
     updateFollowup(id: string, data: UpdateFollowupDto): Promise<{
         id: string;
-        status: string;
+        bookingId: string;
         createdAt: Date;
         updatedAt: Date;
+        status: string;
         type: string;
-        bookingId: string;
         sentAt: Date | null;
         scheduledFor: Date;
         messageContent: string | null;
@@ -269,11 +269,11 @@ export declare class FollowupsController {
     }>;
     cancelFollowup(id: string): Promise<{
         id: string;
-        status: string;
+        bookingId: string;
         createdAt: Date;
         updatedAt: Date;
+        status: string;
         type: string;
-        bookingId: string;
         sentAt: Date | null;
         scheduledFor: Date;
         messageContent: string | null;

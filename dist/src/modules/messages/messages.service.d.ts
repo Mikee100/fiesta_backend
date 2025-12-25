@@ -8,11 +8,11 @@ export declare class MessagesService {
     private aiService;
     getCustomerById(customerId: string): Promise<{
         id: string;
+        name: string;
         createdAt: Date;
         updatedAt: Date;
-        name: string;
-        email: string | null;
         phone: string | null;
+        email: string | null;
         whatsappId: string | null;
         instagramId: string | null;
         messengerId: string | null;
@@ -30,8 +30,8 @@ export declare class MessagesService {
         id: string;
         customerId: string;
         createdAt: Date;
-        content: string;
         platform: string;
+        content: string;
         direction: string;
         externalId: string | null;
         handledBy: string | null;
@@ -41,11 +41,11 @@ export declare class MessagesService {
     findAll(): Promise<({
         customer: {
             id: string;
+            name: string;
             createdAt: Date;
             updatedAt: Date;
-            name: string;
-            email: string | null;
             phone: string | null;
+            email: string | null;
             whatsappId: string | null;
             instagramId: string | null;
             messengerId: string | null;
@@ -61,8 +61,8 @@ export declare class MessagesService {
         id: string;
         customerId: string;
         createdAt: Date;
-        content: string;
         platform: string;
+        content: string;
         direction: string;
         externalId: string | null;
         handledBy: string | null;
@@ -73,11 +73,11 @@ export declare class MessagesService {
     findByCustomer(customerId: string): Promise<({
         customer: {
             id: string;
+            name: string;
             createdAt: Date;
             updatedAt: Date;
-            name: string;
-            email: string | null;
             phone: string | null;
+            email: string | null;
             whatsappId: string | null;
             instagramId: string | null;
             messengerId: string | null;
@@ -93,8 +93,8 @@ export declare class MessagesService {
         id: string;
         customerId: string;
         createdAt: Date;
-        content: string;
         platform: string;
+        content: string;
         direction: string;
         externalId: string | null;
         handledBy: string | null;
@@ -104,11 +104,11 @@ export declare class MessagesService {
     findOne(id: string): Promise<{
         customer: {
             id: string;
+            name: string;
             createdAt: Date;
             updatedAt: Date;
-            name: string;
-            email: string | null;
             phone: string | null;
+            email: string | null;
             whatsappId: string | null;
             instagramId: string | null;
             messengerId: string | null;
@@ -124,8 +124,8 @@ export declare class MessagesService {
         id: string;
         customerId: string;
         createdAt: Date;
-        content: string;
         platform: string;
+        content: string;
         direction: string;
         externalId: string | null;
         handledBy: string | null;
@@ -135,11 +135,11 @@ export declare class MessagesService {
     findByExternalId(externalId: string): Promise<{
         customer: {
             id: string;
+            name: string;
             createdAt: Date;
             updatedAt: Date;
-            name: string;
-            email: string | null;
             phone: string | null;
+            email: string | null;
             whatsappId: string | null;
             instagramId: string | null;
             messengerId: string | null;
@@ -155,8 +155,8 @@ export declare class MessagesService {
         id: string;
         customerId: string;
         createdAt: Date;
-        content: string;
         platform: string;
+        content: string;
         direction: string;
         externalId: string | null;
         handledBy: string | null;
@@ -168,8 +168,8 @@ export declare class MessagesService {
         id: string;
         customerId: string;
         createdAt: Date;
-        content: string;
         platform: string;
+        content: string;
         direction: string;
         externalId: string | null;
         handledBy: string | null;
@@ -192,14 +192,14 @@ export declare class MessagesService {
                 id: string;
                 customerId: string;
                 service: string;
-                dateTime: Date;
-                status: string;
-                durationMinutes: number | null;
                 recipientName: string | null;
                 recipientPhone: string | null;
-                googleEventId: string | null;
                 createdAt: Date;
                 updatedAt: Date;
+                status: string;
+                dateTime: Date;
+                durationMinutes: number | null;
+                googleEventId: string | null;
             }[];
             isReturning: boolean;
         };
@@ -207,18 +207,18 @@ export declare class MessagesService {
             id: string;
             customerId: string;
             service: string;
-            recipientName: string;
-            recipientPhone: string;
-            createdAt: Date;
-            updatedAt: Date;
-            name: string;
             date: string;
             time: string;
             dateTimeIso: string;
+            name: string;
+            recipientName: string;
+            recipientPhone: string;
             isForSomeoneElse: boolean;
             step: string;
             conflictResolution: string;
             version: number;
+            createdAt: Date;
+            updatedAt: Date;
         };
     }>;
 }

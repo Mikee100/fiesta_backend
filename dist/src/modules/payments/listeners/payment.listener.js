@@ -25,6 +25,7 @@ let PaymentListener = PaymentListener_1 = class PaymentListener {
         this.logger = new common_1.Logger(PaymentListener_1.name);
     }
     async handleBookingDraftCompleted(event) {
+        this.logger.error(`[DEBUG-TRACE] ⚡ BookingDraftCompleted event received: customerId=${event.customerId}`);
         this.logger.log(`[Event] ⚡ BookingDraftCompleted event received: customerId=${event.customerId}, draftId=${event.draftId}, amount=${event.depositAmount}`);
         try {
             let phone = event.recipientPhone;

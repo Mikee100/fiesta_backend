@@ -9,11 +9,11 @@ export declare class MessengerService {
     private readonly customersService;
     private readonly messagesService;
     private readonly websocketGateway;
-    private readonly messageQueue;
+    private readonly aiQueue;
     private readonly prisma;
     private readonly logger;
     private readonly fbVerifyToken;
-    constructor(configService: ConfigService, customersService: CustomersService, messagesService: MessagesService, websocketGateway: WebsocketGateway, messageQueue: Queue, prisma: PrismaService);
+    constructor(configService: ConfigService, customersService: CustomersService, messagesService: MessagesService, websocketGateway: WebsocketGateway, aiQueue: Queue, prisma: PrismaService);
     verifyWebhook(mode: string, token: string, challenge: string): string | null;
     handleMessage(body: any): Promise<void>;
     getMessages(customerId?: string): Promise<{

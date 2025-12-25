@@ -87,25 +87,25 @@ import { ResponseQualityService } from './services/response-quality.service';
 
 @Injectable()
 export class AiService {
-    // Extracts date and time from text (stub)
-    async extractDateTime(text: string): Promise<Date | null> {
-      // Use chrono-node for parsing
-      const results = chrono.parse(text);
-      if (results.length > 0 && results[0].start) {
-        return results[0].start.date();
-      }
-      return null;
+  // Extracts date and time from text (stub)
+  async extractDateTime(text: string): Promise<Date | null> {
+    // Use chrono-node for parsing
+    const results = chrono.parse(text);
+    if (results.length > 0 && results[0].start) {
+      return results[0].start.date();
     }
+    return null;
+  }
 
-    // Helper to get ordinal suffix (1st, 2nd, 3rd, 4th, etc.)
-    private getOrdinalSuffix(day: number): string {
-      const j = day % 10;
-      const k = day % 100;
-      if (j === 1 && k !== 11) return 'st';
-      if (j === 2 && k !== 12) return 'nd';
-      if (j === 3 && k !== 13) return 'rd';
-      return 'th';
-    }
+  // Helper to get ordinal suffix (1st, 2nd, 3rd, 4th, etc.)
+  private getOrdinalSuffix(day: number): string {
+    const j = day % 10;
+    const k = day % 100;
+    if (j === 1 && k !== 11) return 'st';
+    if (j === 2 && k !== 12) return 'nd';
+    if (j === 3 && k !== 13) return 'rd';
+    return 'th';
+  }
   private readonly logger = new Logger(AiService.name);
   private openai: OpenAI;
   private pinecone: Pinecone | null = null;
@@ -121,21 +121,21 @@ export class AiService {
    */
   private formatPackageDetails(pkg: any, includeFeatures = true): string {
     let details = `📦 *${pkg.name}* - KES ${pkg.price}`;
-    
+
     if (!includeFeatures) {
       return details; // Just name and price for summary lists
     }
-    
+
     // Add duration if available
     if (pkg.duration) {
       details += `\n⏱️ Duration: ${pkg.duration}`;
     }
-    
+
     // Add deposit information
     if (pkg.deposit) {
       details += `\n💰 Deposit: KES ${pkg.deposit}`;
     }
-    
+
     // Build features list
     const features: string[] = [];
     if (pkg.images) features.push(`• ${pkg.images} soft copy image${pkg.images !== 1 ? 's' : ''}`);
@@ -149,16 +149,16 @@ export class AiService {
       features.push(`• Photobook${size}`);
     }
     if (pkg.mount) features.push(`• A3 mount`);
-    
+
     if (features.length > 0) {
       details += `\n\n✨ What's included:\n${features.join('\n')}`;
     }
-    
+
     // Add notes if available
     if (pkg.notes) {
       details += `\n\n📝 ${pkg.notes}`;
     }
-    
+
     return details;
   }
 
@@ -168,14 +168,14 @@ export class AiService {
   private readonly embeddingModel: string;
   private readonly extractorModel: string;
   private readonly chatModel: string;
-  
+
   // Retry configuration
   private readonly maxRetries = 3;
   private readonly baseRetryDelay = 1000; // 1 second
   private readonly maxRetryDelay = 10000; // 10 seconds
   // Model fallback chain: try primary model, then cheaper/faster models
   private readonly chatModelFallbackChain = ['gpt-4o', 'gpt-4o-mini', 'gpt-3.5-turbo'];
-  
+
   // Token counting configuration
   private readonly maxContextTokens = 8000; // Safe limit for gpt-4o (128k context, but we keep buffer)
   private readonly summaryThreshold = 4000; // Start summarizing when history exceeds this
@@ -193,7 +193,7 @@ export class AiService {
   // Package caching
   private packageCache: { data: any[]; timestamp: number } | null = null;
   private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-  
+
   // Semantic cache for knowledge base queries
   private semanticCache = new Map<string, { results: any[]; timestamp: number }>();
   private readonly SEMANTIC_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
@@ -246,10 +246,10 @@ export class AiService {
       new PackageInquiryStrategy(),
       new BookingStrategy(),
     ];
-    
+
     // Sort by priority (descending) to ensure correct execution order
     this.strategies.sort((a, b) => (b.priority || 0) - (a.priority || 0));
-    
+
     // Initialize token encoding (lazy-loaded on first use)
     this.initializeTokenEncoding();
   }
@@ -315,11 +315,11 @@ export class AiService {
 
       if (!existingEscalation) {
         this.logger.log(`[ESCALATION] AI response mentions handoff to team - creating escalation for customer ${customerId}`);
-        
+
         // Determine escalation type based on context
         let escalationType = 'ai_handoff';
         let reason = 'AI mentioned connecting customer with team';
-        
+
         // Check message context to determine type
         const messageLower = originalMessage.toLowerCase();
         if (/(payment|pay|mpesa|transaction|failed|error).*(payment|pay)/i.test(originalMessage)) {
@@ -387,11 +387,11 @@ export class AiService {
         const customerName = customer?.name?.replace(/^WhatsApp User\s+/i, '') || customer?.phone || 'Unknown';
         const bookingInfo = customer?.bookings?.[0]
           ? {
-              bookingId: customer.bookings[0].id,
-              service: customer.bookings[0].service,
-              dateTime: customer.bookings[0].dateTime,
-              recipientName: customer.bookings[0].recipientName,
-            }
+            bookingId: customer.bookings[0].id,
+            service: customer.bookings[0].service,
+            dateTime: customer.bookings[0].dateTime,
+            recipientName: customer.bookings[0].recipientName,
+          }
           : null;
 
         await this.notificationsService.createNotification({
@@ -427,7 +427,7 @@ export class AiService {
   ): Promise<void> {
     try {
       const lowerMessage = message.toLowerCase();
-      
+
       // Comprehensive patterns for external people/services
       // Includes variations: "come with", "bringing", "bring", "have", etc.
       const externalPeoplePatterns = [
@@ -462,7 +462,7 @@ export class AiService {
       if (mentionsExternalPeople || mentionsExternalItems || mentionsPets) {
         // Extract what they're bringing
         let itemsMentioned: string[] = [];
-        
+
         // Extract people/services
         if (mentionsExternalPeople) {
           const peopleKeywords = ['photographer', 'photography', 'photo', 'shoot', 'makeup', 'mua', 'makeup artist', 'make-up artist', 'make up artist', 'videographer', 'video', 'videography', 'stylist', 'styling', 'hair', 'hairstylist', 'hair stylist', 'assistant', 'helper', 'team', 'friend', 'family', 'partner', 'husband', 'spouse'];
@@ -495,19 +495,19 @@ export class AiService {
 
         // Remove duplicates and format
         itemsMentioned = [...new Set(itemsMentioned)];
-        
+
         if (itemsMentioned.length === 0) {
           // If we couldn't extract specific items, use a generic description
           itemsMentioned = [mentionsExternalPeople ? 'external people' : 'external items'];
         }
 
         const itemsList = itemsMentioned.map(item => item.charAt(0).toUpperCase() + item.slice(1)).join(', ');
-        
+
         // Get customer and booking info
         const customer = enrichedContext?.customer;
-        const upcomingBooking = enrichedContext?.customer?.recentBookings?.[0] || 
-                               (customer?.bookings && customer.bookings.length > 0 ? customer.bookings[0] : null);
-        
+        const upcomingBooking = enrichedContext?.customer?.recentBookings?.[0] ||
+          (customer?.bookings && customer.bookings.length > 0 ? customer.bookings[0] : null);
+
         // Determine note type - prioritize pets as external_items, then people, then items
         const noteType = mentionsPets ? 'external_items' : (mentionsExternalPeople ? 'external_people' : 'external_items');
 
@@ -566,7 +566,7 @@ export class AiService {
             });
 
             const customerName = customerData?.name?.replace(/^WhatsApp User\s+/i, '') || customerData?.phone || 'Unknown';
-            
+
             await this.notificationsService.createNotification({
               type: 'ai_escalation',
               title: 'Customer Bringing External People/Items',
@@ -734,14 +734,14 @@ export class AiService {
   /* --------------------------
    * Token Counting & History Pruning (Accurate with tiktoken)
    * -------------------------- */
-  
+
   /**
    * Get accurate token count using tiktoken
    * Falls back to character estimation if tiktoken not available
    */
   private getTokenCount(text: string): number {
     if (!text) return 0;
-    
+
     if (this.tokenEncoding) {
       try {
         return this.tokenEncoding.encode(text).length;
@@ -749,7 +749,7 @@ export class AiService {
         this.logger.warn('[TOKEN] tiktoken encoding failed, using fallback', error);
       }
     }
-    
+
     // Fallback: rough estimate (1 token ≈ 4 characters)
     return Math.ceil(text.length / 4);
   }
@@ -760,7 +760,7 @@ export class AiService {
    */
   private calculateTokenCount(messages: any[]): number {
     if (!messages || messages.length === 0) return 0;
-    
+
     let total = 0;
     for (const msg of messages) {
       const content = typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content);
@@ -768,7 +768,7 @@ export class AiService {
       // Add overhead for message formatting (role, etc.)
       total += 4;
     }
-    
+
     return total;
   }
 
@@ -780,7 +780,7 @@ export class AiService {
    */
   private pruneHistory(history: HistoryMsg[], maxTokens: number = this.maxContextTokens): HistoryMsg[] {
     if (!history || history.length === 0) return [];
-    
+
     const totalTokens = this.calculateTokenCount(history);
     if (totalTokens <= maxTokens) {
       return history;
@@ -789,12 +789,12 @@ export class AiService {
     // Always keep the most recent messages (last 3-4 exchanges = 6-8 messages)
     const recentMessages = history.slice(-8);
     const recentTokens = this.calculateTokenCount(recentMessages);
-    
+
     // If recent messages alone exceed limit, keep only the most recent
     if (recentTokens > maxTokens) {
       const pruned: HistoryMsg[] = [];
       let tokens = 0;
-      
+
       // Keep messages from the end until we hit the limit
       for (let i = history.length - 1; i >= 0; i--) {
         const msgTokens = this.getTokenCount(history[i].content) + 4;
@@ -802,7 +802,7 @@ export class AiService {
         pruned.unshift(history[i]);
         tokens += msgTokens;
       }
-      
+
       this.logger.debug(`[TOKEN] Pruned history: ${history.length} → ${pruned.length} messages (${tokens} tokens)`);
       return pruned;
     }
@@ -819,7 +819,7 @@ export class AiService {
     // Keep recent messages + as many older messages as fit
     const pruned: HistoryMsg[] = [...recentMessages];
     let tokens = recentTokens;
-    
+
     for (let i = olderMessages.length - 1; i >= 0; i--) {
       const msgTokens = this.getTokenCount(olderMessages[i].content) + 4;
       if (tokens + msgTokens > maxTokens) break;
@@ -841,7 +841,7 @@ export class AiService {
 
     const primaryIntent = intentAnalysis.primaryIntent;
     const secondaryIntents = intentAnalysis.secondaryIntents || [];
-    
+
     // If we have multiple possible intents, ask which one
     if (secondaryIntents.length > 0) {
       const possibleIntents = [primaryIntent, ...secondaryIntents].slice(0, 3);
@@ -853,15 +853,15 @@ export class AiService {
         'reschedule': 'rescheduling',
         'cancel': 'cancelling',
       };
-      
+
       const options = possibleIntents
         .map(intent => intentLabels[intent] || intent)
         .filter(Boolean)
         .join(', ');
-      
+
       return `I want to make sure I understand correctly - are you asking about ${options}? 😊`;
     }
-    
+
     // If single intent but low confidence, ask for confirmation
     const intentLabels: Record<string, string> = {
       'booking': 'booking an appointment',
@@ -871,7 +871,7 @@ export class AiService {
       'reschedule': 'rescheduling your booking',
       'cancel': 'cancelling your booking',
     };
-    
+
     const label = intentLabels[primaryIntent] || primaryIntent;
     return `Just to make sure I understand - are you looking to ${label}? 😊`;
   }
@@ -882,13 +882,13 @@ export class AiService {
    */
   private async summarizeOldMessages(oldMessages: HistoryMsg[]): Promise<string> {
     if (!oldMessages || oldMessages.length === 0) return '';
-    
+
     try {
       // Create a summary prompt
       const conversationText = oldMessages
         .map(msg => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`)
         .join('\n\n');
-      
+
       const summaryPrompt = `Summarize this conversation history, preserving:
 - Customer preferences and decisions
 - Booking details discussed
@@ -923,7 +923,7 @@ ${conversationText.substring(0, 2000)}...`;
   /* --------------------------
    * Retry Logic with Exponential Backoff & Model Fallback
    * -------------------------- */
-  
+
   /**
    * Retry OpenAI API call with exponential backoff and model fallback chain
    * @param operation OpenAI API call function
@@ -954,18 +954,18 @@ ${conversationText.substring(0, 2000)}...`;
           );
 
           // Don't retry on certain errors (quota, auth, invalid request)
-          if (errorCode === 'insufficient_quota' || 
-              errorCode === 'invalid_api_key' || 
-              errorCode === 'invalid_request_error') {
+          if (errorCode === 'insufficient_quota' ||
+            errorCode === 'invalid_api_key' ||
+            errorCode === 'invalid_request_error') {
             this.logger.error(`[RETRY] Non-retryable error: ${errorCode}`);
             throw error;
           }
 
           // If rate limited, wait longer
           if (errorCode === 'rate_limit_exceeded') {
-            const retryAfter = error?.response?.headers?.['retry-after'] || 
-                             error?.headers?.['retry-after'] || 
-                             Math.min(this.baseRetryDelay * Math.pow(2, attempt - 1), this.maxRetryDelay);
+            const retryAfter = error?.response?.headers?.['retry-after'] ||
+              error?.headers?.['retry-after'] ||
+              Math.min(this.baseRetryDelay * Math.pow(2, attempt - 1), this.maxRetryDelay);
             this.logger.warn(`[RETRY] Rate limited, waiting ${retryAfter}ms before retry`);
             await new Promise(resolve => setTimeout(resolve, retryAfter));
             continue; // Retry same model
@@ -1006,8 +1006,8 @@ ${conversationText.substring(0, 2000)}...`;
     // Queue for async retry (if queue available)
     if (this.aiQueue) {
       try {
-        await this.aiQueue.add('retry-message', { 
-          customerId, 
+        await this.aiQueue.add('retry-message', {
+          customerId,
           error: error.message,
           timestamp: Date.now()
         });
@@ -1132,17 +1132,40 @@ ${conversationText.substring(0, 2000)}...`;
   }
 
   private validatePhoneNumber(phone: string): boolean {
-    // Kenyan format: 07XX XXX XXX or +2547XX XXX XXX
-    const kenyanPattern = /^(\+254|0)[17]\d{8}$/;
-    return kenyanPattern.test(phone.replace(/\s/g, ''));
+    if (!phone || typeof phone !== 'string') return false;
+
+    // Remove whitespace
+    const cleaned = phone.replace(/\s/g, '').trim();
+    if (!cleaned) return false;
+
+    // Kenyan phone number formats:
+    // - 0XXXXXXXXX (10 digits starting with 0)
+    // - +254XXXXXXXXX (13 digits starting with +254)
+    // - 254XXXXXXXXX (12 digits starting with 254)
+    // - XXXXXXXXX (9 digits - will be formatted to 254XXXXXXXXX)
+    // After prefix, should be 9 digits (any digit 0-9)
+
+    // Check for 0XXXXXXXXX format (10 digits)
+    if (/^0\d{9}$/.test(cleaned)) return true;
+
+    // Check for +254XXXXXXXXX format (13 digits)
+    if (/^\+254\d{9}$/.test(cleaned)) return true;
+
+    // Check for 254XXXXXXXXX format (12 digits)
+    if (/^254\d{9}$/.test(cleaned)) return true;
+
+    // Check for 9-digit number (will be formatted)
+    if (/^\d{9}$/.test(cleaned)) return true;
+
+    return false;
   }
 
   /* --------------------------
    * Booking Conflict Detection
    * -------------------------- */
   private async checkBookingConflicts(
-    customerId: string, 
-    dateTime: Date, 
+    customerId: string,
+    dateTime: Date,
     excludeBookingId?: string,
     service?: string
   ): Promise<{ conflict: string | null; suggestions?: string[] }> {
@@ -1269,9 +1292,9 @@ ${conversationText.substring(0, 2000)}...`;
     try {
       const r = await this.retryOpenAICall(
         async () => {
-          return await this.openai.embeddings.create({ 
-            model: this.embeddingModel, 
-            input: text 
+          return await this.openai.embeddings.create({
+            model: this.embeddingModel,
+            input: text
           });
         },
         'generateEmbedding',
@@ -1436,17 +1459,17 @@ ${conversationText.substring(0, 2000)}...`;
    */
   private async searchByVector(query: string, topK: number): Promise<any[]> {
     const docs: any[] = [];
-    
+
     if (!this.index) {
       return docs;
     }
 
     try {
       const vec = await this.generateEmbedding(query);
-      const resp = await this.index.query({ 
-        vector: vec, 
+      const resp = await this.index.query({
+        vector: vec,
         topK: Math.min(topK, 10), // Limit to reasonable number
-        includeMetadata: true 
+        includeMetadata: true
       });
 
       if (resp.matches && resp.matches.length > 0) {
@@ -1477,27 +1500,27 @@ ${conversationText.substring(0, 2000)}...`;
    */
   private async searchByFuzzy(query: string): Promise<any[]> {
     const docs: any[] = [];
-    
+
     try {
       const cleanQuery = query.replace(/[\p{P}$+<=>^`|~]/gu, '').toLowerCase().trim();
       if (cleanQuery.length < 3) return docs;
 
       const allFaqs = await this.prisma.knowledgeBase.findMany({ take: 100 }); // Limit for performance
-      
+
       // Improved similarity scoring (Jaccard similarity)
       const similarity = (a: string, b: string): number => {
         a = a.replace(/[\p{P}$+<=>^`|~]/gu, '').toLowerCase();
         b = b.replace(/[\p{P}$+<=>^`|~]/gu, '').toLowerCase();
         if (a === b) return 1.0;
-        
+
         const aWords = new Set(a.split(' ').filter(w => w.length > 2));
         const bWords = new Set(b.split(' ').filter(w => w.length > 2));
-        
+
         if (aWords.size === 0 || bWords.size === 0) return 0;
-        
+
         const intersection = new Set([...aWords].filter(x => bWords.has(x)));
         const union = new Set([...aWords, ...bWords]);
-        
+
         // Jaccard similarity
         return intersection.size / union.size;
       };
@@ -1597,10 +1620,10 @@ ${conversationText.substring(0, 2000)}...`;
       // Remove oldest entries
       const entries = Array.from(this.semanticCache.entries())
         .sort((a, b) => a[1].timestamp - b[1].timestamp);
-      
+
       const toRemove = entries.slice(0, this.semanticCache.size - maxCacheSize);
       toRemove.forEach(([key]) => this.semanticCache.delete(key));
-      
+
       this.logger.debug(`[KB] Cleaned ${toRemove.length} old cache entries`);
     }
   }
@@ -1616,11 +1639,11 @@ ${conversationText.substring(0, 2000)}...`;
     let mediaUrls: string[] = [];
     try {
       const questionLower = question.toLowerCase();
-      
+
       // Handle family/partner questions with specific, warm response
       const familyPartnerKeywords = ['family', 'partner', 'husband', 'wife', 'spouse', 'children', 'kids', 'come with', 'bring', 'accompany', 'join'];
-      const isFamilyQuestion = familyPartnerKeywords.some(kw => questionLower.includes(kw)) && 
-                               (questionLower.includes('can') || questionLower.includes('may') || questionLower.includes('allowed') || questionLower.includes('welcome'));
+      const isFamilyQuestion = familyPartnerKeywords.some(kw => questionLower.includes(kw)) &&
+        (questionLower.includes('can') || questionLower.includes('may') || questionLower.includes('allowed') || questionLower.includes('welcome'));
       if (isFamilyQuestion) {
         prediction = "Yes, absolutely! Partners and family members are always welcome to join your photoshoot. Many of our packages include couple and family shots - it's a beautiful way to celebrate this journey together! 💖";
         confidence = 1.0;
@@ -1692,7 +1715,7 @@ ${conversationText.substring(0, 2000)}...`;
             confidence = 0.8; // High confidence for domain expertise
           }
         }
-        
+
         if (!prediction) {
           this.logger.warn(`[AiService] No FAQ match found in DB for question: "${question}". Falling back to LLM.`);
           // Fallback to LLM, but remind AI to use FAQ answers if available
@@ -1728,11 +1751,11 @@ META-COGNITIVE INSTRUCTIONS:
 
 CONTEXT - USER BOOKINGS:
 ${enrichedContext?.customer?.recentBookings ? JSON.stringify(enrichedContext.customer.recentBookings.map((b: any) => ({
-                date: b.dateTime,
-                service: b.service,
-                status: b.status,
-                recipient: b.recipientName || b.customer?.name
-              })), null, 2) : 'No recent bookings found.'}
+                  date: b.dateTime,
+                  service: b.service,
+                  status: b.status,
+                  recipient: b.recipientName || b.customer?.name
+                })), null, 2) : 'No recent bookings found.'}
 
 If the user asks "what bookings do i have?" or similar, refer to the list above. If they have a confirmed booking, tell them the details (Date, Time, Package).
 
@@ -1758,72 +1781,72 @@ CRITICAL INSTRUCTIONS:
 - If no relevant context provided, be helpful: "That's a great question! Let me find out for you" or "I can connect you with our team for that specific detail"
 
 IMPORTANT: If you ever mention the delivery time for edited photos, you MUST say '10 working days' and NEVER say 'two weeks', '14 days', or any other time frame. If you ever mention how images are delivered, you MUST say 'as a link to your WhatsApp' and NEVER say 'online gallery', 'email', or any other method. If you are unsure, say 'WhatsApp link'.`,
-          },
-        ];
+            },
+          ];
 
-        // Add package context if the question is about packages
-        if (/(package|photobook|makeup|styling|balloon|wig|outfit|image|photo|shoot|session|include|feature|come with|have)/i.test(question)) {
+          // Add package context if the question is about packages
+          if (/(package|photobook|makeup|styling|balloon|wig|outfit|image|photo|shoot|session|include|feature|come with|have)/i.test(question)) {
+            try {
+              const packages = await this.getCachedPackages();
+              if (packages && packages.length > 0) {
+                let packageContext = '=== AVAILABLE PACKAGES FROM DATABASE ===\n\n';
+                packages.forEach((pkg: any) => {
+                  packageContext += this.formatPackageDetails(pkg, true) + '\n\n---\n\n';
+                });
+                packageContext += '\nIMPORTANT: These are the ONLY packages that exist. You MUST NOT mention any package names not listed above.';
+                // Ensure packageContext is a string
+                messages.push({ role: 'system', content: String(packageContext) });
+                this.logger.debug(`answerFaq: Added ${packages.length} packages to context`);
+              }
+            } catch (err) {
+              this.logger.warn('answerFaq: Failed to fetch packages for context', err);
+            }
+          }
+
+          // Add the top doc contexts as separate system messages (keeps structure clear)
+          docs.forEach((d: any, i: number) => {
+            const md = d.metadata ?? {};
+            messages.push({ role: 'system', content: `Context ${i + 1}: ${md.answer ?? md.text ?? ''}` });
+          });
+
+          // Use token-aware history pruning instead of fixed limit
+          const prunedHistory = this.pruneHistory(history);
+          messages.push(...prunedHistory.map(h => ({ role: h.role, content: h.content })));
+          messages.push({ role: 'user', content: question });
+
+          // Determine max_tokens based on question type
+          // Contact-related questions need more tokens for complete responses
+          const isContactQuery = /(contact|phone|email|address|location|hours|website)/i.test(question);
+          const maxTokens = isContactQuery ? 500 : 280; // More tokens for contact info
+
+          // OpenAI call with retry logic and model fallback
           try {
-            const packages = await this.getCachedPackages();
-            if (packages && packages.length > 0) {
-              let packageContext = '=== AVAILABLE PACKAGES FROM DATABASE ===\n\n';
-              packages.forEach((pkg: any) => {
-                packageContext += this.formatPackageDetails(pkg, true) + '\n\n---\n\n';
-              });
-              packageContext += '\nIMPORTANT: These are the ONLY packages that exist. You MUST NOT mention any package names not listed above.';
-              // Ensure packageContext is a string
-              messages.push({ role: 'system', content: String(packageContext) });
-              this.logger.debug(`answerFaq: Added ${packages.length} packages to context`);
+            const rsp = await this.retryOpenAICall(
+              async (model = this.chatModel) => {
+                return await this.openai.chat.completions.create({
+                  model,
+                  messages,
+                  max_tokens: maxTokens,
+                  temperature: 0.6,
+                });
+              },
+              'answerFaq',
+              true // Use model fallback
+            );
+            prediction = rsp.choices[0].message.content.trim();
+
+            // Track token usage if customerId provided
+            if (customerId && rsp.usage?.total_tokens) {
+              await this.trackTokenUsage(customerId, rsp.usage.total_tokens);
             }
           } catch (err) {
-            this.logger.warn('answerFaq: Failed to fetch packages for context', err);
+            // Use fallback handler for graceful degradation
+            if (customerId) {
+              prediction = await this.handleOpenAIFailure(err, customerId);
+            } else {
+              throw err;
+            }
           }
-        }
-
-        // Add the top doc contexts as separate system messages (keeps structure clear)
-        docs.forEach((d: any, i: number) => {
-          const md = d.metadata ?? {};
-          messages.push({ role: 'system', content: `Context ${i + 1}: ${md.answer ?? md.text ?? ''}` });
-        });
-
-        // Use token-aware history pruning instead of fixed limit
-        const prunedHistory = this.pruneHistory(history);
-        messages.push(...prunedHistory.map(h => ({ role: h.role, content: h.content })));
-        messages.push({ role: 'user', content: question });
-
-        // Determine max_tokens based on question type
-        // Contact-related questions need more tokens for complete responses
-        const isContactQuery = /(contact|phone|email|address|location|hours|website)/i.test(question);
-        const maxTokens = isContactQuery ? 500 : 280; // More tokens for contact info
-
-        // OpenAI call with retry logic and model fallback
-        try {
-          const rsp = await this.retryOpenAICall(
-            async (model = this.chatModel) => {
-              return await this.openai.chat.completions.create({
-                model,
-                messages,
-                max_tokens: maxTokens,
-                temperature: 0.6,
-              });
-            },
-            'answerFaq',
-            true // Use model fallback
-          );
-          prediction = rsp.choices[0].message.content.trim();
-
-          // Track token usage if customerId provided
-          if (customerId && rsp.usage?.total_tokens) {
-            await this.trackTokenUsage(customerId, rsp.usage.total_tokens);
-          }
-        } catch (err) {
-          // Use fallback handler for graceful degradation
-          if (customerId) {
-            prediction = await this.handleOpenAIFailure(err, customerId);
-          } else {
-            throw err;
-          }
-        }
         }
       }
 
@@ -2025,8 +2048,8 @@ User: "yes please"
 
       // Special handling: if draft is in 'confirm' step and message is "confirm", set to deposit_confirmed
       let detectedSubIntent = parsed.subIntent;
-      if (existingDraft && existingDraft.step === 'confirm' && 
-          /^(confirm|yes|ok|okay|sure|proceed|go ahead)$/i.test(message.trim())) {
+      if (existingDraft && existingDraft.step === 'confirm' &&
+        /^(confirm|yes|ok|okay|sure|proceed|go ahead)$/i.test(message.trim())) {
         detectedSubIntent = 'deposit_confirmed';
       }
 
@@ -2076,16 +2099,16 @@ User: "yes please"
 
     // Determine next step based on current draft state (respects step progression)
     const nextStep = this.determineBookingStep(draft);
-    
+
     // Check if user provided any updates in this message
     const isUpdate = !!(extraction.service || extraction.date || extraction.time || extraction.name || extraction.recipientName || extraction.recipientPhone);
-    
+
     // Detect if user is correcting/updating something specific
     const isCorrection = /(change|actually|instead|correction|wrong|update|modify)/i.test(message) && isUpdate;
-    
+
     // If user provided an update, acknowledge it specifically
-    const updateAcknowledgment = isUpdate && !isCorrection ? 
-      `Got it! I've ${extraction.service ? `updated the package to ${extraction.service}` : ''}${extraction.date ? `noted ${extraction.date}` : ''}${extraction.time ? `set the time to ${extraction.time}` : ''}${extraction.name ? `saved your name as ${extraction.name}` : ''}${extraction.recipientPhone ? `saved your phone number` : ''}. ` : 
+    const updateAcknowledgment = isUpdate && !isCorrection ?
+      `Got it! I've ${extraction.service ? `updated the package to ${extraction.service}` : ''}${extraction.date ? `noted ${extraction.date}` : ''}${extraction.time ? `set the time to ${extraction.time}` : ''}${extraction.name ? `saved your name as ${extraction.name}` : ''}${extraction.recipientPhone ? `saved your phone number` : ''}. ` :
       (isCorrection ? "No problem! I've updated that for you. " : "");
 
     // STUCK-STATE DETECTION: Check if we're repeating the same question
@@ -2273,9 +2296,9 @@ DO NOT repeat your previous question. Instead:
     if (!existingDraft) {
       existingDraft = await this.prisma.bookingDraft.findUnique({ where: { customerId } });
     }
-    
+
     const updates: any = {};
-    
+
     // Only update fields that were explicitly extracted (not null)
     // This prevents overwriting valid data with null values
     if (extraction.service !== undefined && extraction.service !== null) {
@@ -2292,19 +2315,26 @@ DO NOT repeat your previous question. Instead:
     }
 
     if (extraction.recipientPhone !== undefined && extraction.recipientPhone !== null) {
+      // First validate the input format
       if (this.validatePhoneNumber(extraction.recipientPhone)) {
         // Format phone number to international format (254XXXXXXXXX)
         const { formatPhoneNumber } = require('../../utils/booking');
         const formattedPhone = formatPhoneNumber(extraction.recipientPhone);
-        this.logger.debug(`[PHONE] Formatting phone: "${extraction.recipientPhone}" -> "${formattedPhone}"`);
-        updates.recipientPhone = formattedPhone;
+
+        // Validate the formatted version to ensure it's correct
+        if (this.validatePhoneNumber(formattedPhone)) {
+          this.logger.debug(`[PHONE] Formatting phone: "${extraction.recipientPhone}" -> "${formattedPhone}"`);
+          updates.recipientPhone = formattedPhone;
+        } else {
+          this.logger.warn(`Formatted phone number is invalid: "${formattedPhone}" (from "${extraction.recipientPhone}")`);
+        }
       } else {
         this.logger.warn(`Invalid phone number provided: ${extraction.recipientPhone}`);
         // Optionally, we could return an error or handle this differently, 
         // but for now we just won't update the draft with the invalid phone
       }
     }
-    
+
     // Update step based on what we have
     // CRITICAL: Preserve reschedule steps - don't override them
     if (Object.keys(updates).length > 0) {
@@ -2350,7 +2380,7 @@ DO NOT repeat your previous question. Instead:
       version: { increment: 1 },
       updatedAt: new Date(),
     };
-    
+
     // If we're in reschedule mode, preserve the bookingId and step
     if (existingDraft && (existingDraft.step === 'reschedule' || existingDraft.step === 'reschedule_confirm')) {
       // Don't overwrite bookingId or step if they exist
@@ -2385,14 +2415,14 @@ DO NOT repeat your previous question. Instead:
     if (draft.service && draft.date && draft.time && draft.name && draft.recipientPhone) {
       return 'confirm';
     }
-    
+
     // Otherwise, determine which field is missing in order
     if (!draft.service) return 'service';
     if (!draft.date) return 'date';
     if (!draft.time) return 'time';
     if (!draft.name) return 'name';
     if (!draft.recipientPhone) return 'phone';
-    
+
     // If we have everything, stay in confirm
     return 'confirm';
   }
@@ -2483,7 +2513,7 @@ DO NOT repeat your previous question. Instead:
       // If extraction.subIntent is 'deposit_confirmed', initiate payment
       const pkg = await bookingsService.packagesService.findPackageByName(draft.service);
       const depositAmount = pkg?.deposit || 2000;
-      
+
       // SECURITY: Check if there's a failed payment before treating "Yes" as deposit confirmation
       // If payment failed, "Yes" means "resend payment" not "deposit confirmed"
       const latestPayment = await bookingsService.getLatestPaymentForDraft(customerId);
@@ -2557,6 +2587,7 @@ DO NOT repeat your previous question. Instead:
    * High-level conversation handler (Wrapper for Error Recovery)
    * -------------------------- */
   async handleConversation(message: string, customerId: string, history: HistoryMsg[] = [], bookingsService?: any, retryCount = 0, enrichedContext?: any): Promise<any> {
+    this.logger.log(`[AI SERVICE] handleConversation called for customer ${customerId}. Message: "${message.substring(0, 50)}..."`);
     const conversationStartTime = Date.now();
     let personalizationContext: any = null;
     let intentAnalysis: any = null;
@@ -2612,12 +2643,12 @@ DO NOT repeat your previous question. Instead:
       // STEP 4: Process conversation logic (pass intent analysis)
       // ============================================
       const result = await this.processConversationLogic(message, customerId, history, bookingsService, enrichedContext, intentAnalysis);
-      
+
       // Check if response mentions handing to team/admin - create escalation if needed
-      const responseText = typeof result.response === 'string' ? result.response : 
-                          (typeof result.response === 'object' && result.response !== null && 'text' in result.response) ? result.response.text :
-                          JSON.stringify(result.response);
-      
+      const responseText = typeof result.response === 'string' ? result.response :
+        (typeof result.response === 'object' && result.response !== null && 'text' in result.response) ? result.response.text :
+          JSON.stringify(result.response);
+
       if (responseText) {
         await this.checkAndEscalateIfHandoffMentioned(responseText, customerId, message, history);
       }
@@ -2628,10 +2659,10 @@ DO NOT repeat your previous question. Instead:
       if (result.response && personalizationContext) {
         try {
           // Adapt response style
-          const baseResponse = typeof result.response === 'string' ? result.response : 
-                              (typeof result.response === 'object' && result.response !== null && 'text' in result.response) ? result.response.text :
-                              '';
-          
+          const baseResponse = typeof result.response === 'string' ? result.response :
+            (typeof result.response === 'object' && result.response !== null && 'text' in result.response) ? result.response.text :
+              '';
+
           if (baseResponse) {
             let personalizedResponse = this.personalization.adaptResponse(
               baseResponse,
@@ -2672,14 +2703,14 @@ DO NOT repeat your previous question. Instead:
       // ============================================
       // STEP 6: Determine conversation outcome
       // ============================================
-      let finalResponseText = typeof result.response === 'string' ? result.response : 
-                                (typeof result.response === 'object' && result.response !== null && 'text' in result.response) ? result.response.text :
-                                '';
-      
-      wasSuccessful = !finalResponseText?.includes('trouble') && 
-                     !finalResponseText?.includes('error') && 
-                     !finalResponseText?.includes('difficulties');
-      
+      let finalResponseText = typeof result.response === 'string' ? result.response :
+        (typeof result.response === 'object' && result.response !== null && 'text' in result.response) ? result.response.text :
+          '';
+
+      wasSuccessful = !finalResponseText?.includes('trouble') &&
+        !finalResponseText?.includes('error') &&
+        !finalResponseText?.includes('difficulties');
+
       if (result.draft && result.draft.step === 'confirm') {
         conversationOutcome = 'booking_initiated';
       } else if (intentAnalysis?.primaryIntent === 'booking') {
@@ -2847,6 +2878,7 @@ DO NOT repeat your previous question. Instead:
    * Core conversation logic
    * -------------------------- */
   private async processConversationLogic(message: string, customerId: string, history: HistoryMsg[] = [], bookingsService?: any, enrichedContext?: any, intentAnalysis?: any) {
+    this.logger.log(`[AI SERVICE] processConversationLogic starting for customer ${customerId}`);
     // ============================================
     // CLEANUP: Remove stale drafts before processing
     // ============================================
@@ -2854,16 +2886,16 @@ DO NOT repeat your previous question. Instead:
     if (bookingsService) {
       await bookingsService.cleanupStaleDraft(customerId);
     }
-    
+
     // ============================================
     // CONTEXT AWARENESS: Distinguish booking intents early
     // ============================================
     // Get draft early for context awareness checks (will be redeclared later but we need it here)
     const earlyDraft = await this.getOrCreateDraft(customerId);
-    
+
     // Check for existing confirmed bookings
     const existingBooking = bookingsService ? await bookingsService.getLatestConfirmedBooking(customerId) : null;
-    
+
     // Detect if this is FAQ about bookings (not actually booking)
     // Distinguish between:
     // - "How do I make a booking?" / "I want to book" → START BOOKING (BookingStrategy)
@@ -2871,18 +2903,18 @@ DO NOT repeat your previous question. Instead:
     // - "How long does booking take?" → FAQ
     const isFaqAboutBookingProcess = /(how.*(does|is|are|work|long|much)|what.*(is|are|the|process|include|cost|amount)|booking.*(process|work|cost|include|policy|hours|refund|cancel)|deposit.*(amount|cost|is)|refund|cancel.*policy|when.*(are|is).*open)/i.test(message);
     const wantsToStartBooking = /(how.*(do|can).*(make|book|start|get|schedule).*(booking|appointment)|(i want|i'd like|i need|can i|please).*(to book|booking|appointment|make.*booking|schedule)|let.*book|start.*booking)/i.test(message);
-    
+
     // If user wants to START booking, don't treat as FAQ
     // If it's informational about booking process/cost/policies, treat as FAQ
     const hasEarlyDraft = !!(earlyDraft && (earlyDraft.service || earlyDraft.date));
     const isFaqAboutBooking = isFaqAboutBookingProcess && !wantsToStartBooking && !hasEarlyDraft;
-    
+
     // If FAQ about booking, let FAQ strategy handle it (don't interfere)
     if (isFaqAboutBooking && !earlyDraft.service && !earlyDraft.date) {
       this.logger.debug('[CONTEXT] Detected FAQ about booking, letting FAQ strategy handle');
       // Continue - let other strategies handle it
     }
-    
+
     // ============================================
     // HANDLE "YES" RESPONSE TO CONNECTION QUESTION
     // ============================================
@@ -2893,14 +2925,14 @@ DO NOT repeat your previous question. Instead:
       .slice(-3)
       .map(msg => msg.content)
       .join(' ');
-    
-    const isConnectionQuestion = recentAssistantMsgsForConnection.includes('connect you with our team') || 
-                                 recentAssistantMsgsForConnection.includes('Would you like me to do that for you') ||
-                                 recentAssistantMsgsForConnection.includes('Would you like me to do that');
-    
+
+    const isConnectionQuestion = recentAssistantMsgsForConnection.includes('connect you with our team') ||
+      recentAssistantMsgsForConnection.includes('Would you like me to do that for you') ||
+      recentAssistantMsgsForConnection.includes('Would you like me to do that');
+
     // More flexible pattern to match affirmative responses like "yes do that", "yes please", "do that then", etc.
     const isYesResponse = /(yes|yeah|yep|yup|sure|ok|okay|alright|please|do it|go ahead|do that|that would be|sounds good|that works)/i.test(message.trim());
-    
+
     if (isConnectionQuestion && isYesResponse) {
       // Check if there's an open escalation for this customer
       const openEscalation = await this.prisma.escalation.findFirst({
@@ -2911,7 +2943,7 @@ DO NOT repeat your previous question. Instead:
         },
         orderBy: { createdAt: 'desc' }
       });
-      
+
       if (openEscalation) {
         this.logger.log(`[ESCALATION] Customer ${customerId} confirmed connection request - pausing AI`);
         // Now pause AI since we've confirmed with the customer
@@ -2931,9 +2963,9 @@ DO NOT repeat your previous question. Instead:
     // ============================================
     // Check if customer is asking about whether team has been notified
     const isNotificationStatusQuestion = /(have you|did you|has|have they|were they).*(notif|contact|reach|call|message|connect|escalat|tell|inform)/i.test(message) ||
-                                        /(notif|contact|reach|call|message|connect|escalat|tell|inform).*(yet|already|done)/i.test(message) ||
-                                        /(when|how long).*(team|they|admin|support|staff)/i.test(message);
-    
+      /(notif|contact|reach|call|message|connect|escalat|tell|inform).*(yet|already|done)/i.test(message) ||
+      /(when|how long).*(team|they|admin|support|staff)/i.test(message);
+
     if (isNotificationStatusQuestion) {
       // Check if there's an open escalation for this customer
       const openEscalation = await this.prisma.escalation.findFirst({
@@ -2943,7 +2975,7 @@ DO NOT repeat your previous question. Instead:
         },
         orderBy: { createdAt: 'desc' }
       });
-      
+
       if (openEscalation) {
         this.logger.log(`[ESCALATION] Customer ${customerId} asking about notification status - confirming team has been notified`);
         const msg = "Yes! I've already notified our team about your request. They've been alerted and will reach out to you soon to assist with canceling your current booking and setting up a new one. You should hear from them shortly! 😊";
@@ -3082,7 +3114,7 @@ DO NOT repeat your previous question. Instead:
     if (slotIntentDetected) {
       // For "another slot" queries, use draft date/service if available
       const isAnotherSlotQuery = anotherSlotPattern.test(message);
-      
+
       // Try to extract date (e.g., 'tomorrow', 'on 2025-11-20', etc.)
       let dateStr: string | undefined;
       if (isAnotherSlotQuery && draft?.date) {
@@ -3289,14 +3321,14 @@ DO NOT repeat your previous question. Instead:
       .slice(-2)
       .map(msg => msg.content)
       .join(' ');
-    
+
     const isCancellationConfirmationPrompt = lastAssistantMsgsForCancel.includes('Are you sure you want to cancel') ||
-                                            lastAssistantMsgsForCancel.includes('Reply \'yes\' to confirm cancellation') ||
-                                            lastAssistantMsgsForCancel.includes('confirm cancellation');
-    
+      lastAssistantMsgsForCancel.includes('Reply \'yes\' to confirm cancellation') ||
+      lastAssistantMsgsForCancel.includes('confirm cancellation');
+
     if (isCancellationConfirmationPrompt) {
       const isConfirmationResponse = /^(yes|yeah|yep|yup|sure|confirm|please|do it|go ahead|ok|okay)$/i.test(message.trim());
-      
+
       if (isConfirmationResponse) {
         // Check if there's a confirmed booking to cancel
         const confirmedBooking = await this.bookingsService?.getLatestConfirmedBooking(customerId);
@@ -3308,11 +3340,11 @@ DO NOT repeat your previous question. Instead:
             return { response: msg, draft: null, updatedHistory: [...history.slice(-this.historyLimit), { role: 'user', content: message }, { role: 'assistant', content: msg }] };
           } catch (error) {
             this.logger.error(`[CANCELLATION] Failed to cancel booking: ${error.message}`);
-            
+
             // If cancellation failed due to 72-hour policy, escalate to admin
             if (error.message.includes('72 hours')) {
               const bookingDate = DateTime.fromJSDate(confirmedBooking.dateTime).setZone(this.studioTz).toFormat('MMM dd, yyyy \'at\' h:mm a');
-              
+
               // Create escalation for admin intervention
               if (this.escalationService) {
                 try {
@@ -3332,7 +3364,7 @@ DO NOT repeat your previous question. Instead:
                     },
                     include: { customer: true }
                   });
-                  
+
                   // Emit WebSocket event
                   if (this.websocketGateway) {
                     try {
@@ -3341,13 +3373,13 @@ DO NOT repeat your previous question. Instead:
                       this.logger.error(`Failed to emit escalation WebSocket event: ${wsError.message}`);
                     }
                   }
-                  
+
                   this.logger.log(`[ESCALATION] Created cancellation escalation for customer ${customerId} due to 72-hour policy`);
                 } catch (escalationError) {
                   this.logger.error(`Failed to create escalation: ${escalationError.message}`);
                 }
               }
-              
+
               // Create admin notification
               await this.createEscalationAlert(
                 customerId,
@@ -3362,13 +3394,13 @@ DO NOT repeat your previous question. Instead:
                   policyViolation: true
                 }
               );
-              
+
               const errorMsg = "I understand you'd like to cancel your booking. Since it's within 72 hours of your appointment, I've notified our team to assist you with this request. They'll reach out to you shortly to help with the cancellation. 😊";
               return { response: errorMsg, draft: null, updatedHistory: [...history.slice(-this.historyLimit), { role: 'user', content: message }, { role: 'assistant', content: errorMsg }] };
             } else {
               // Other cancellation errors - also escalate
               const bookingDate = DateTime.fromJSDate(confirmedBooking.dateTime).setZone(this.studioTz).toFormat('MMM dd, yyyy \'at\' h:mm a');
-              
+
               if (this.escalationService) {
                 try {
                   const escalation = await this.prisma.escalation.create({
@@ -3387,7 +3419,7 @@ DO NOT repeat your previous question. Instead:
                     },
                     include: { customer: true }
                   });
-                  
+
                   if (this.websocketGateway) {
                     try {
                       this.websocketGateway.emitNewEscalation(escalation);
@@ -3399,7 +3431,7 @@ DO NOT repeat your previous question. Instead:
                   this.logger.error(`Failed to create escalation: ${escalationError.message}`);
                 }
               }
-              
+
               await this.createEscalationAlert(
                 customerId,
                 'reschedule_request',
@@ -3413,7 +3445,7 @@ DO NOT repeat your previous question. Instead:
                   error: error.message
                 }
               );
-              
+
               const errorMsg = "I encountered an issue canceling your booking. I've notified our team to assist you with this request. They'll reach out to you shortly. 😊";
               return { response: errorMsg, draft: null, updatedHistory: [...history.slice(-this.historyLimit), { role: 'user', content: message }, { role: 'assistant', content: errorMsg }] };
             }
@@ -3519,7 +3551,7 @@ DO NOT repeat your previous question. Instead:
       .slice(-2)
       .map(msg => msg.content)
       .join(' ');
-    const isRespondingToBookingSelection = 
+    const isRespondingToBookingSelection =
       /Which one would you like to reschedule/i.test(recentRescheduleMsgs) ||
       /upcoming bookings/i.test(recentRescheduleMsgs);
 
@@ -3549,9 +3581,9 @@ DO NOT repeat your previous question. Instead:
       // This prevents re-running the 72-hour check when user provides new date/time
       // Also check if draft has bookingId - if it does, we're already in reschedule mode
       const isAlreadyInReschedule = currentDraft && (currentDraft.step === 'reschedule' || currentDraft.step === 'reschedule_confirm' || currentDraft.bookingId);
-      
+
       this.logger.log(`[RESCHEDULE] isAlreadyInReschedule: ${isAlreadyInReschedule}, currentDraft step: ${currentDraft?.step}, bookingId: ${currentDraft?.bookingId}`);
-      
+
       if (!isAlreadyInReschedule) {
         this.logger.log(`[RESCHEDULE] Setting up new reschedule request for customer ${customerId}`);
         // Get ALL confirmed bookings for this customer
@@ -3640,7 +3672,7 @@ DO NOT repeat your previous question. Instead:
         const now = new Date();
         const bookingTime = new Date(targetBooking.dateTime);
         const hoursDiff = (bookingTime.getTime() - now.getTime()) / (1000 * 60 * 60);
-        
+
         if (hoursDiff < 72 && hoursDiff > 0) {
           // Create admin alert for reschedule request within 72 hours
           const bookingDt = DateTime.fromJSDate(targetBooking.dateTime).setZone(this.studioTz);
@@ -3710,16 +3742,16 @@ DO NOT repeat your previous question. Instead:
       .slice(-3)
       .map(msg => msg.content)
       .join(' ');
-    
-    const hasOptionPrompt = recentAssistantMsgs.includes('1️⃣') || 
-                            recentAssistantMsgs.includes('2️⃣') || 
-                            recentAssistantMsgs.includes('3️⃣') ||
-                            /Would you like to:/.test(recentAssistantMsgs) ||
-                            /Cancel that booking and create/.test(recentAssistantMsgs);
-    
+
+    const hasOptionPrompt = recentAssistantMsgs.includes('1️⃣') ||
+      recentAssistantMsgs.includes('2️⃣') ||
+      recentAssistantMsgs.includes('3️⃣') ||
+      /Would you like to:/.test(recentAssistantMsgs) ||
+      /Cancel that booking and create/.test(recentAssistantMsgs);
+
     if (hasOptionPrompt) {
       const existingBooking = await this.bookingsService?.getLatestConfirmedBooking(customerId);
-      
+
       if (existingBooking) {
         // Check for numeric choices (1, 2, 3) or text patterns
         const isOption1 = /^1\s*$|^1️⃣\s*$/i.test(message.trim()) || /(cancel|delete).*(existing|old|that|booking)/i.test(message);
@@ -3731,7 +3763,7 @@ DO NOT repeat your previous question. Instead:
           if (isOption1) {
             // Option 1: Cancel existing and create fresh - ESCALATE TO ADMIN
             this.logger.log(`[ESCALATION] Customer ${customerId} selected option 1 - wants to cancel existing booking and create new one - escalating to admin`);
-            
+
             // Create escalation (but don't pause AI yet - we need to send confirmation)
             if (this.escalationService) {
               const bookingDate = DateTime.fromJSDate(existingBooking.dateTime).setZone(this.studioTz).toFormat('MMM dd, yyyy \'at\' h:mm a');
@@ -3752,7 +3784,7 @@ DO NOT repeat your previous question. Instead:
                 include: { customer: true }
               });
               this.logger.log(`[ESCALATION] Created booking cancellation escalation for customer ${customerId}`);
-              
+
               // Emit WebSocket event manually since we're creating directly
               if (this.websocketGateway) {
                 try {
@@ -3855,7 +3887,7 @@ DO NOT repeat your previous question. Instead:
             if (isOption1) {
               // Option 1: Cancel existing and create fresh - ESCALATE TO ADMIN
               this.logger.log(`[ESCALATION] Customer ${customerId} wants to cancel existing booking and create new one - escalating to admin`);
-              
+
               // Create escalation (but don't pause AI yet - we need to send confirmation)
               if (this.escalationService) {
                 const bookingDate = DateTime.fromJSDate(existingBooking.dateTime).setZone(this.studioTz).toFormat('MMM dd, yyyy \'at\' h:mm a');
@@ -3876,7 +3908,7 @@ DO NOT repeat your previous question. Instead:
                   include: { customer: true }
                 });
                 this.logger.log(`[ESCALATION] Created booking cancellation escalation for customer ${customerId}`);
-                
+
                 // Emit WebSocket event manually since we're creating directly
                 if (this.websocketGateway) {
                   try {
@@ -3946,7 +3978,7 @@ DO NOT repeat your previous question. Instead:
     if (!rescheduleDraft && draft) {
       rescheduleDraft = draft; // Fallback to the draft we already have
     }
-    
+
     if (rescheduleDraft && (rescheduleDraft.step === 'reschedule' || rescheduleDraft.step === 'reschedule_confirm')) {
       this.logger.log(`[RESCHEDULE] Continuing reschedule flow for customer ${customerId}, draft step: ${rescheduleDraft.step}, bookingId: ${rescheduleDraft.bookingId}`);
       draft = rescheduleDraft; // Update local draft variable for consistency
@@ -4131,8 +4163,8 @@ DO NOT repeat your previous question. Instead:
 
     // Family/partner question detection
     const familyPartnerKeywords = ['family', 'partner', 'husband', 'wife', 'spouse', 'children', 'kids', 'come with', 'bring', 'accompany', 'join'];
-    const isFamilyQuestion = familyPartnerKeywords.some(kw => lower.includes(kw)) && 
-                             (lower.includes('can') || lower.includes('may') || lower.includes('allowed') || lower.includes('welcome'));
+    const isFamilyQuestion = familyPartnerKeywords.some(kw => lower.includes(kw)) &&
+      (lower.includes('can') || lower.includes('may') || lower.includes('allowed') || lower.includes('welcome'));
     if (isFamilyQuestion) {
       const familyResponse = "Yes, absolutely! Partners and family members are always welcome to join your photoshoot. Many of our packages include couple and family shots - it's a beautiful way to celebrate this journey together! 💖";
       const updatedHistory = [...history.slice(-this.historyLimit), { role: 'user', content: message }, { role: 'assistant', content: familyResponse }];
@@ -4201,13 +4233,13 @@ DO NOT repeat your previous question. Instead:
       .slice(-3)
       .map(msg => msg.content.toLowerCase())
       .join(' ');
-    
+
     const recentUserMsgs = history
       .filter((msg) => msg.role === 'user')
       .slice(-2)
       .map(msg => msg.content.toLowerCase())
       .join(' ');
-    
+
     const acknowledgmentPatterns = [
       /^(ok|okay|sure|yes|yeah|yep|alright|sounds good|got it|understood|perfect|great|thanks|thank you)/i,
       /^(ok|okay|sure|yes|yeah|yep|alright|sounds good|got it|understood|perfect|great|thanks|thank you).*(then|i will|i'll)/i,
@@ -4217,24 +4249,24 @@ DO NOT repeat your previous question. Instead:
       /that's (fine|good|okay|ok)/i,
       /(that|it) (sounds|is) (good|fine|okay|ok|great)/i,
     ];
-    
+
     const isAcknowledgment = acknowledgmentPatterns.some(pattern => pattern.test(message)) &&
       !/(book|appointment|schedule|reserve|available|slot|date|time|when|what time|make a booking|new booking)/i.test(message);
-    
+
     // Check if recent conversation was about FAQ/policy (photographer, bring, allowed, etc.)
     const recentWasFaq = /(welcome|fine|allowed|bring|include|can i|is it|are.*allowed|photographer|family|partner|guests|questions|feel free|anything else)/i.test(ackRecentAssistantMsgs) &&
       !/(book|appointment|schedule|reserve|available|slot|date|time|when|what time|make a booking|new booking)/i.test(ackRecentAssistantMsgs);
-    
+
     // Also check if user's previous message was asking a question (FAQ context)
     const previousWasQuestion = /(can i|is it|are.*allowed|what|how|when|where|why|do you|does|photographer)/i.test(recentUserMsgs);
-    
+
     if (isAcknowledgment && (recentWasFaq || previousWasQuestion) && !hasDraft) {
       // This is just an acknowledgment of an FAQ answer, not a booking request
       const acknowledgmentResponse = `Perfect! If you have any other questions or need help with anything else, feel free to ask. 😊`;
-      return { 
-        response: acknowledgmentResponse, 
-        draft: null, 
-        updatedHistory: [...history.slice(-this.historyLimit), { role: 'user', content: message }, { role: 'assistant', content: acknowledgmentResponse }] 
+      return {
+        response: acknowledgmentResponse,
+        draft: null,
+        updatedHistory: [...history.slice(-this.historyLimit), { role: 'user', content: message }, { role: 'assistant', content: acknowledgmentResponse }]
       };
     }
 
@@ -4289,17 +4321,17 @@ DO NOT repeat your previous question. Instead:
     // ------------------------------------
     // INTENT CLASSIFICATION (Using Advanced Intent Service)
     // ------------------------------------
-    
+
     let intent: 'faq' | 'booking' | 'other' = 'other';
     const confidenceThreshold = 0.7; // Minimum confidence to proceed without clarification
-    
+
     // Use advanced intent analysis if available (from handleConversation)
     if (intentAnalysis && intentAnalysis.primaryIntent) {
       const primaryIntent = intentAnalysis.primaryIntent;
       const confidence = intentAnalysis.confidence || 0.5;
-      
+
       this.logger.debug(`[INTENT] Advanced analysis: ${primaryIntent} (confidence: ${confidence})`);
-      
+
       // Handle low confidence - ask for clarification
       if (confidence < confidenceThreshold) {
         const clarifyingQuestion = this.generateClarifyingQuestion(intentAnalysis, message);
@@ -4316,7 +4348,7 @@ DO NOT repeat your previous question. Instead:
           };
         }
       }
-      
+
       // Map advanced intents to simple intents for routing
       if (primaryIntent === 'booking' || primaryIntent === 'reschedule' || primaryIntent === 'availability') {
         intent = 'booking';
@@ -4329,13 +4361,13 @@ DO NOT repeat your previous question. Instead:
       } else {
         intent = 'other';
       }
-      
+
       // Handle multiple intents - acknowledge secondary intents
       if (intentAnalysis.secondaryIntents && intentAnalysis.secondaryIntents.length > 0) {
         this.logger.debug(`[INTENT] Secondary intents detected: ${intentAnalysis.secondaryIntents.join(', ')}`);
         // Note: Secondary intents can be handled after primary intent is resolved
       }
-      
+
       // Special cases that override intent classification
       // Check for backdrop/image/portfolio requests FIRST (even if there's a draft)
       if (/(backdrop|background|studio set|flower wall|portfolio|show.*(image|photo|picture|portfolio)|see.*(image|photo|picture|example))/i.test(message)) {
@@ -4350,11 +4382,11 @@ DO NOT repeat your previous question. Instead:
     } else {
       // Fallback to basic classification if advanced analysis not available
       this.logger.warn('[INTENT] Advanced intent analysis not available, using fallback');
-      
+
       // Check for backdrop/image/portfolio requests FIRST
       if (/(backdrop|background|studio set|flower wall|portfolio|show.*(image|photo|picture|portfolio)|see.*(image|photo|picture|example))/i.test(message)) {
         intent = 'faq';
-      } 
+      }
       // Check for policy/FAQ questions even when there's a draft
       else if (hasDraft && /(can i (bring|have|include|add)|is it (okay|ok|allowed|fine)|are.*allowed|what (can|should) i (bring|wear|do)|can.*(family|partner|husband|spouse|children|kids|baby)|bring.*(family|partner|husband|spouse|children|kids|guests))/i.test(message)) {
         intent = 'faq';

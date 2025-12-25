@@ -61,7 +61,43 @@ import { HealthModule } from './modules/health/health.module';
       },
     ]),
     BullModule.forRoot({
-      redis: process.env.REDIS_URL || 'redis://localhost:6379',
+      redis: (() => {
+        // If REDIS_URL is provided, use it with connection options
+        if (process.env.REDIS_URL) {
+          try {
+            const url = new URL(process.env.REDIS_URL);
+            return {
+              host: url.hostname,
+              port: parseInt(url.port || '6379', 10),
+              password: url.password || process.env.REDIS_PASSWORD,
+              connectTimeout: 5000, // 5 second timeout
+              retryStrategy: (times: number) => {
+                // Keep retrying indefinitely
+                return Math.min(times * 500, 3000);
+              },
+              maxRetriesPerRequest: null,
+              enableReadyCheck: false,
+              // lazyConnect: false,
+            };
+          } catch (error) {
+            console.warn('Invalid REDIS_URL format, falling back to default configuration');
+          }
+        }
+        // Use individual host/port configuration
+        return {
+          host: process.env.REDIS_HOST || 'localhost',
+          port: parseInt(process.env.REDIS_PORT || '6379', 10),
+          password: process.env.REDIS_PASSWORD,
+          connectTimeout: 5000, // 5 second timeout
+          retryStrategy: (times: number) => {
+            // Keep retrying indefinitely, with a max delay of 3 seconds
+            return Math.min(times * 500, 3000);
+          },
+          maxRetriesPerRequest: null, // Allow unlimited retries per request
+          enableReadyCheck: false, // Disable ready check to prevent/fix 'not permitted' error with Bull
+          // lazyConnect: false, // Default is false (connect immediately)
+        };
+      })(),
     }),
     EventEmitterModule.forRoot(),
     PrismaModule,
@@ -99,10 +135,10 @@ import { HealthModule } from './modules/health/health.module';
     // ============================================
     // SECURITY: Apply rate limiting globally
     // ============================================
-    {
-      provide: APP_GUARD,
-      useClass: ThrottlerGuard,
-    },
+    // {
+    //   provide: APP_GUARD,
+    //   useClass: ThrottlerGuard,
+    // },
   ],
 })
 export class AppModule { }

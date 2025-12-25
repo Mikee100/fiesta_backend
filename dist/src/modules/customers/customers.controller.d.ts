@@ -5,11 +5,11 @@ export declare class CustomersController {
     constructor(customersService: CustomersService);
     create(createCustomerDto: CreateCustomerDto): Promise<{
         id: string;
+        name: string;
         createdAt: Date;
         updatedAt: Date;
-        name: string;
-        email: string | null;
         phone: string | null;
+        email: string | null;
         whatsappId: string | null;
         instagramId: string | null;
         messengerId: string | null;
@@ -27,8 +27,8 @@ export declare class CustomersController {
             id: string;
             customerId: string;
             createdAt: Date;
-            content: string;
             platform: string;
+            content: string;
             direction: string;
             externalId: string | null;
             handledBy: string | null;
@@ -39,21 +39,21 @@ export declare class CustomersController {
             id: string;
             customerId: string;
             service: string;
-            dateTime: Date;
-            status: string;
-            durationMinutes: number | null;
             recipientName: string | null;
             recipientPhone: string | null;
-            googleEventId: string | null;
             createdAt: Date;
             updatedAt: Date;
+            status: string;
+            dateTime: Date;
+            durationMinutes: number | null;
+            googleEventId: string | null;
         }[];
         id: string;
+        name: string;
         createdAt: Date;
         updatedAt: Date;
-        name: string;
-        email: string | null;
         phone: string | null;
+        email: string | null;
         whatsappId: string | null;
         instagramId: string | null;
         messengerId: string | null;
@@ -70,8 +70,8 @@ export declare class CustomersController {
             id: string;
             customerId: string;
             createdAt: Date;
-            content: string;
             platform: string;
+            content: string;
             direction: string;
             externalId: string | null;
             handledBy: string | null;
@@ -82,22 +82,22 @@ export declare class CustomersController {
             id: string;
             customerId: string;
             service: string;
-            dateTime: Date;
-            status: string;
-            durationMinutes: number | null;
             recipientName: string | null;
             recipientPhone: string | null;
-            googleEventId: string | null;
             createdAt: Date;
             updatedAt: Date;
+            status: string;
+            dateTime: Date;
+            durationMinutes: number | null;
+            googleEventId: string | null;
         }[];
     } & {
         id: string;
+        name: string;
         createdAt: Date;
         updatedAt: Date;
-        name: string;
-        email: string | null;
         phone: string | null;
+        email: string | null;
         whatsappId: string | null;
         instagramId: string | null;
         messengerId: string | null;
@@ -111,11 +111,11 @@ export declare class CustomersController {
     }>;
     update(id: string, updateCustomerDto: Partial<CreateCustomerDto>): Promise<{
         id: string;
+        name: string;
         createdAt: Date;
         updatedAt: Date;
-        name: string;
-        email: string | null;
         phone: string | null;
+        email: string | null;
         whatsappId: string | null;
         instagramId: string | null;
         messengerId: string | null;
@@ -130,11 +130,11 @@ export declare class CustomersController {
     sendPhotoLink(id: string, link: string): Promise<any>;
     remove(id: string): Promise<{
         id: string;
+        name: string;
         createdAt: Date;
         updatedAt: Date;
-        name: string;
-        email: string | null;
         phone: string | null;
+        email: string | null;
         whatsappId: string | null;
         instagramId: string | null;
         messengerId: string | null;
@@ -148,11 +148,11 @@ export declare class CustomersController {
     }>;
     toggleAi(id: string, enabled: boolean): Promise<{
         id: string;
+        name: string;
         createdAt: Date;
         updatedAt: Date;
-        name: string;
-        email: string | null;
         phone: string | null;
+        email: string | null;
         whatsappId: string | null;
         instagramId: string | null;
         messengerId: string | null;
@@ -174,18 +174,18 @@ export declare class CustomersController {
         booking: {
             id: string;
             service: string;
-            dateTime: Date;
             status: string;
+            dateTime: Date;
         };
     } & {
         id: string;
         customerId: string;
-        status: string;
+        bookingId: string | null;
         createdAt: Date;
         updatedAt: Date;
-        type: string;
-        bookingId: string | null;
+        status: string;
         platform: string | null;
+        type: string;
         description: string | null;
         items: string[];
         adminNotes: string | null;
@@ -200,12 +200,12 @@ export declare class CustomersController {
     }): Promise<{
         id: string;
         customerId: string;
-        status: string;
+        bookingId: string | null;
         createdAt: Date;
         updatedAt: Date;
-        type: string;
-        bookingId: string | null;
+        status: string;
         platform: string | null;
+        type: string;
         description: string | null;
         items: string[];
         adminNotes: string | null;

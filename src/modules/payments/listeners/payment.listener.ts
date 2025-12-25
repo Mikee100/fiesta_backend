@@ -17,6 +17,7 @@ export class PaymentListener {
 
     @OnEvent('booking.draft.completed')
     async handleBookingDraftCompleted(event: BookingDraftCompletedEvent) {
+        this.logger.error(`[DEBUG-TRACE] ⚡ BookingDraftCompleted event received: customerId=${event.customerId}`);
         this.logger.log(`[Event] ⚡ BookingDraftCompleted event received: customerId=${event.customerId}, draftId=${event.draftId}, amount=${event.depositAmount}`);
 
         try {

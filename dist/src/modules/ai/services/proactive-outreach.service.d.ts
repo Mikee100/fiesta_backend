@@ -22,9 +22,9 @@ export declare class ProactiveOutreachService {
     }): Promise<{
         id: string;
         customerId: string;
-        status: string;
         createdAt: Date;
         updatedAt: Date;
+        status: string;
         type: string;
         sentAt: Date | null;
         scheduledFor: Date;

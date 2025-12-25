@@ -353,6 +353,7 @@ class BookingStrategy {
             }
         }
         if (draft && draft.step === 'confirm' && /^(confirm|yes|ok|okay|sure|proceed|go ahead)$/i.test(message.trim())) {
+            context.logger.error(`[DEBUG-TRACE] [STRATEGY] Detected confirmation for deposit payment. CustomerId: ${customerId}`);
             logger.debug(`[STRATEGY] Detected confirmation for deposit payment`);
             const existingPayment = await bookingsService.getLatestPaymentForDraft(customerId);
             if (existingPayment) {

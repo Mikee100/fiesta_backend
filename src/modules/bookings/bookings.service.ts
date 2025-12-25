@@ -18,38 +18,38 @@ type ServiceInfo = { name: string; durationMinutes: number; price: number };
 
 @Injectable()
 export class BookingsService {
-      // Checks if booking is awaiting reschedule time (stub)
-      async isAwaitingRescheduleTime(bookingId: string): Promise<boolean> {
-        // Implement actual logic as needed
-        return false;
-      }
-    // Returns active bookings for a customer (stub)
-    async getActiveBookings(customerId: string) {
-      return this.prisma.booking.findMany({ where: { customerId, status: 'confirmed' } });
-    }
+  // Checks if booking is awaiting reschedule time (stub)
+  async isAwaitingRescheduleTime(bookingId: string): Promise<boolean> {
+    // Implement actual logic as needed
+    return false;
+  }
+  // Returns active bookings for a customer (stub)
+  async getActiveBookings(customerId: string) {
+    return this.prisma.booking.findMany({ where: { customerId, status: 'confirmed' } });
+  }
 
-    // Sets whether the customer is awaiting reschedule selection (stub)
-    async setAwaitingRescheduleSelection(customerId: string, awaiting: boolean) {
-      // Implement flag logic as needed
-      return Promise.resolve();
-    }
+  // Sets whether the customer is awaiting reschedule selection (stub)
+  async setAwaitingRescheduleSelection(customerId: string, awaiting: boolean) {
+    // Implement flag logic as needed
+    return Promise.resolve();
+  }
 
-    // Sets whether the booking is awaiting reschedule time (stub)
-    async setAwaitingRescheduleTime(bookingId: string, awaiting: boolean) {
-      // Implement flag logic as needed
-      return Promise.resolve();
-    }
+  // Sets whether the booking is awaiting reschedule time (stub)
+  async setAwaitingRescheduleTime(bookingId: string, awaiting: boolean) {
+    // Implement flag logic as needed
+    return Promise.resolve();
+  }
 
-    // Checks for time conflict (stub)
-    async checkTimeConflict(dateTime: Date) {
-      // Implement actual conflict logic as needed
-      return false;
-    }
+  // Checks for time conflict (stub)
+  async checkTimeConflict(dateTime: Date) {
+    // Implement actual conflict logic as needed
+    return false;
+  }
 
-    // Updates booking time (calls updateBooking)
-    async updateBookingTime(bookingId: string, dateTime: Date) {
-      return this.updateBooking(bookingId, { dateTime });
-    }
+  // Updates booking time (calls updateBooking)
+  async updateBookingTime(bookingId: string, dateTime: Date) {
+    return this.updateBooking(bookingId, { dateTime });
+  }
   private readonly logger = new Logger(BookingsService.name);
   private readonly STUDIO_TZ = 'Africa/Nairobi';
 
@@ -110,6 +110,7 @@ export class BookingsService {
       this.logger.debug(`[STK] Using phone: ${phone}, amount: ${depositAmount}`);
 
       // Emit event for payment initiation
+      this.logger.error(`[DEBUG-TRACE] Emitting booking.draft.completed event for customerId=${customerId}, draftId=${draft.id}`);
       this.logger.log(`[BOOKING] Emitting booking.draft.completed event for customerId=${customerId}, draftId=${draft.id}`);
       this.eventEmitter.emit('booking.draft.completed', {
         customerId,
@@ -197,7 +198,7 @@ export class BookingsService {
    * Booking Draft methods
    * -------------------------- */
   async getBookingDraft(customerId: string) {
-    return this.prisma.bookingDraft.findUnique({ 
+    return this.prisma.bookingDraft.findUnique({
       where: { customerId }
     });
   }
@@ -216,7 +217,7 @@ export class BookingsService {
         include: { bookingDraft: true },
       });
     }
-    
+
     // No draft - find payments for this customer by looking through drafts
     // This handles cases where payment failed and draft might have been cleaned up
     return this.prisma.payment.findFirst({
@@ -236,7 +237,7 @@ export class BookingsService {
    */
   async checkReceiptVerificationRateLimit(customerId: string): Promise<{ allowed: boolean; attempts: number; resetTime?: Date }> {
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-    
+
     // Count verification attempts in last 5 minutes (could use a separate table, but using payment status changes as proxy)
     // For now, we'll check if there are multiple pending payments (indicating multiple attempts)
     const recentPayments = await this.prisma.payment.findMany({
@@ -263,7 +264,7 @@ export class BookingsService {
   async hasRecentPaymentPrompt(customerId: string): Promise<boolean> {
     const payment = await this.getLatestPaymentForDraft(customerId);
     if (!payment) return false;
-    
+
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
     return payment.createdAt > fiveMinutesAgo && payment.status === 'pending';
   }
@@ -439,7 +440,7 @@ export class BookingsService {
    */
   async resendPaymentPrompt(customerId: string, newPhone?: string): Promise<{ success: boolean; message: string }> {
     let draft = await this.getBookingDraft(customerId);
-    
+
     // If no draft, try to find one from the latest payment
     if (!draft) {
       const latestPayment = await this.getLatestPaymentForDraft(customerId);
@@ -448,7 +449,7 @@ export class BookingsService {
         this.logger.debug(`[RESEND] Restored draft from payment ${latestPayment.id}`);
       }
     }
-    
+
     if (!draft) {
       return { success: false, message: "I don't see a pending booking. Would you like to start a new booking? 💖" };
     }
@@ -467,7 +468,7 @@ export class BookingsService {
         if (!draft.time && paymentDraft.time) updates.time = paymentDraft.time;
         if (!draft.name && paymentDraft.name) updates.name = paymentDraft.name;
         if (!draft.recipientPhone && paymentDraft.recipientPhone) updates.recipientPhone = paymentDraft.recipientPhone;
-        
+
         if (Object.keys(updates).length > 0) {
           this.logger.debug(`[RESEND] Restoring missing draft fields from payment: ${JSON.stringify(Object.keys(updates))}`);
           await this.prisma.bookingDraft.update({
@@ -475,7 +476,7 @@ export class BookingsService {
             data: updates
           });
           draft = await this.getBookingDraft(customerId);
-          
+
           // Re-check after restoration
           const hasRequiredFieldsAfterRestore = draft.service && draft.date && draft.time && draft.name;
           if (!hasRequiredFieldsAfterRestore) {
@@ -498,14 +499,14 @@ export class BookingsService {
       phone = customer?.phone;
       originalPhone = phone; // Update original for logging
     }
-    
+
     // Format phone number to international format (254XXXXXXXXX)
     if (phone) {
       const { formatPhoneNumber } = require('../../utils/booking');
       phone = formatPhoneNumber(phone);
       this.logger.debug(`[RESEND] Formatted phone number: "${originalPhone}" -> "${phone}"`);
     }
-    
+
     if (!phone) {
       return { success: false, message: "I need your phone number to send the payment prompt. Could you please provide it? 📱" };
     }
@@ -533,11 +534,11 @@ export class BookingsService {
     }
 
     const amount = await this.getDepositForDraft(customerId) || 2000;
-    
+
     try {
       // Delete old pending payments
       await this.prisma.payment.deleteMany({
-        where: { 
+        where: {
           bookingDraftId: draft.id,
           status: 'pending'
         }
@@ -553,16 +554,16 @@ export class BookingsService {
 
       // Initiate new payment
       const result = await this.paymentsService.initiateSTKPush(draft.id, phone, amount);
-      
-      return { 
-        success: true, 
-        message: `✅ Payment prompt sent! Please check your phone (${phone}) and enter your M-PESA PIN. The prompt should arrive within 10 seconds. 📲💳` 
+
+      return {
+        success: true,
+        message: `✅ Payment prompt sent! Please check your phone (${phone}) and enter your M-PESA PIN. The prompt should arrive within 10 seconds. 📲💳`
       };
     } catch (error) {
       this.logger.error('Failed to resend payment prompt:', error);
-      return { 
-        success: false, 
-        message: `Sorry, I encountered an issue sending the payment prompt. Please try again in a moment or contact us at 0720 111928. 💖` 
+      return {
+        success: false,
+        message: `Sorry, I encountered an issue sending the payment prompt. Please try again in a moment or contact us at 0720 111928. 💖`
       };
     }
   }
@@ -633,7 +634,7 @@ export class BookingsService {
 
     // Check payment status
     const latestPayment = await this.getLatestPaymentForDraft(customerId);
-    
+
     // CRITICAL: Drafts with failed payments are considered stale immediately
     // This prevents showing failed booking details when user asks unrelated questions
     if (latestPayment && latestPayment.status === 'failed') {
@@ -688,19 +689,19 @@ export class BookingsService {
       await this.deleteBookingDraft(customerId);
       return true;
     }
-    
+
     // Also check if payment failed more than 1 hour ago - clean it up
     if (latestPayment && latestPayment.status === 'failed') {
       const paymentAge = Date.now() - new Date(latestPayment.createdAt).getTime();
       const hoursOld = paymentAge / (1000 * 60 * 60);
-      
+
       if (hoursOld > 1) {
         this.logger.debug(`[CLEANUP] Cleaning up draft with failed payment (${hoursOld.toFixed(1)} hours old) for customer ${customerId}`);
         await this.deleteBookingDraft(customerId);
         return true;
       }
     }
-    
+
     return false;
   }
 
@@ -848,7 +849,7 @@ export class BookingsService {
     // Prioritize slots closer to the requested time
     const suggestions: string[] = [];
     const allSlots: { time: DateTime; distance: number }[] = [];
-    
+
     let cursor = dayStart;
     while (cursor < dayEnd) {
       const slotStartUTC = cursor.toUTC();
@@ -892,7 +893,7 @@ export class BookingsService {
     for (let dayOffset = 0; dayOffset <= daysToCheck; dayOffset++) {
       const checkDate = requestedDt.plus({ days: dayOffset });
       const dateStr = checkDate.toFormat('yyyy-MM-dd');
-      
+
       // Skip weekends if needed (optional - adjust based on business rules)
       const dayOfWeek = checkDate.weekday; // 1 = Monday, 7 = Sunday
       // Uncomment if you want to skip weekends:
@@ -904,7 +905,7 @@ export class BookingsService {
           date: dateStr,
           slots: slots.slice(0, 5), // Limit to 5 slots per day for display
         });
-        
+
         // Stop once we have enough days with slots (e.g., 3 days)
         if (results.length >= 3) break;
       }
@@ -1233,7 +1234,7 @@ export class BookingsService {
     };
 
     // Determine the display name: prefer recipientName, then customer name (cleaned)
-    const displayName = booking.recipientName 
+    const displayName = booking.recipientName
       ? cleanName(booking.recipientName)
       : cleanName(booking.customer?.name);
 
@@ -1401,12 +1402,12 @@ We can't wait to capture your beautiful memories! 💖`;
     return null;
   }
 
-/**
- * Generates a booking summary for user review.
- */
-async getBookingSummary(customerId: string): Promise<string> {
-  const draft = await this.reviewBookingDraft(customerId);
-  if (!draft) return 'No booking draft found.';
-  return `Please review your booking details:\nPackage: ${draft.service}\nDate: ${draft.date}\nTime: ${draft.time}\nName: ${draft.name}\nPhone: ${draft.recipientPhone}\nReply 'edit [field]' to change any detail, or 'confirm' to proceed.`;
-}
+  /**
+   * Generates a booking summary for user review.
+   */
+  async getBookingSummary(customerId: string): Promise<string> {
+    const draft = await this.reviewBookingDraft(customerId);
+    if (!draft) return 'No booking draft found.';
+    return `Please review your booking details:\nPackage: ${draft.service}\nDate: ${draft.date}\nTime: ${draft.time}\nName: ${draft.name}\nPhone: ${draft.recipientPhone}\nReply 'edit [field]' to change any detail, or 'confirm' to proceed.`;
+  }
 }

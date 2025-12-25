@@ -8,9 +8,9 @@ export declare class KnowledgeBaseController {
         category: string;
     }): Promise<{
         id: string;
+        category: string;
         createdAt: Date;
         updatedAt: Date;
-        category: string;
         question: string;
         answer: string;
         embedding: number[];
@@ -19,9 +19,9 @@ export declare class KnowledgeBaseController {
     findAll(category?: string, search?: string): Promise<{
         items: {
             id: string;
+            category: string;
             createdAt: Date;
             updatedAt: Date;
-            category: string;
             question: string;
             answer: string;
             embedding: number[];
@@ -31,9 +31,9 @@ export declare class KnowledgeBaseController {
     }>;
     findOne(id: string): Promise<{
         id: string;
+        category: string;
         createdAt: Date;
         updatedAt: Date;
-        category: string;
         question: string;
         answer: string;
         embedding: number[];
@@ -45,9 +45,9 @@ export declare class KnowledgeBaseController {
         category: string;
     }>): Promise<{
         id: string;
+        category: string;
         createdAt: Date;
         updatedAt: Date;
-        category: string;
         question: string;
         answer: string;
         embedding: number[];
@@ -55,9 +55,9 @@ export declare class KnowledgeBaseController {
     }>;
     remove(id: string): Promise<{
         id: string;
+        category: string;
         createdAt: Date;
         updatedAt: Date;
-        category: string;
         question: string;
         answer: string;
         embedding: number[];

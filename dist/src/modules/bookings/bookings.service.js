@@ -83,6 +83,7 @@ let BookingsService = BookingsService_1 = class BookingsService {
                 phone = `254${phone.replace(/^0+/, '')}`;
             }
             this.logger.debug(`[STK] Using phone: ${phone}, amount: ${depositAmount}`);
+            this.logger.error(`[DEBUG-TRACE] Emitting booking.draft.completed event for customerId=${customerId}, draftId=${draft.id}`);
             this.logger.log(`[BOOKING] Emitting booking.draft.completed event for customerId=${customerId}, draftId=${draft.id}`);
             this.eventEmitter.emit('booking.draft.completed', {
                 customerId,

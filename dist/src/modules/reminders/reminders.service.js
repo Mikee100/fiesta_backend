@@ -143,8 +143,8 @@ let RemindersService = RemindersService_1 = class RemindersService {
             this.logger.warn(`Reminder ${reminderId} is not pending (status: ${reminder.status})`);
             return reminder;
         }
+        const message = this.generateReminderMessage(reminder);
         try {
-            const message = this.generateReminderMessage(reminder);
             const customerPhone = reminder.booking.customer.whatsappId || reminder.booking.customer.phone;
             if (customerPhone) {
                 await this.whatsappService.sendMessage(customerPhone, message);
@@ -161,6 +161,18 @@ let RemindersService = RemindersService_1 = class RemindersService {
             return await this.getReminderById(reminderId);
         }
         catch (error) {
+            if (error?.isTestModeRestriction) {
+                this.logger.warn(`Reminder ${reminderId} skipped due to WhatsApp test mode restriction (phone not in allowed list)`);
+                await this.updateReminder(reminderId, {
+                    status: 'sent',
+                    messageContent: `${message}\n\n[Note: Sent in test mode - recipient may not receive due to WhatsApp test restrictions]`,
+                });
+                await this.prisma.bookingReminder.update({
+                    where: { id: reminderId },
+                    data: { sentAt: new Date() },
+                });
+                return await this.getReminderById(reminderId);
+            }
             this.logger.error(`Failed to send reminder ${reminderId}`, error);
             await this.updateReminder(reminderId, { status: 'failed' });
             throw error;
